@@ -1,0 +1,17 @@
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+*.tmp
+*.swp
+
+# Cloudflare / build artifacts
+deploy/.wrangler/
+.wrangler/
+.env
+.env.local
+
+# nunca versionar credenciais
+Senhas*
+senha*
+*.pem
+*.key
