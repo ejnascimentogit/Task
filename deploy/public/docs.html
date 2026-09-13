@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentação Técnica — TaskFull</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #021F33;
+    --green: #00FF7A;
+    --green-mid: #00E676;
+    --page-bg: #F4F5F3;
+    --white: #FFFFFF;
+    --gray-text: #6B7280;
+    --border-light: #E5E7EB;
+    --text-main: #1a1a1a;
+    --on-navy: #FFFFFF;
+    --code-bg: #F1F3F5;
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #0B1622;
+    --white: #14212F;
+    --gray-text: #94A3B8;
+    --border-light: #24374D;
+    --text-main: #E5E7EB;
+    --code-bg: #1B2A3B;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #0B1622;
+      --white: #14212F;
+      --gray-text: #94A3B8;
+      --border-light: #24374D;
+      --text-main: #E5E7EB;
+      --code-bg: #1B2A3B;
+    }
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { max-width:100vw; overflow-x:clip; }
+  body {
+    font-family:'Inter', sans-serif; background:var(--page-bg); color:var(--text-main);
+    line-height:1.6; transition: background-color .15s, color .15s;
+  }
+  header {
+    background:var(--navy); color:var(--on-navy); padding:28px 24px; display:flex; align-items:center;
+    justify-content:space-between; gap:16px; flex-wrap:wrap;
+  }
+  .brand { font-size:13px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--green); }
+  header h1 { font-size:22px; font-weight:800; margin-top:4px; }
+  .theme-toggle {
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); color:var(--on-navy);
+    font-family:inherit; font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:9px; cursor:pointer;
+  }
+  .theme-toggle:hover { background:rgba(255,255,255,0.15); }
+  main { max-width:880px; margin:0 auto; padding:40px 24px 100px; }
+  .doc-card {
+    background:var(--white); border:1px solid var(--border-light); border-radius:16px; padding:40px 44px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.06);
+  }
+  .doc-intro {
+    border-left:4px solid var(--green); background:rgba(0,255,122,0.07); padding:14px 18px; border-radius:0 10px 10px 0;
+    font-size:14.5px; color:var(--gray-text); margin-bottom:32px;
+  }
+  h2 {
+    font-size:19px; font-weight:800; color:var(--navy); margin:36px 0 14px; padding-bottom:8px;
+    border-bottom:2px solid var(--border-light);
+  }
+  :root[data-theme="dark"] h2 { color:var(--green); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) h2 { color:var(--green); } }
+  h2:first-of-type { margin-top:0; }
+  h3 { font-size:15.5px; font-weight:700; margin:22px 0 10px; }
+  p { font-size:14.5px; margin-bottom:14px; }
+  ul, ol { font-size:14.5px; margin:0 0 14px 22px; }
+  li { margin-bottom:8px; }
+  strong { font-weight:700; }
+  code {
+    font-family:'SFMono-Regular', Consolas, monospace; background:var(--code-bg); color:var(--text-main);
+    padding:2px 6px; border-radius:5px; font-size:13px;
+  }
+  table { width:100%; border-collapse:collapse; margin:16px 0 22px; font-size:13.5px; }
+  th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--border-light); }
+  th { background:var(--code-bg); font-weight:700; color:var(--navy); }
+  :root[data-theme="dark"] th { color:var(--green); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) th { color:var(--green); } }
+  .table-wrap { overflow-x:auto; }
+  hr { border:none; border-top:1px solid var(--border-light); margin:32px 0; }
+  .footnote { font-size:12.5px; color:var(--gray-text); font-style:italic; }
+  a { color:var(--green-mid); }
+</style>
+</head>
+<body>
+<header>
+  <div><div class="brand">TaskFull</div><h1>Documentação Técnica</h1></div>
+  <button class="theme-toggle" onclick="toggleTheme()">🌓 Tema</button>
+</header>
+<main>
+  <div class="doc-card">
+    <div class="doc-intro">
+      Este documento descreve o app real deste repositório (<code>index.html</code> + <code>workspace-schema.sql</code>), publicado no Cloudflare Pages como <strong>"taskfull"</strong>. Não confundir com <code>documentacao-gestao-implantacao.md</code>, que documenta o sistema de referência original (Painel de Implantação da Intelipulse, single-tenant) do qual o Taskfull nasceu. O Taskfull pega a mesma arquitetura (arquivo único, sem build, Supabase direto do navegador, render manual) e adiciona uma camada de <strong>multi-tenant real via workspaces</strong>.
+    </div>
+
+    <h2>1. O que é</h2>
+    <p>Um painel operacional (tarefas, agenda, pendências, "clientes"/entidades com status de saúde, treinamentos) que qualquer pessoa pode usar pra si mesma ou para uma equipe — cada usuário cria um ou mais <strong>workspaces</strong>, escolhe um <strong>perfil</strong> na criação, e convida outras pessoas por código ou e-mail quando o perfil permitir equipe.</p>
+    <ul>
+      <li><strong>Arquivo único</strong>: <code>index.html</code> (2853 linhas), sem framework, sem build step — mesmo padrão do sistema de referência.</li>
+      <li><strong>Backend</strong>: Supabase (projeto próprio, diferente do projeto <code>implantation</code> do Painel de Implantação) — URL e chave publishable/anon ficam hardcoded no topo do <code>&lt;script&gt;</code> (linha ~1021), igual ao padrão já usado nos outros projetos: seguro expor a anon key, nunca a <code>service_role</code>.</li>
+      <li><strong>Deploy</strong>: Cloudflare Pages, projeto chamado <strong><code>taskfull</code></strong> (<code>deploy/wrangler.jsonc</code>, <code>assets.directory: "./public"</code>). <code>deploy/public/index.html</code> é uma cópia idêntica do <code>index.html</code> da raiz — sempre que editar o <code>index.html</code> da raiz, copiar por cima de <code>deploy/public/index.html</code> antes de publicar.</li>
+    </ul>
+
+    <h2>2. Diferença central em relação ao sistema de referência: multi-tenant real</h2>
+    <p>O Painel de Implantação (referência) é <strong>single-tenant</strong>: uma instância, um banco, uma equipe, RLS permissiva (<code>using (true)</code>) coberta só pela tela de login. O Taskfull precisa hospedar <strong>múltiplos usuários/equipes desconhecidas entre si no mesmo banco</strong>, então:</p>
+    <ul>
+      <li>Toda tabela de domínio ganhou uma coluna <code>workspace_id</code>, e a <strong>RLS é real</strong> (<code>workspace-schema.sql</code>, seção 5) — baseada em funções <code>is_member(ws_id)</code>/<code>is_admin(ws_id)</code> que checam <code>workspace_membros</code>, não em <code>using (true)</code>.</li>
+      <li>Não existe mais uma tabela <code>pessoas</code> fixa da equipe — quem pertence a um workspace é uma linha em <code>workspace_membros</code>, criada por convite (e-mail) ou por código de convite.</li>
+      <li>Storage (bucket <code>atividade-imagens</code>) segue o mesmo padrão de sempre, mas as policies de insert/delete agora exigem que o primeiro segmento do path seja um <code>workspace_id</code> do qual o usuário é membro (<code>storage.foldername(name)[1]::uuid</code>) — o app deve sempre gravar em <code>${workspaceId}/${atividadeId}/${arquivo}</code>.</li>
+    </ul>
+
+    <h2>3. Sistema de Workspaces e Perfis</h2>
+    <p>Cada workspace tem um <code>perfil_tipo</code> fixo desde a criação (não muda depois), definido em <code>PERFIL_LABEL</code>/<code>PERFIL_DESC</code>/<code>PERFIL_ABAS</code> (index.html, linhas ~1032-1080):</p>
+    <div class="table-wrap"><table>
+      <tr><th>perfil (banco)</th><th>rótulo na tela</th><th>abas visíveis</th><th>rótulo padrão da entidade</th></tr>
+      <tr><td><code>pessoal</code></td><td><strong>Pessoal</strong></td><td>Atividades, Agenda, Resumo</td><td><em>(nenhuma)</em></td></tr>
+      <tr><td><code>equipe</code></td><td><strong>Equipe</strong></td><td>Entidades, Agenda, Pendências, Atividades, Resumo</td><td>"Clientes"</td></tr>
+      <tr><td><code>projeto</code></td><td><strong>Gestão de Projeto</strong></td><td>Entidades, Agenda, Pendências, Atividades, Resumo, Treinamentos</td><td>"Projetos"</td></tr>
+    </table></div>
+    <p>Descrições mostradas nos cards de escolha do onboarding (<code>PERFIL_DESC</code>):</p>
+    <ul>
+      <li><strong>Pessoal</strong>: "Só suas tarefas e sua agenda pessoal."</li>
+      <li><strong>Equipe</strong>: "Clientes, agenda, pendências, tarefas e resumo do dia pro time."</li>
+      <li><strong>Gestão de Projeto</strong>: "Tudo do modo Equipe, mais treinamentos/onboarding por etapas."</li>
+    </ul>
+    <p><strong>Por que existem 3 e não um perfil único configurável</strong>: o perfil decide, de uma vez, quais abas aparecem na sidebar (<code>abasAtivas()</code>/<code>temAba()</code>) e o nome da entidade central — em vez de cada workspace precisar configurar manualmente "quero aba de treinamentos, não quero aba de entidades", a pessoa escolhe um pacote pronto na hora de criar. <code>souSolo()</code> (<code>activeWorkspace.perfilTipo === 'pessoal'</code>) é o helper mais usado pra esconder tudo que depende de uma entidade central.</p>
+
+    <h3>3.1 Fluxo de criação (onboarding)</h3>
+    <p><code>showOnboarding()</code> → <code>criarWorkspace()</code> (index.html ~1299-1328):</p>
+    <ol>
+      <li>Usuário sem nenhum workspace ativo (<code>loadWorkspaces()</code> não encontra linha em <code>workspace_membros</code>) cai na tela de onboarding.</li>
+      <li>Escolhe um dos 3 cards de perfil (padrão pré-selecionado: <code>equipe</code>) e dá um nome ao workspace.</li>
+      <li><code>criarWorkspace()</code> insere a linha em <code>workspaces</code>.</li>
+      <li>O trigger <code>handle_new_workspace</code> (banco) cria automaticamente a linha do criador em <code>workspace_membros</code> como <code>admin</code>/<code>ativo</code> — sem isso ninguém conseguiria inserir a própria linha ali, já que a policy de insert exige já ser admin do workspace.</li>
+      <li><code>seedWorkspaceDefaults(wsId, perfil)</code> povoa as tabelas de configuração default só das abas que aquele perfil tem — ex. perfil Pessoal não ganha <code>etapas</code> nem <code>treinamentos_padrao</code>, mas ganha <code>tipos_agendamento</code> porque tem a aba Agenda. <code>kanban_colunas</code> é sempre semeada, já que Atividades é comum aos 3 perfis.</li>
+    </ol>
+
+    <h3>3.2 Múltiplos workspaces por usuário</h3>
+    <p>Uma pessoa pode pertencer a vários workspaces (ex. um "Pessoal" próprio + um "Equipe" da empresa) — <code>loadWorkspaces()</code> carrega todos onde ela tem <code>workspace_membros.status = 'ativo'</code>. O último workspace acessado fica salvo em <code>localStorage</code> (<code>ws_active_id</code>) e é restaurado no próximo login.</p>
+
+    <h2>4. Membros, papéis e convites</h2>
+    <p><strong>Papéis</strong>: <code>admin</code> ou <code>membro</code>. Quem cria o workspace vira admin automaticamente; só admin pode renomear o workspace, trocar cores, mudar o modo de código de entidade, gerar novo código de convite, convidar por e-mail, remover membro, promover/rebaixar outro membro. Um admin não pode alterar o próprio papel nem se remover pela lista.</p>
+    <p><strong>Dois caminhos de convite</strong>, ambos guardados na mesma tabela <code>workspace_membros</code>:</p>
+    <ol>
+      <li><strong>Por e-mail</strong>: insere uma linha com <code>status='pendente'</code>. Quando essa pessoa se cadastra ou já tinha conta e loga depois, a linha vira <code>status='ativo'</code>.</li>
+      <li><strong>Por código de convite</strong> (8 caracteres, regenerável por um admin — invalida o anterior). Se a conta ainda não existir, o código fica em <code>localStorage</code> até o signup completar.</li>
+    </ol>
+    <p><strong>Erro amigável de e-mail duplicado</strong>: tentar convidar um e-mail já convidado/membro bate na constraint única <code>(workspace_id, lower(email))</code> — traduzido pra "Esse e-mail já foi convidado ou já é membro deste workspace." em vez do erro cru do Postgres.</p>
+
+    <h2>5. Modelo de dados (o que muda em relação ao sistema de referência)</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Taskfull</th><th>Equivalente na referência</th><th>Observação</th></tr>
+      <tr><td><code>entidades</code></td><td><code>clientes</code></td><td>rótulo exibido vem de <code>workspace.entidade_label</code></td></tr>
+      <tr><td><code>contatos_entidade</code></td><td><code>contatos_cliente</code></td><td>mesma ideia</td></tr>
+      <tr><td><code>pendencias.responsavel</code></td><td>idem</td><td>valores viraram <code>entidade</code>/<code>equipe</code> (genérico)</td></tr>
+      <tr><td><code>agendamentos.entidade_id/nome</code></td><td><code>cliente_id/cliente_nome</code></td><td>mesmo soft-reference</td></tr>
+      <tr><td><code>kanban_colunas</code></td><td>fixo no código</td><td>virou tabela editável por workspace</td></tr>
+      <tr><td><code>agendamentos.atividade_id</code></td><td>não existe</td><td>liga agendamento → atividade criada a partir dele</td></tr>
+    </table></div>
+    <p>Todas ganharam <code>workspace_id</code> (FK cascade) e entram nos <code>select</code> de <code>loadWorkspaceData()</code> sempre filtradas por <code>eq('workspace_id', wid)</code>.</p>
+
+    <h2>6. Regras de negócio específicas do Taskfull</h2>
+    <ul>
+      <li><strong>Código automático de entidade</strong> (<code>workspaces.codigo_automatico</code>): quando ligado, o código vem pré-preenchido e somente leitura (<code>proximoCodigoAutomatico()</code>); quando desligado, digitação livre.</li>
+      <li><strong>Identidade visual por workspace</strong>: <code>cor_destaque</code>/<code>cor_fundo</code> são colunas do workspace, vistas por todos os membros. Tema claro/escuro e intensidade de contorno são preferência pessoal no navegador (<code>localStorage</code>), não amarradas a workspace.</li>
+      <li><strong>Sair vs. excluir workspace</strong>: qualquer membro sai (exceto único admin); excluir o workspace inteiro é exclusivo de admin.</li>
+      <li><strong><code>souEu</code></strong> trava ações destrutivas sobre a própria linha de membro — evita um admin se rebaixar/remover sozinho.</li>
+    </ul>
+
+    <h2>7. Segurança</h2>
+    <ul>
+      <li>A <code>SUPABASE_URL</code>/chave no topo do <code>index.html</code> é a <strong>publishable/anon key</strong> — segura de expor, nunca a <code>service_role</code>.</li>
+      <li>RLS é a defesa real aqui (diferente da referência, que documenta RLS permissiva como dívida técnica aceitável).</li>
+      <li>Convite por código funciona como senha de baixa entropia (8 caracteres) — regenerável a qualquer momento.</li>
+    </ul>
+
+    <hr>
+    <p class="footnote">Gerado a partir da leitura de <code>index.html</code> e <code>workspace-schema.sql</code> deste repositório. Se o código mudar, atualizar este documento junto — ele descreve decisões e comportamento, não só estrutura. Fonte editável: <a href="https://github.com/ejnascimentogit/Task/blob/master/DOCUMENTACAO-TASKFULL.md">DOCUMENTACAO-TASKFULL.md</a>.</p>
+  </div>
+</main>
+<script>
+  function applyStoredTheme() {
+    var t = localStorage.getItem('ws_app_theme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  }
+  function toggleTheme() {
+    var cur = document.documentElement.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ws_app_theme', next);
+  }
+  applyStoredTheme();
+</script>
+</body>
+</html>
