@@ -2603,7 +2603,9 @@ function renderMembrosList() {
     const souEu = m.userId === currentUser.id;
     const nomeHtml = souEu
       ? `<input type="text" value="${escapeHtml(m.nome||'')}" style="flex:1;font-family:inherit;font-size:13.5px;padding:7px 10px;border-radius:8px;border:1px solid var(--border-light);" onchange="withLock(this, () => salvarMeuNome(this.value, '${m.id}'))">`
-      : `<span style="flex:1;">${escapeHtml(m.nome||m.email)}</span>`;
+      : (souAdmin
+        ? `<input type="text" value="${escapeHtml(m.nome||'')}" placeholder="${escapeHtml(m.email)}" style="flex:1;font-family:inherit;font-size:13.5px;padding:7px 10px;border-radius:8px;border:1px solid var(--border-light);" onchange="withLock(this, () => salvarNomeMembro('${m.id}', this.value))">`
+        : `<span style="flex:1;">${escapeHtml(m.nome||m.email)}</span>`);
     const proximoRole = m.role === 'admin' ? 'membro' : 'admin';
     const roleHtml = (souAdmin && !souEu)
       ? `<span class="role-tag ${m.role==='admin'?'':'membro'}" style="cursor:pointer;" title="Clique pra tornar ${proximoRole}" onclick="withLock(this, () => alternarRoleMembro('${m.id}', '${proximoRole}'))">${m.role} ✎</span>`
@@ -2629,6 +2631,15 @@ async function salvarMeuNome(novoNome, membroId) {
   if (m) m.nome = nome;
   if (currentUser.user_metadata) currentUser.user_metadata.nome = nome;
   document.getElementById('auth-user-saudacao').textContent = 'Olá, ' + nome;
+  renderMembrosList();
+}
+async function salvarNomeMembro(membroId, novoNome) {
+  const nome = novoNome.trim();
+  if (!nome) { alert('Nome não pode ficar em branco.'); renderMembrosList(); return; }
+  const { error } = await sb.from('workspace_membros').update({ nome }).eq('id', membroId);
+  if (error) { alert(error.message); return; }
+  const m = membros.find(x => x.id === membroId);
+  if (m) m.nome = nome;
   renderMembrosList();
 }
 async function convidarPorEmail() {
