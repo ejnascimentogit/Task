@@ -238,7 +238,7 @@
   .modal-section h3 { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 10px; }
   .modal-footer { display:flex; justify-content: space-between; margin-top: 24px; gap: 10px; flex-wrap: wrap; }
 
-  .pendencias-cards-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; }
+  .pendencias-cards-grid { display:grid; grid-template-columns: 1fr; gap:14px; }
   .pendencia-card { background:var(--white); border-radius:16px; border:1px solid var(--border-light); padding:18px; }
   .pendencia-card-header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; }
   .pendencia-card-nome { font-size:15px; font-weight:700; color:var(--text-main); }
@@ -252,6 +252,14 @@
   .pend-item input[type=checkbox] { margin-top: 3px; }
   .pend-item .del { margin-left:auto; cursor:pointer; color:var(--gray-text); font-size:12px; }
   .pend-item .del:hover { color: var(--red); }
+  .pend-obs-head, .pend-obs-row { display:grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap:16px; align-items:start; }
+  .pend-obs-head h4 { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin-bottom:6px; }
+  .pend-obs-head h4:first-child { color:#B45309; }
+  .pend-obs-head h4:last-child { color:#1D4ED8; }
+  .pend-obs-row { padding:8px 0; border-top:1px solid var(--border-light); }
+  .pend-obs-row .pend-item { padding:0; }
+  .pend-obs-row textarea { width:100%; min-height:44px; resize:vertical; font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--border-light); }
+  .pend-tag-nossa { font-size:10px; font-weight:700; color:#1D4ED8; background:rgba(29,78,216,0.12); padding:1px 7px; border-radius:100px; margin-left:6px; white-space:nowrap; }
   .add-pend-row { display:flex; gap:6px; margin-top:8px; }
   .add-pend-row input { flex:1; font-family:inherit; font-size:12.5px; padding:7px 10px; border-radius:8px; border:1px solid var(--border-light); }
 
@@ -439,7 +447,7 @@
     .sidebar { width: 100%; min-height: auto; position: relative; padding: 16px; gap: 14px; }
   }
   @media (max-width: 720px) {
-    .form-grid, .pend-cols, .pendencias-cards-grid { grid-template-columns: 1fr; }
+    .form-grid, .pend-cols, .pendencias-cards-grid, .pend-obs-head, .pend-obs-row { grid-template-columns: 1fr; }
     .topbar { padding: 20px; }
   }
   @media (max-width: 600px) {
@@ -1445,7 +1453,7 @@ async function loadWorkspaceData() {
     saude:c.saude||'verde', saudeMotivo:c.saude_motivo||'', observacao:c.observacao||'', inicio:c.inicio,
     ultimoContato:c.ultimo_contato, proximoContato:c.proximo_contato,
     contatos: contatos.filter(ct => ct.entidade_id===c.id).map(ct => ({ id:ct.id, nome:ct.nome, telefone:ct.telefone||'', cargo:ct.cargo||'' })),
-    pendencias: pendencias.filter(p => p.entidade_id===c.id).map(p => ({ id:p.id, texto:p.texto, responsavel:p.responsavel, feito:p.feito })),
+    pendencias: pendencias.filter(p => p.entidade_id===c.id).map(p => ({ id:p.id, texto:p.texto, responsavel:p.responsavel, feito:p.feito, observacao:p.observacao||'' })),
     historico: historico.filter(h => h.entidade_id===c.id).map(h => ({ id:h.id, data:h.data, texto:h.texto })),
   }));
 
@@ -1791,10 +1799,30 @@ function renderPendenciasOverview() {
         <div class="pendencia-card-count">${pendenciasAbertasDe(c).length} aberta(s)</div>
       </div>
       <div class="pend-cols">
-        <div class="pend-col entidade"><h4>Deles</h4>${pendItemsHtml(c.pendencias.filter(p=>p.responsavel==='entidade'))}</div>
-        <div class="pend-col equipe"><h4>Nossas</h4>${pendItemsHtml(c.pendencias.filter(p=>p.responsavel==='equipe'))}</div>
+        ${pendObsHtml(c)}
+        
       </div>
     </div>`).join('') || `<div class="empty-state"><div class="big">✅</div><h3>Sem pendências abertas</h3></div>`;
+}
+function pendObsHtml(c) {
+  if (!c.pendencias.length) return '';
+  return `<div style="grid-column:1 / -1;">
+    <div class="pend-obs-head"><h4>Pendência</h4><h4>Observação</h4></div>
+    ${c.pendencias.map(p => `
+      <div class="pend-obs-row">
+        <div class="pend-item ${p.feito?'done':''}">
+          <input type="checkbox" ${p.feito?'checked':''} onchange="withLock(this, () => togglePendencia('${p.id}', this.checked))">
+          <span>${escapeHtml(p.texto)}${p.responsavel==='equipe' ? '<span class="pend-tag-nossa">nossa</span>' : ''}</span>
+        </div>
+        <textarea placeholder="Observação sobre esta pendência..." onchange="withLock(this, () => salvarObservacaoPendencia('${p.id}', this.value))">${escapeHtml(p.observacao||'')}</textarea>
+      </div>`).join('')}
+  </div>`;
+}
+async function salvarObservacaoPendencia(id, texto) {
+  const observacao = texto.trim();
+  const { error } = await sb.from('pendencias').update({ observacao }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  for (const c of state.entidades) { const p = c.pendencias.find(p => p.id === id); if (p) { p.observacao = observacao; break; } }
 }
 function pendItemsHtml(list) {
   return list.map(p => `

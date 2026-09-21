@@ -76,6 +76,7 @@ create table public.pendencias (
   texto text not null,
   responsavel text not null check (responsavel in ('entidade','equipe')),
   feito boolean not null default false,
+  observacao text default '',
   created_at timestamptz not null default now()
 );
 
