@@ -2078,7 +2078,7 @@ function renderAtividades() {
     return `<div class="kanban-column" data-coluna="${col.id}" ondragover="onKanbanDragOver(event)" ondragleave="onKanbanDragLeave(event)" ondrop="onKanbanDrop(event,'${col.id}')">
       <div class="kanban-column-header"><h3>${col.nome}</h3><span class="kanban-wip">${cards.length}</span></div>
       ${filtroHtml}
-      <div class="kanban-cards-scroll">${cards.map(atividadeCardHtml).join('') || '<div class="kanban-empty">Vazio</div>'}</div>
+      <div class="kanban-cards-scroll">${cards.map(atividadeCardHtml).join('') || '<div class="kanban-empty">Vazio</div>'}<button class="kanban-add" onclick="openAtividadeModal(null, '${col.id}')">+ Nova atividade</button></div>
     </div>`;
   }).join('');
 }
