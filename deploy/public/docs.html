@@ -172,6 +172,7 @@
       <li><strong>Identidade visual por workspace</strong>: <code>cor_destaque</code>/<code>cor_fundo</code> são colunas do workspace, vistas por todos os membros. Tema claro/escuro e intensidade de contorno são preferência pessoal no navegador (<code>localStorage</code>), não amarradas a workspace.</li>
       <li><strong>Sair vs. excluir workspace</strong>: qualquer membro sai (exceto único admin); excluir o workspace inteiro é exclusivo de admin.</li>
       <li><strong><code>souEu</code></strong> trava ações destrutivas sobre a própria linha de membro — evita um admin se rebaixar/remover sozinho.</li>
+      <li><strong>Nome de exibição dos membros (2026-09-21)</strong>: em Configurações → Membros, cada pessoa edita o próprio nome e o <strong>admin</strong> também edita o nome dos outros (<code>salvarNomeMembro</code>, atualiza só <code>workspace_membros.nome</code>). Vale para qualquer perfil, mas só faz diferença em Equipe e Gestão de Projeto. Quem é convidado por e-mail entra com nome vazio e aparece pelo e-mail nos filtros até alguém preencher. Renomear <strong>não</strong> altera <code>atividades.responsavel</code>/<code>agendamentos.responsavel</code> já gravados (guardam o nome como texto).</li>
     </ul>
 
     <h2>7. Segurança</h2>
@@ -179,6 +180,14 @@
       <li>A <code>SUPABASE_URL</code>/chave no topo do <code>index.html</code> é a <strong>publishable/anon key</strong> — segura de expor, nunca a <code>service_role</code>.</li>
       <li>RLS é a defesa real aqui (diferente da referência, que documenta RLS permissiva como dívida técnica aceitável).</li>
       <li>Convite por código funciona como senha de baixa entropia (8 caracteres) — regenerável a qualquer momento.</li>
+    </ul>
+
+    <h2>8. Publicação (deploy)</h2>
+    <ul>
+      <li>O projeto Cloudflare <code>taskfull</code> está conectado ao GitHub desde 2026-09-21 (Workers Builds): repositório <code>ejnascimentogit/Task</code>, branch <code>master</code>, diretório raiz <code>deploy</code>, comando <code>npx wrangler deploy</code>. <strong>Todo push no <code>master</code> publica sozinho.</strong></li>
+      <li>Site: <code>https://taskfull.ejnascimento1.workers.dev</code>. Esta página fica em <code>/docs</code> (o <code>/docs.html</code> redireciona para <code>/docs</code>).</li>
+      <li>Só <code>deploy/public/</code> é publicado: editar o <code>index.html</code> da raiz exige copiar por cima de <code>deploy/public/index.html</code>.</li>
+      <li><strong>E-mail de confirmação</strong>: o Supabase sem SMTP próprio só entrega e-mail para membros da organização do projeto. A correção definitiva é configurar SMTP próprio (Brevo ou Resend); até lá, confirmar a conta em Authentication → Users → "Confirm user". O convite por e-mail do workspace <strong>não envia e-mail nenhum</strong>: só pré-autoriza o endereço.</li>
     </ul>
 
     <hr>

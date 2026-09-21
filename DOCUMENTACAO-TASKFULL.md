@@ -78,12 +78,20 @@ Todas ganharam `workspace_id` (FK cascade) e entram nos `select` de `loadWorkspa
 - **Identidade visual por workspace**: `cor_destaque` e `cor_fundo` são colunas do próprio workspace (não uma preferência de usuário) — qualquer membro que entra num workspace vê a paleta que o admin configurou ali (`aplicarCorDestaque`/`aplicarCorFundo`, aplicadas via CSS custom properties toda vez que `selectWorkspace()` roda). Diferente disso, tema claro/escuro e a intensidade de contorno de linhas **são preferência pessoal no navegador** (`localStorage`, chaves `ws_app_theme`/`ws_app_borda`), não amarradas a nenhum workspace — trocar de workspace não muda o tema, só a cor de destaque/fundo.
 - **Sair vs. excluir workspace**: um membro pode sair de qualquer workspace que não seja o único do qual é admin (policy `"sair do workspace"`, delete direto por `user_id = auth.uid()`); excluir o workspace inteiro (cascade em tudo) é exclusivo de admin (`"delete admin workspace"`).
 - **`souEu` trava ações destrutivas sobre a própria linha**: no card de cada membro em Configurações, a pessoa consegue editar o próprio nome (input inline) mas não o próprio papel nem se remover — evita um admin acidentalmente se rebaixar/remover e ficar sem acesso de admin ao próprio workspace (se for o único admin).
+- **Nome de exibição dos membros (2026-09-21)**: em Configurações → Membros, cada pessoa edita o próprio nome e o **admin** também edita o nome dos outros (`salvarNomeMembro`, atualiza só `workspace_membros.nome`; a policy `update membros admin` já permite). Vale para qualquer perfil (o código não checa `perfil_tipo`), mas só faz diferença em Equipe e Gestão de Projeto, onde há mais de um membro. Quem é convidado por e-mail entra com o nome vazio (o convite grava `nome=''` e o trigger de ativação só preenche `user_id`/`status`), então aparece pelo e-mail nos filtros até alguém preencher. Renomear **não** altera `atividades.responsavel`/`agendamentos.responsavel` já gravados, que guardam o nome como texto.
 
 ## 7. Segurança
 
 - A `SUPABASE_URL`/chave no topo do `index.html` é a **publishable/anon key** do projeto Supabase deste app (projeto próprio, diferente do `implantation`) — segura de expor num arquivo público, nunca a `service_role`.
 - RLS é a defesa real aqui (diferente da referência, que documenta RLS permissiva como dívida técnica aceitável) — é obrigatória porque o mesmo banco hospeda dados de workspaces/usuários que não se conhecem entre si.
 - Convite por código (`invite_code`) funciona como uma senha de baixa entropia (8 caracteres alfanuméricos) — suficiente pra "compartilhar um link com quem eu quero", não pra segredo de alta sensibilidade; quem se preocupar com vazamento do código tem a opção de regenerá-lo a qualquer momento (invalida o anterior).
+
+## 8. Publicação (deploy)
+
+- O projeto Cloudflare `taskfull` está conectado ao GitHub desde 2026-09-21 (Workers Builds): repositório `ejnascimentogit/Task`, branch `master`, diretório raiz `deploy`, comando `npx wrangler deploy`, com token de build próprio. **Todo push no `master` publica sozinho.** Antes disso os deploys eram manuais (`wrangler deploy`).
+- Site: `https://taskfull.ejnascimento1.workers.dev`. Esta documentação em formato de página fica em `/docs` (o `/docs.html` redireciona para `/docs`).
+- Só `deploy/public/` é publicado: editar o `index.html` da raiz exige copiar por cima de `deploy/public/index.html`.
+- **E-mail de confirmação**: o Supabase sem SMTP próprio só entrega e-mail para membros da organização do projeto, então quem se cadastra de fora pode não receber a confirmação. A correção definitiva é configurar SMTP próprio (Brevo ou Resend) em Authentication → SMTP Settings; até lá, confirmar a conta em Authentication → Users → "Confirm user". O convite por e-mail do workspace **não envia e-mail nenhum**: só pré-autoriza o endereço, e o convidado precisa ser avisado por fora.
 
 ---
 
