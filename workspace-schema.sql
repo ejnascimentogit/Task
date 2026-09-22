@@ -206,6 +206,16 @@ create table public.treinamento_etapa_atividades (
   created_at timestamptz not null default now()
 );
 
+create table public.feriados_datas (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  nome text not null,
+  mes int not null check (mes between 1 and 12),
+  dia int not null check (dia between 1 and 31),
+  tipo text not null default 'comercial' check (tipo in ('estadual','municipal','comercial')),
+  created_at timestamptz not null default now()
+);
+
 -- índices
 create index idx_entidades_workspace on public.entidades(workspace_id);
 create index idx_contatos_entidade_entidade on public.contatos_entidade(entidade_id);
@@ -228,6 +238,7 @@ create index idx_treinamentos_etapas_entidade on public.treinamentos_etapas(enti
 create index idx_treinamentos_etapas_workspace on public.treinamentos_etapas(workspace_id);
 create index idx_trein_etapa_ativ_etapa on public.treinamento_etapa_atividades(etapa_id);
 create index idx_trein_etapa_ativ_workspace on public.treinamento_etapa_atividades(workspace_id);
+create index idx_feriados_datas_workspace on public.feriados_datas(workspace_id);
 
 -- ══════════════════════════════════════════════════════════════
 -- 3. FUNÇÕES AUXILIARES DE AUTORIZAÇÃO (usadas nas policies de RLS)
@@ -382,6 +393,7 @@ alter table public.atividade_imagens enable row level security;
 alter table public.treinamentos_etapas enable row level security;
 alter table public.treinamentos_padrao enable row level security;
 alter table public.treinamento_etapa_atividades enable row level security;
+alter table public.feriados_datas enable row level security;
 
 -- "owner_id = auth.uid()" cobre o instante do INSERT: o RETURNING de um insert reavalia a
 -- policy de SELECT, e a linha de workspace_membros que o trigger cria só fica visível a essa
@@ -410,6 +422,7 @@ create policy "workspace access atividade_imagens" on public.atividade_imagens f
 create policy "workspace access treinamentos_etapas" on public.treinamentos_etapas for all using (is_member(workspace_id)) with check (is_member(workspace_id));
 create policy "workspace access treinamentos_padrao" on public.treinamentos_padrao for all using (is_member(workspace_id)) with check (is_member(workspace_id));
 create policy "workspace access treinamento_etapa_atividades" on public.treinamento_etapa_atividades for all using (is_member(workspace_id)) with check (is_member(workspace_id));
+create policy "workspace access feriados_datas" on public.feriados_datas for all using (is_member(workspace_id)) with check (is_member(workspace_id));
 
 -- ══════════════════════════════════════════════════════════════
 -- 6. STORAGE — bucket público (mesmo padrão do sistema de referência), mas upload/exclusão

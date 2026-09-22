@@ -366,6 +366,15 @@
   .cal-evento-hora { font-weight:700; color:var(--navy); }
   :root[data-theme="dark"] .cal-evento-hora { color: var(--on-navy); }
   .cal-evento-entidade { font-weight:700; color: var(--green-mid); }
+  .cal-evento-chip.cal-evento-feriado { cursor:default; font-weight:700; }
+  .cal-evento-chip.feriado-nacional { background:rgba(0,200,83,0.14); color:#00C853; }
+  :root[data-theme="dark"] .cal-evento-chip.feriado-nacional { background:rgba(0,200,83,0.22); }
+  .cal-evento-chip.feriado-estadual { background:rgba(59,130,246,0.14); color:#3B82F6; }
+  :root[data-theme="dark"] .cal-evento-chip.feriado-estadual { background:rgba(59,130,246,0.22); }
+  .cal-evento-chip.feriado-municipal { background:rgba(139,92,246,0.14); color:#8B5CF6; }
+  :root[data-theme="dark"] .cal-evento-chip.feriado-municipal { background:rgba(139,92,246,0.22); }
+  .cal-evento-chip.feriado-comercial { background:rgba(245,158,11,0.16); color:#B45309; }
+  :root[data-theme="dark"] .cal-evento-chip.feriado-comercial { background:rgba(245,158,11,0.26); color:#F59E0B; }
 
   .atividades-toolbar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
   .pessoa-filter { display:flex; gap:6px; background:var(--white); border:1px solid var(--border-light); padding:4px; border-radius:10px; flex-wrap:wrap; }
@@ -783,6 +792,28 @@
               <button class="btn btn-green btn-sm" onclick="addTipoAgendamento()">+ Adicionar</button>
             </div>
             <div id="tipos-agenda-list" class="etapas-list"></div>
+          </div>
+        </div>
+
+        <div class="resumo-box config-section" id="section-feriados-datas">
+          <div class="config-section-header" onclick="toggleConfigSection('feriados-datas')"><h2>🎉 Feriados &amp; Datas</h2><span class="config-chevron" id="chevron-feriados-datas">▸</span></div>
+          <div class="config-section-body" id="body-feriados-datas" style="display:none">
+            <p class="config-hint">Feriados nacionais já aparecem sozinhos no Calendário da Agenda (via API pública). Cadastre aqui feriados estaduais/municipais e datas comerciais (ex: Black Friday) — repetem todo ano, sem precisar do ano.</p>
+            <div class="etapas-add-row">
+              <input type="text" id="new-feriado-nome" placeholder="Nome, ex: Dia da Árvore" style="flex:2;">
+              <input type="number" id="new-feriado-dia" placeholder="Dia" min="1" max="31" style="flex:0 0 60px;">
+              <select id="new-feriado-mes" style="flex:0 0 130px;">
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <select id="new-feriado-tipo" style="flex:0 0 120px;">
+                <option value="estadual">Estadual</option><option value="municipal">Municipal</option><option value="comercial">Comercial</option>
+              </select>
+              <button class="btn btn-green btn-sm" onclick="addFeriadoData()">+ Adicionar</button>
+            </div>
+            <div id="feriados-datas-list" class="etapas-list"></div>
           </div>
         </div>
 
@@ -1408,6 +1439,7 @@ function buildSidebarNav() {
 // ══════════════════════════════════════════════════════════════
 let STAGES = [];
 let TIPOS_AGENDAMENTO = [];
+let feriadosDatas = [];
 let KANBAN_COLUNAS = [];
 function colunasAtivas() { return [...KANBAN_COLUNAS.filter(c=>c.ativo)].sort((a,b)=>a.ordem-b.ordem).concat([COLUNA_CONCLUIDA]); }
 let TREINAMENTOS_PADRAO = [];
@@ -1424,7 +1456,7 @@ async function loadWorkspaceData() {
   const [
     { data: etapasRows }, { data: tiposRows }, { data: padroesRows }, { data: kanbanRows },
     { data: entidadesRows }, { data: contatosRows }, { data: pendRows }, { data: histRows },
-    { data: agsRows }, { data: ativsRows }, { data: imgsRows }, { data: treinRows }, { data: membrosRows },
+    { data: agsRows }, { data: ativsRows }, { data: imgsRows }, { data: treinRows }, { data: membrosRows }, { data: feriadosRows },
   ] = await Promise.all([
     sb.from('etapas').select('*').eq('workspace_id', wid).order('ordem'),
     sb.from('tipos_agendamento').select('*').eq('workspace_id', wid).order('ordem'),
@@ -1439,6 +1471,7 @@ async function loadWorkspaceData() {
     sb.from('atividade_imagens').select('*').eq('workspace_id', wid).order('created_at'),
     sb.from('treinamentos_etapas').select('*').eq('workspace_id', wid).order('created_at'),
     sb.from('workspace_membros').select('*').eq('workspace_id', wid).order('created_at'),
+    sb.from('feriados_datas').select('*').eq('workspace_id', wid),
   ]);
 
   STAGES = (etapasRows||[]).map(e => ({ id:e.id, nome:e.nome, cor:e.cor, ordem:e.ordem }));
@@ -1446,6 +1479,7 @@ async function loadWorkspaceData() {
   TREINAMENTOS_PADRAO = (padroesRows||[]).map(p => ({ id:p.id, nome:p.nome, ordem:p.ordem }));
   KANBAN_COLUNAS = (kanbanRows||[]).map(c => ({ id:c.id, nome:c.nome, ordem:c.ordem, ativo:c.ativo }));
   membros = (membrosRows||[]).map(m => ({ id:m.id, userId:m.user_id, nome:m.nome||m.email, email:m.email, role:m.role, status:m.status, apenasVisualizacao:m.apenas_visualizacao }));
+  feriadosDatas = (feriadosRows||[]).map(f => ({ id:f.id, nome:f.nome, mes:f.mes, dia:f.dia, tipo:f.tipo }));
 
   const contatos = contatosRows||[], pendencias = pendRows||[], historico = histRows||[];
   state.entidades = (entidadesRows||[]).map(c => ({
@@ -1855,6 +1889,30 @@ function setAgendaView(v) {
   document.getElementById('agenda-mensal-wrap').style.display = v==='mensal' ? '' : 'none';
   renderAgenda();
 }
+let FERIADOS_NACIONAIS_CACHE = {};
+async function garantirFeriadosNacionais(anos) {
+  const faltantes = anos.filter(a => !FERIADOS_NACIONAIS_CACHE[a]);
+  if (!faltantes.length) return;
+  await Promise.all(faltantes.map(async ano => {
+    FERIADOS_NACIONAIS_CACHE[ano] = 'carregando';
+    try {
+      const r = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
+      FERIADOS_NACIONAIS_CACHE[ano] = r.ok ? await r.json() : [];
+    } catch (e) { FERIADOS_NACIONAIS_CACHE[ano] = []; }
+  }));
+  if (activeTab === 'agenda' && agendaView === 'mensal') renderAgenda();
+}
+function feriadosDoMes(ano, mes) {
+  const out = [];
+  const nacionais = FERIADOS_NACIONAIS_CACHE[ano];
+  if (Array.isArray(nacionais)) {
+    nacionais.forEach(f => { if (Number(f.date.slice(5,7)) === mes) out.push({ data:f.date, nome:f.name, tipo:'nacional' }); });
+  }
+  feriadosDatas.filter(f => f.mes === mes).forEach(f => {
+    out.push({ data: `${ano}-${String(mes).padStart(2,'0')}-${String(f.dia).padStart(2,'0')}`, nome:f.nome, tipo:f.tipo });
+  });
+  return out;
+}
 function renderAgenda() {
   renderPessoaFiltro('pessoa-filter-agenda', 'setPessoaFiltroAgenda');
   const search = (document.getElementById('search-agenda').value||'').toLowerCase();
@@ -1876,7 +1934,19 @@ function renderAgenda() {
         <div class="agenda-cards-grid">${groups[dia].map(agendamentoCardHtml).join('')}</div>
       </div>`).join('') || `<div class="empty-state"><div class="big">🗓</div><h3>Nada agendado</h3></div>`;
   } else if (agendaView === 'mensal') {
-    renderAgendaMensal(groups, dias, today);
+    const mesesExistentes = dias.map(d => d.slice(0,7));
+    const hojeMes = today.slice(0,7);
+    const todosMeses = Array.from(new Set([...mesesExistentes, hojeMes])).sort();
+    garantirFeriadosNacionais(Array.from(new Set(todosMeses.map(m => Number(m.slice(0,4))))));
+    const gruposMensal = {};
+    Object.keys(groups).forEach(k => gruposMensal[k] = [...groups[k]]);
+    todosMeses.forEach(mesKey => {
+      const [anoM, mesM] = mesKey.split('-').map(Number);
+      feriadosDoMes(anoM, mesM).forEach(f => {
+        (gruposMensal[f.data] = gruposMensal[f.data] || []).push({ id:null, feriado:true, titulo:f.nome, tipo:f.tipo });
+      });
+    });
+    renderAgendaMensal(gruposMensal, Object.keys(gruposMensal).sort(), today);
   } else {
     document.getElementById('agenda-list').innerHTML = dias.map(dia => `
       <div>
@@ -1910,7 +1980,8 @@ function renderAgendaMensal(groups, dias, today) {
         const dow = new Date(dia+'T00:00:00').toLocaleDateString('pt-BR', { weekday:'short' }).replace('.','');
         return `<div class="cal-dia-cell ${dia===today?'hoje':''}">
           <div class="cal-dia-cell-header"><span class="cal-dia-cell-num">${parseInt(dia.slice(8,10))}</span><span class="cal-dia-cell-dow">${dow}</span></div>
-          <div class="cal-dia-cell-eventos">${groups[dia].map(a => `
+          <div class="cal-dia-cell-eventos">${groups[dia].map(a => a.feriado ? `
+            <div class="cal-evento-chip cal-evento-feriado feriado-${a.tipo}" title="${escapeHtml(a.titulo)} (${a.tipo})">🎉 ${escapeHtml(a.titulo)}</div>` : `
             <div class="cal-evento-chip ${a.feito?'feito':''}" onclick="openAgendamentoModal('${a.id}')">
               <input type="checkbox" ${a.feito?'checked':''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))">
               ${a.hora?`<span class="cal-evento-hora">${a.hora}</span> `:''}${escapeHtml(a.titulo)}${a.entidadeNome?` — <span class="cal-evento-entidade">${escapeHtml(a.entidadeNome)}</span>`:''}
@@ -2560,11 +2631,13 @@ function renderConfiguracoes() {
   document.getElementById('section-etapas').style.display = temAba('entidades') ? '' : 'none';
   document.getElementById('etapas-titulo').textContent = 'Etapas de ' + entidadeLabel();
   document.getElementById('section-tipos-agenda').style.display = temAba('agenda') ? '' : 'none';
+  document.getElementById('section-feriados-datas').style.display = temAba('agenda') ? '' : 'none';
   document.getElementById('section-treinamentos-padrao').style.display = temAba('treinamentos') ? '' : 'none';
   renderMembrosList();
   renderKanbanColunasList();
   renderEtapasList();
   renderTiposAgendaList();
+  renderFeriadosDatasList();
   renderTreinamentosPadraoList();
 }
 async function salvarWorkspaceInfo() {
@@ -2817,6 +2890,44 @@ async function deleteTipoAgendamento(id) {
   if (error) { alert(error.message); return; }
   TIPOS_AGENDAMENTO = TIPOS_AGENDAMENTO.filter(t=>t.id!==id);
   renderTiposAgendaList(); populateTipoAgendamentoOptions();
+}
+
+const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function renderFeriadosDatasList() {
+  const lista = [...feriadosDatas].sort((a,b) => a.mes-b.mes || a.dia-b.dia);
+  document.getElementById('feriados-datas-list').innerHTML = lista.map(f => `
+    <div class="etapa-row">
+      <input type="text" value="${escapeHtml(f.nome)}" style="flex:2;" onchange="withLock(this, () => updateFeriadoData('${f.id}', {nome:this.value}))">
+      <span style="flex:0 0 60px;font-size:12.5px;color:var(--gray-text);text-align:center;">${String(f.dia).padStart(2,'0')}/${MESES_NOME[f.mes-1]}</span>
+      <span class="role-tag">${f.tipo}</span>
+      <button class="icon-btn danger" onclick="withLock(this, () => deleteFeriadoData('${f.id}'))">🗑</button>
+    </div>`).join('') || `<div style="font-size:12.5px;color:var(--gray-text);">Nenhum cadastrado ainda.</div>`;
+}
+async function addFeriadoData() {
+  const nomeInput = document.getElementById('new-feriado-nome');
+  const nome = nomeInput.value.trim();
+  const dia = Number(document.getElementById('new-feriado-dia').value);
+  const mes = Number(document.getElementById('new-feriado-mes').value);
+  const tipo = document.getElementById('new-feriado-tipo').value;
+  if (!nome) { alert('Digite um nome.'); return; }
+  if (!dia || dia < 1 || dia > 31) { alert('Dia inválido.'); return; }
+  const { data, error } = await sb.from('feriados_datas').insert({ workspace_id: activeWorkspace.id, nome, mes, dia, tipo }).select().single();
+  if (error) { alert(error.message); return; }
+  feriadosDatas.push({ id:data.id, nome, mes, dia, tipo });
+  nomeInput.value = ''; document.getElementById('new-feriado-dia').value = '';
+  renderFeriadosDatasList();
+}
+async function updateFeriadoData(id, changes) {
+  const { error } = await sb.from('feriados_datas').update(changes).eq('workspace_id', activeWorkspace.id).eq('id', id);
+  if (error) { alert(error.message); return; }
+  Object.assign(feriadosDatas.find(f=>f.id===id), changes);
+}
+async function deleteFeriadoData(id) {
+  if (!confirm('Excluir esta data?')) return;
+  const { error } = await sb.from('feriados_datas').delete().eq('workspace_id', activeWorkspace.id).eq('id', id);
+  if (error) { alert(error.message); return; }
+  feriadosDatas = feriadosDatas.filter(f=>f.id!==id);
+  renderFeriadosDatasList();
 }
 
 function renderTreinamentosPadraoList() {
