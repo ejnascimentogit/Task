@@ -806,6 +806,9 @@
           <div class="config-section-body" id="body-feriados-datas" style="display:none">
             <p class="config-hint">Feriados nacionais já aparecem sozinhos no Calendário da Agenda (via API pública). Cadastre aqui feriados estaduais/municipais e datas comerciais (ex: Black Friday) — repetem todo ano, sem precisar do ano.</p>
             <div class="etapas-add-row">
+              <button class="btn btn-sm" onclick="sincronizarFeriadosComerciais()">🔄 Sincronizar datas comerciais conhecidas</button>
+            </div>
+            <div class="etapas-add-row">
               <input type="text" id="new-feriado-nome" placeholder="Nome, ex: Dia da Árvore" style="flex:2;">
               <input type="number" id="new-feriado-dia" placeholder="Dia" min="1" max="31" style="flex:0 0 60px;">
               <select id="new-feriado-mes" style="flex:0 0 130px;">
@@ -2906,6 +2909,32 @@ async function deleteTipoAgendamento(id) {
   renderTiposAgendaList(); populateTipoAgendamentoOptions();
 }
 
+const DEFAULT_FERIADOS_COMERCIAIS = [
+  ['Dia do Leitor', 1, 7], ['Dia da Gula', 1, 26], ['Volta as Aulas', 2, 4], ['Carnaval', 2, 16],
+  ["Valentine's Day", 2, 14], ['Dia do Esportista', 2, 19], ['Dia Internacional da Mulher', 3, 8],
+  ['Dia do Consumidor', 3, 15], ['Dia Mundial do Cafe', 4, 14], ['Dia Mundial do Livro', 4, 23],
+  ['Dia do Frete Gratis', 4, 28], ['Dia das Maes', 5, 10], ['Dia do Orgulho Nerd', 5, 25],
+  ['Dia dos Namorados', 6, 12], ['Sao Joao', 6, 24], ['Dia do Orgulho LGBTQIAP+', 6, 28],
+  ['Dia Mundial do Chocolate', 7, 7], ['Dia Mundial do Rock', 7, 13], ['Dia dos Amigos', 7, 20],
+  ['Dia dos Avos', 7, 26], ['Dia dos Pais', 8, 9], ['Dia dos Solteiros', 8, 15],
+  ['Dia do Cliente', 9, 15], ['Dia da Arvore', 9, 21], ['Dia Mundial dos Animais', 10, 4],
+  ['Dia das Criancas', 10, 12], ['Halloween', 10, 31], ['Dia do Veganismo', 11, 1],
+  ['Black Friday', 11, 27], ['Cyber Monday', 11, 30], ['Reveillon', 12, 31],
+].map(([nome, mes, dia]) => ({ nome, mes, dia, tipo: 'comercial' }));
+async function sincronizarFeriadosComerciais() {
+  const faltando = DEFAULT_FERIADOS_COMERCIAIS.filter(d =>
+    !feriadosDatas.some(f => f.mes === d.mes && f.dia === d.dia && f.nome.toLowerCase() === d.nome.toLowerCase())
+  );
+  if (!faltando.length) { alert('Todas as datas comerciais conhecidas ja estao cadastradas.'); return; }
+  if (!confirm(`Adicionar ${faltando.length} data(s) que ainda nao estao na sua lista?`)) return;
+  const { data, error } = await sb.from('feriados_datas').insert(
+    faltando.map(d => ({ workspace_id: activeWorkspace.id, nome: d.nome, mes: d.mes, dia: d.dia, tipo: d.tipo }))
+  ).select();
+  if (error) { alert(error.message); return; }
+  feriadosDatas.push(...data.map(f => ({ id:f.id, nome:f.nome, mes:f.mes, dia:f.dia, tipo:f.tipo })));
+  renderFeriadosDatasList();
+  alert(`${faltando.length} data(s) adicionada(s).`);
+}
 const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function renderFeriadosDatasList() {
   const lista = [...feriadosDatas].sort((a,b) => a.mes-b.mes || a.dia-b.dia);
