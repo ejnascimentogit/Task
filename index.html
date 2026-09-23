@@ -661,11 +661,12 @@
           <label class="chk" style="margin-top:10px;"><input type="checkbox" id="show-concluidos-agenda" onchange="renderAgenda()"> Mostrar concluídos</label>
           <div id="agenda-list" class="calendario-list"></div>
           <div id="agenda-cards-wrap" style="display:none"></div>
-          <div id="agenda-mensal-nav" style="display:none;align-items:center;gap:10px;margin-top:14px;">
+          <div id="agenda-mensal-nav" style="display:none;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;">
             <button class="btn btn-sm" onclick="navegarMesAgenda(-1)">◀</button>
             <strong id="agenda-mensal-label" style="min-width:160px;text-align:center;text-transform:capitalize;"></strong>
             <button class="btn btn-sm" onclick="navegarMesAgenda(1)">▶</button>
             <button class="btn btn-sm" onclick="irParaMesAtualAgenda()">Hoje</button>
+            <input type="month" id="agenda-mensal-picker" onchange="irParaMesEspecifico(this.value)" style="font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border-light);">
           </div>
           <div id="agenda-mensal-wrap" style="display:none"></div>
         </div>
@@ -1910,6 +1911,11 @@ function irParaMesAtualAgenda() {
   calMesAtual = todayStr().slice(0,7);
   renderAgenda();
 }
+function irParaMesEspecifico(valor) {
+  if (!valor) return;
+  calMesAtual = valor;
+  renderAgenda();
+}
 let FERIADOS_NACIONAIS_CACHE = {};
 async function garantirFeriadosNacionais(anos) {
   const faltantes = anos.filter(a => !FERIADOS_NACIONAIS_CACHE[a]);
@@ -1957,6 +1963,7 @@ function renderAgenda() {
   } else if (agendaView === 'mensal') {
     const [anoAtual, mesAtual] = calMesAtual.split('-').map(Number);
     document.getElementById('agenda-mensal-label').textContent = new Date(anoAtual, mesAtual-1, 1).toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+    document.getElementById('agenda-mensal-picker').value = calMesAtual;
     garantirFeriadosNacionais([anoAtual]);
     const gruposMensal = {};
     Object.keys(groups).filter(k => k.slice(0,7) === calMesAtual).forEach(k => gruposMensal[k] = [...groups[k]]);
@@ -1989,10 +1996,7 @@ function renderAgendaMensal(groups, dias, today) {
   dias.forEach(dia => { const mesKey = dia.slice(0,7); (porMes[mesKey] = porMes[mesKey]||[]).push(dia); });
   const meses = Object.keys(porMes).sort();
   document.getElementById('agenda-mensal-wrap').innerHTML = meses.map(mesKey => {
-    const [ano, mes] = mesKey.split('-').map(Number);
-    const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
     return `<div class="mensal-mes-group">
-      <div class="mensal-mes-titulo">${nomeMes}</div>
       <div class="cal-grid-dias">${porMes[mesKey].map(dia => {
         const dow = new Date(dia+'T00:00:00').toLocaleDateString('pt-BR', { weekday:'short' }).replace('.','');
         return `<div class="cal-dia-cell ${dia===today?'hoje':''}">
