@@ -1243,7 +1243,10 @@ function abasAtivas() { return activeWorkspace ? PERFIL_ABAS[activeWorkspace.per
 function temAba(aba) { return abasAtivas().includes(aba); }
 function entidadeLabel() { return (activeWorkspace && activeWorkspace.entidadeLabel) || 'Entidades'; }
 function souSolo() { return activeWorkspace && activeWorkspace.perfilTipo === 'pessoal'; }
-function meuNome() { return (currentUser.user_metadata && currentUser.user_metadata.nome) || currentUser.email; }
+function meuNome() {
+  const eu = membros.find(m => m.userId === currentUser.id);
+  return (eu && eu.nome) || (currentUser.user_metadata && currentUser.user_metadata.nome) || currentUser.email;
+}
 
 // ══════════════════════════════════════════════════════════════
 // AUTENTICAÇÃO
@@ -2220,8 +2223,10 @@ function openAtividadeModal(id, colunaForcada) {
   document.getElementById('at-participantes-field').style.display = solo ? 'none' : '';
   const pessoas = membrosAtivos();
   const criadoSel = document.getElementById('at-criado-por');
-  criadoSel.innerHTML = pessoas.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-  criadoSel.value = a ? a.criadoPor : meuNome();
+  const criadoValor = a ? (a.criadoPor || a.responsavel || meuNome()) : meuNome();
+  criadoSel.innerHTML = `<option value="${escapeHtml(criadoValor)}">${escapeHtml(criadoValor)}</option>`;
+  criadoSel.value = criadoValor;
+  criadoSel.disabled = true;
   const respSel = document.getElementById('at-responsavel');
   respSel.innerHTML = pessoas.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
   respSel.value = a ? a.responsavel : (solo ? meuNome() : (respSel.options[0]?respSel.options[0].value:''));
