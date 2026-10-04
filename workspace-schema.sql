@@ -444,3 +444,122 @@ create policy "ws insert atividade-imagens" on storage.objects for insert with c
 create policy "ws delete atividade-imagens" on storage.objects for delete using (
   bucket_id = 'atividade-imagens' and public.is_member((storage.foldername(name))[1]::uuid)
 );
+
+-- ══════════════════════════════════════════════════════════════
+-- FASES 2 E 3 (novidades do Painel de Implantação): colunas aditivas, busca full-text e estrutura (desligada) da busca com IA
+-- Tudo idempotente e só inclui: nada existente é removido ou alterado.
+-- ══════════════════════════════════════════════════════════════
+
+-- Pendências: posição manual (arrastar pra reordenar) e flag da Lâmina
+alter table public.pendencias add column if not exists ordem integer;
+alter table public.pendencias add column if not exists mostrar_lamina boolean not null default true;
+
+-- Contato do dia por canal (ligacao | mensagem | email | reuniao)
+alter table public.entidades add column if not exists ultimo_contato_canal text;
+
+-- ── Busca full-text dentro de UM workspace ────────────────────────────────────────────────────
+-- Sem security definer de propósito: roda com o papel de quem chamou, então a RLS (is_member) filtra sozinha.
+-- Busca nas notas da entidade, nas atividades (título, descrição e resolução; abertas e concluídas, não canceladas)
+-- e nas pendências (texto e observação). Funciona também no perfil Pessoal (que não tem entidades): as atividades
+-- entram pelo próprio texto, sem depender de entidade.
+drop function if exists public.buscar_workspace(uuid, text);
+create function public.buscar_workspace(p_workspace_id uuid, p_termo text)
+returns table(
+  id uuid, nome text, origem text, titulo text, responsavel text,
+  data date, coluna text, trecho text, rank real
+)
+language sql
+stable
+set search_path = public
+as $$
+  with termo as (
+    select websearch_to_tsquery('portuguese', p_termo) as q
+  ),
+  ficha as (
+    select
+      e.id as r_id, e.nome as r_nome, 'ficha'::text as r_origem, null::text as r_titulo, null::text as r_resp,
+      null::date as r_data, null::text as r_coluna,
+      ts_headline('portuguese', coalesce(e.observacao, ''), termo.q,
+        'StartSel=<mark>,StopSel=</mark>,MaxWords=35,MinWords=15,MaxFragments=3,FragmentDelimiter= […] ') as r_trecho,
+      ts_rank(to_tsvector('portuguese', coalesce(e.observacao, '')), termo.q) as r_rank,
+      1 as r_pos
+    from public.entidades e, termo
+    where e.workspace_id = p_workspace_id
+      and to_tsvector('portuguese', coalesce(e.observacao, '')) @@ termo.q
+  ),
+  ativ as (
+    select
+      (select e.id from public.entidades e
+        where e.workspace_id = a.workspace_id and lower(e.nome) = lower(a.entidade_nome) limit 1) as r_id,
+      coalesce(a.entidade_nome, '') as r_nome, 'atividade'::text as r_origem, a.titulo as r_titulo, a.responsavel as r_resp,
+      a.concluido_em as r_data, a.coluna as r_coluna,
+      ts_headline('portuguese', btrim(coalesce(a.descricao, '') || E'\n' || coalesce(a.resolucao, '')), termo.q,
+        'StartSel=<mark>,StopSel=</mark>,MaxWords=40,MinWords=10,MaxFragments=2,FragmentDelimiter= […] ') as r_trecho,
+      ts_rank(to_tsvector('portuguese', coalesce(a.titulo, '') || ' ' || coalesce(a.descricao, '') || ' ' || coalesce(a.resolucao, '')), termo.q) as r_rank,
+      row_number() over (
+        partition by lower(coalesce(a.entidade_nome, ''))
+        order by ts_rank(to_tsvector('portuguese', coalesce(a.titulo, '') || ' ' || coalesce(a.descricao, '') || ' ' || coalesce(a.resolucao, '')), termo.q) desc
+      ) as r_pos
+    from public.atividades a, termo
+    where a.workspace_id = p_workspace_id
+      and not a.cancelado
+      and to_tsvector('portuguese', coalesce(a.titulo, '') || ' ' || coalesce(a.descricao, '') || ' ' || coalesce(a.resolucao, '')) @@ termo.q
+  ),
+  pend as (
+    select
+      p.entidade_id as r_id, e.nome as r_nome, 'pendencia'::text as r_origem, p.texto as r_titulo, p.responsavel as r_resp,
+      null::date as r_data, case when p.feito then 'feita' else 'aberta' end as r_coluna,
+      ts_headline('portuguese', coalesce(p.observacao, ''), termo.q,
+        'StartSel=<mark>,StopSel=</mark>,MaxWords=35,MinWords=10,MaxFragments=1,FragmentDelimiter= […] ') as r_trecho,
+      ts_rank(to_tsvector('portuguese', coalesce(p.texto, '') || ' ' || coalesce(p.observacao, '')), termo.q) as r_rank,
+      row_number() over (
+        partition by p.entidade_id
+        order by ts_rank(to_tsvector('portuguese', coalesce(p.texto, '') || ' ' || coalesce(p.observacao, '')), termo.q) desc
+      ) as r_pos
+    from public.pendencias p
+    join public.entidades e on e.id = p.entidade_id, termo
+    where p.workspace_id = p_workspace_id
+      and to_tsvector('portuguese', coalesce(p.texto, '') || ' ' || coalesce(p.observacao, '')) @@ termo.q
+  )
+  select u.r_id, u.r_nome, u.r_origem, u.r_titulo, u.r_resp, u.r_data, u.r_coluna, u.r_trecho, u.r_rank
+  from (
+    select * from ficha
+    union all select * from ativ
+    union all select * from pend
+  ) u
+  where u.r_pos <= 3
+  order by u.r_rank desc;
+$$;
+grant execute on function public.buscar_workspace(uuid, text) to authenticated;
+
+-- ── ESTRUTURA DA BUSCA COM IA (DESLIGADA: nada disso gasta nada até alguém ligar e publicar a Edge Function) ──
+-- A chave da Anthropic é do dono do app e vale pra TODOS os workspaces, então a liga NÃO fica numa coluna que um
+-- admin de workspace consiga editar: fica numa tabela só de leitura pros membros, sem policy de escrita
+-- (só o dono do app liga/desliga, pelo SQL Editor, com a service role).
+create table if not exists public.busca_ia_config (
+  workspace_id uuid primary key references public.workspaces(id) on delete cascade,
+  ativo boolean not null default false,
+  limite_mensal_usd numeric(10,2) not null default 1.00,
+  updated_at timestamptz not null default now()
+);
+alter table public.busca_ia_config enable row level security;
+drop policy if exists "membros leem busca_ia_config" on public.busca_ia_config;
+create policy "membros leem busca_ia_config" on public.busca_ia_config for select using (is_member(workspace_id));
+
+-- Uma linha por pergunta respondida pela IA (gravada só pela Edge Function, com a service role: membro só lê,
+-- assim ninguém zera o contador do limite mensal).
+create table if not exists public.busca_ia_uso (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  pessoa text,
+  termo text not null,
+  tokens_input int not null default 0,
+  tokens_output int not null default 0,
+  custo_estimado numeric(10,6) not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_busca_ia_uso_workspace on public.busca_ia_uso(workspace_id, created_at);
+alter table public.busca_ia_uso enable row level security;
+drop policy if exists "membros leem busca_ia_uso" on public.busca_ia_uso;
+create policy "membros leem busca_ia_uso" on public.busca_ia_uso for select using (is_member(workspace_id));

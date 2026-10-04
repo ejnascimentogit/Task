@@ -509,6 +509,42 @@
   .pizza-donut::after { content:''; position:absolute; inset:28px; border-radius:50%; background:var(--light-bg); }
   .pizza-legenda { display:flex; flex-direction:column; gap:5px; font-size:12.5px; }
   .pizza-pct { color:var(--gray-text); }
+
+  /* ── Fase 3 (novidades do Painel de Implantação): aba Buscar e bloco (desligado) da resposta por IA ── */
+  .busca-input { width:100%; max-width:640px; font-family:inherit; font-size:14px; padding:11px 14px; border-radius:10px; border:1px solid var(--border-light); margin-top:12px; }
+  .busca-resultado-card { background:var(--white); border:1px solid var(--border-light); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .busca-resultado-nome { font-size:15px; font-weight:800; margin-bottom:8px; }
+  .busca-resultado-nome.clicavel { cursor:pointer; }
+  .busca-resultado-nome.clicavel:hover { text-decoration:underline; }
+  .busca-secao-label { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--gray-text); margin:10px 0 6px; }
+  .busca-item { border-left:3px solid var(--border-light); padding:4px 0 4px 10px; margin-bottom:8px; }
+  .busca-item-titulo { font-size:13.5px; font-weight:700; }
+  .busca-item-meta { font-size:11.5px; color:var(--gray-text); margin:2px 0; }
+  .busca-item-resumo { font-size:13px; white-space:pre-wrap; }
+  .busca-item-resumo mark, .busca-resultado-card mark { background:#FDE68A; color:#111; padding:0 2px; border-radius:3px; }
+  .busca-ia-resposta { background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.35); border-radius:12px; padding:12px 14px; margin-bottom:14px; font-size:13.5px; }
+  .busca-ia-label { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#047857; margin-bottom:4px; }
+  .busca-ia-texto { white-space:pre-wrap; }
+  .busca-ia-erro { background:rgba(245,158,11,0.10); border-color:rgba(245,158,11,0.35); color:var(--text-main); }
+
+  /* ── Fase 3: Lâmina (visão pra apresentar em reunião; cores fixas pra imagem/PDF saírem iguais em qualquer tema) ── */
+  .lamina-doc { background:#fff; color:#0f172a; border-radius:14px; overflow:hidden; border:1px solid var(--border-light); }
+  .lamina-doc-header { background:linear-gradient(135deg,#021F33,#063A5E); color:#fff; padding:20px 24px; border-bottom:4px solid #00FF7A; }
+  .lamina-doc-header h2 { font-size:20px; margin:0; }
+  .lamina-doc-header p { font-size:12.5px; opacity:.8; margin-top:4px; }
+  .lamina-doc-body { padding:18px 20px; display:grid; gap:14px; background:#F1F5F9; }
+  .lamina-cliente-card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(15,23,42,.12); overflow:hidden; border-top:4px solid var(--lam-cor, #3B82F6); }
+  .lamina-cliente-head { display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; }
+  .lamina-cliente-nome { font-size:15px; font-weight:800; }
+  .lamina-etapa-badge { font-size:11px; font-weight:700; color:#fff; background:var(--lam-cor, #3B82F6); padding:2px 10px; border-radius:100px; }
+  .lamina-chevron { margin-left:auto; color:#64748B; font-size:12px; }
+  .lamina-cliente-body { padding:0 16px 14px; }
+  .lamina-secao { font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#64748B; margin:10px 0 5px; }
+  .lamina-item { font-size:13px; padding:6px 10px; border-radius:8px; background:#F8FAFC; border:1px solid #E2E8F0; margin-bottom:5px; white-space:pre-wrap; }
+  .lamina-item.antiga { border-color:#F59E0B; background:#FFFBEB; }
+  .lamina-item .res { color:#475569; font-size:12px; margin-top:3px; }
+  .lamina-selo { font-size:10.5px; font-weight:700; color:#B45309; margin-left:6px; }
+  .lamina-vazio { font-size:13px; color:#16A34A; padding:6px 0; }
 </style>
 </head>
 <body>
@@ -683,6 +719,8 @@
             <input type="date" id="resumo-filtro-data" onchange="setResumoFiltroData(this.value)" style="font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);">
             <select id="resumo-filtro-entidade" onchange="setResumoFiltroEntidade(this.value)" style="display:none;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);"></select>
             <button class="btn btn-primary btn-sm" onclick="copyResumo()">📋 Copiar resumo</button>
+            <button class="btn btn-sm" onclick="withLock(this, baixarResumoImagem)">📸 Imagem</button>
+            <button class="btn btn-sm" onclick="withLock(this, baixarResumoPDF)">📄 PDF</button>
           </div>
           <div class="resumo-pre" id="resumo-texto"></div>
         </div>
@@ -769,6 +807,26 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section id="view-buscar" style="display:none">
+        <div class="resumo-box">
+          <h2 style="margin-bottom:4px;">🔍 Buscar</h2>
+          <div class="resumo-sub" id="buscar-sub"></div>
+          <input type="text" id="buscar-input" class="busca-input" placeholder="O que você quer encontrar?" oninput="buscarNoWorkspace()">
+          <div id="buscar-resultados" style="margin-top:16px;"></div>
+        </div>
+      </section>
+
+      <section id="view-lamina" style="display:none">
+        <div class="toolbar">
+          <div class="spacer"></div>
+          <button class="btn btn-sm" id="btn-lamina-colapsar" onclick="toggleTodasLaminas()">▸ Recolher todos</button>
+          <button class="btn btn-sm" onclick="withLock(this, copiarLaminaImagem)">📋 Copiar Imagem</button>
+          <button class="btn btn-sm" onclick="withLock(this, baixarLaminaImagem)">📸 Baixar Imagem</button>
+          <button class="btn btn-primary btn-sm" onclick="withLock(this, baixarLaminaPDF)">📄 Baixar PDF</button>
+        </div>
+        <div id="lamina-visual" class="lamina-doc"></div>
       </section>
 
       <section id="view-configuracoes" style="display:none">
@@ -1144,6 +1202,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/typo-js@1.3.2/typo.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 // CONFIGURAÇÃO — troque pela URL/chave do seu projeto Supabase
@@ -1161,9 +1220,9 @@ try {
 }
 
 const PERFIL_ABAS = {
-  pessoal: ['atividades', 'agenda', 'resumo', 'indicadores'],
-  equipe:  ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'indicadores'],
-  projeto: ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'treinamentos', 'indicadores'],
+  pessoal: ['atividades', 'agenda', 'resumo', 'indicadores', 'buscar'],
+  equipe:  ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'indicadores', 'lamina', 'buscar'],
+  projeto: ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'treinamentos', 'indicadores', 'lamina', 'buscar'],
 };
 const DEFAULT_COR_DESTAQUE = '#00FF7A';
 const DEFAULT_COR_FUNDO = '#F4F5F3';
@@ -1641,6 +1700,279 @@ function renderIndicadores() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// NOVIDADES DO PAINEL DE IMPLANTAÇÃO, FASE 3: aba Buscar (full-text no banco, sem custo) + gancho DESLIGADO da resposta por IA
+// ══════════════════════════════════════════════════════════════
+// Palavras de "pergunta" que sozinhas travariam a busca: websearch_to_tsquery trata palavras separadas como E,
+// então "quero saber sobre X" viraria "quero" E "saber" E "sobre" E "X" e não acharia nada. A limpeza vale só pro Postgres.
+const BUSCA_FILLERS = [
+  'quero saber', 'queria saber', 'gostaria de saber', 'preciso saber',
+  'gostaria de', 'preciso de', 'quero', 'queria', 'gostaria', 'preciso',
+  'me fale sobre', 'me diga sobre', 'me conte sobre', 'fale sobre', 'diga sobre', 'conte sobre',
+  'fale', 'diga', 'conte', 'saber sobre', 'saber', 'sobre',
+  'a respeito de', 'com relação a', 'com relacao a', 'referente a',
+  'informações sobre', 'informacoes sobre', 'informação sobre', 'informacao sobre',
+  'informações', 'informacoes', 'informação', 'informacao',
+  'o que', 'qual é', 'qual e', 'quais são', 'quais sao', 'qual', 'quais',
+  'como', 'onde', 'quando', 'por favor', 'por gentileza',
+  'pode me dizer', 'poderia me dizer', 'pode', 'poderia',
+  'obrigado', 'obrigada', 'entender sobre', 'entender'
+];
+function limparTermoBusca(termo) {
+  // Compara por ARRAY de palavras, não por regex com \b: \b não reconhece limite de palavra depois de letra acentuada.
+  const normalizado = termo.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  const palavras = normalizado.split(' ').filter(Boolean);
+  const fillers = BUSCA_FILLERS.map(f => f.split(/\s+/)).sort((a, b) => b.length - a.length);
+  const resultado = [];
+  for (let i = 0; i < palavras.length; ) {
+    let bateu = false;
+    for (const filler of fillers) {
+      if (palavras.slice(i, i + filler.length).join(' ') === filler.join(' ')) { i += filler.length; bateu = true; break; }
+    }
+    if (!bateu) { resultado.push(palavras[i]); i++; }
+  }
+  const limpo = resultado.join(' ').trim();
+  return limpo || normalizado || termo.trim();   // se só sobrou "pergunta", volta ao original
+}
+// Se a frase cita o nome de uma entidade cadastrada, a pessoa quer SÓ aquela.
+function entidadeMencionadaNoTermo(palavras) {
+  return state.entidades.find(c => {
+    const nomeWords = c.nome.toLowerCase().split(/\s+/).filter(Boolean);
+    for (let i = 0; i <= palavras.length - nomeWords.length; i++) {
+      if (palavras.slice(i, i + nomeWords.length).join(' ') === nomeWords.join(' ')) return true;
+    }
+    return false;
+  });
+}
+// ts_headline NÃO escapa HTML: escapa tudo e preserva só <mark>/</mark> (evita HTML injection).
+function escapeExcetoMarks(raw) {
+  return String(raw || '').split(/(<mark>|<\/mark>)/g).map(parte => (parte === '<mark>' || parte === '</mark>') ? parte : escapeHtml(parte)).join('');
+}
+
+let buscaTimeout = null;
+let buscaSeq = 0;   // contador anti-corrida: uma busca antiga nunca sobrescreve a mais nova
+function renderBuscar() {
+  document.getElementById('buscar-sub').textContent = temAba('entidades')
+    ? 'Procure nas notas, atividades e pendências deste workspace. Dá pra escrever uma pergunta normal, ex.: "quando foi feito o treinamento do ' + (entidadeLabel().slice(0, -1).toLowerCase() || 'cliente') + ' X?"'
+    : 'Procure nas suas atividades (título, descrição e o que foi feito).';
+  const input = document.getElementById('buscar-input');
+  setTimeout(() => input.focus(), 50);
+}
+function buscarNoWorkspace() {
+  clearTimeout(buscaTimeout);
+  const termoOriginal = document.getElementById('buscar-input').value.trim();
+  const el = document.getElementById('buscar-resultados');
+  if (!termoOriginal) { el.innerHTML = ''; return; }
+  el.innerHTML = '<p style="color:var(--gray-text);font-size:13px;">Buscando...</p>';
+  buscaTimeout = setTimeout(async () => {
+    const minhaSeq = ++buscaSeq;
+    const wid = activeWorkspace.id;
+    const termoLimpo = limparTermoBusca(termoOriginal);
+    let { data, error } = await sb.rpc('buscar_workspace', { p_workspace_id: wid, p_termo: termoLimpo });
+    if (minhaSeq !== buscaSeq) return;
+    if (error) { el.innerHTML = `<p style="color:var(--red);font-size:13px;">Erro na busca: ${escapeHtml(error.message)}</p>`; return; }
+
+    // Fallback "OU": se a busca exata (E) não achou nada, tenta qualquer-uma-das-palavras.
+    let aproximado = false;
+    const palavras = termoLimpo.split(/\s+/).filter(Boolean);
+    if ((!data || !data.length) && palavras.length > 1) {
+      const ou = await sb.rpc('buscar_workspace', { p_workspace_id: wid, p_termo: palavras.join(' OR ') });
+      if (minhaSeq !== buscaSeq) return;
+      if (!ou.error && ou.data && ou.data.length) { data = ou.data; aproximado = true; }
+    }
+    data = data || [];
+
+    let entidadeFiltrada = null;
+    const mencionada = entidadeMencionadaNoTermo(palavras);
+    if (mencionada && data.some(r => r.id === mencionada.id)) {
+      data = data.filter(r => r.id === mencionada.id);
+      entidadeFiltrada = mencionada.nome;
+    }
+
+    renderResultadosBusca(data, aproximado, entidadeFiltrada, null);
+
+    // Resposta escrita por IA: DESLIGADA por padrão (só roda se alguém ligar o workspace em busca_ia_config e publicar a Edge Function).
+    // Os cartões acima já são uma resposta útil sozinhos; se a IA falhar, eles continuam.
+    if (data.length && await buscaIaAtiva()) {
+      renderResultadosBusca(data, aproximado, entidadeFiltrada, 'carregando');
+      let ia;
+      try { ia = await consultarBuscaIA(termoOriginal, termoLimpo); } catch (e) { ia = { erro: e.message }; }
+      if (minhaSeq !== buscaSeq) return;
+      renderResultadosBusca(data, aproximado, entidadeFiltrada, ia);
+    }
+  }, 300);
+}
+let buscaIaAtivaCache = {};   // por workspace
+async function buscaIaAtiva() {
+  const wid = activeWorkspace.id;
+  if (!(wid in buscaIaAtivaCache)) {
+    const { data } = await sb.from('busca_ia_config').select('ativo').eq('workspace_id', wid).maybeSingle();
+    buscaIaAtivaCache[wid] = !!(data && data.ativo);
+  }
+  return buscaIaAtivaCache[wid];
+}
+// A Edge Function refaz a busca NO SERVIDOR (com o token de quem chamou, então a RLS vale): o navegador só manda a pergunta.
+async function consultarBuscaIA(pergunta, termoBusca) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/buscar-ia`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspace_id: activeWorkspace.id, pergunta, termo_busca: termoBusca })
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || `Erro ${res.status} na busca com IA.`);
+  return json;
+}
+function renderResultadosBusca(rows, aproximado, entidadeFiltrada, ia) {
+  const el = document.getElementById('buscar-resultados');
+  if (!rows.length) { el.innerHTML = '<p style="color:var(--gray-text);font-size:13px;">Nada encontrado com esse termo.</p>'; return; }
+
+  let blocoIA = '';
+  if (ia === 'carregando') blocoIA = '<div class="busca-ia-resposta">🤖 Pensando na resposta...</div>';
+  else if (ia && ia.resposta) blocoIA = `<div class="busca-ia-resposta"><div class="busca-ia-label">🤖 Resposta</div><div class="busca-ia-texto">${escapeHtml(ia.resposta)}</div></div>`;
+  else if (ia && ia.erro) blocoIA = `<div class="busca-ia-resposta busca-ia-erro">🤖 Não consegui gerar uma resposta com IA agora (${escapeHtml(ia.erro)}). Veja os resultados abaixo.</div>`;
+
+  const avisos = [
+    entidadeFiltrada ? `mostrando só "${entidadeFiltrada}", identificado na sua busca` : '',
+    aproximado ? 'a busca exata não achou nada: resultado aproximado' : ''
+  ].filter(Boolean).join(' · ');
+
+  // as linhas chegam uma por match, já ordenadas por relevância: agrupa por entidade preservando a ordem
+  const grupos = new Map();
+  rows.forEach(r => {
+    const chave = r.id || ('nome:' + (r.nome || ''));
+    if (!grupos.has(chave)) grupos.set(chave, { id: r.id, nome: r.nome, ficha: [], atividades: [], pendencias: [] });
+    const g = grupos.get(chave);
+    (r.origem === 'atividade' ? g.atividades : r.origem === 'pendencia' ? g.pendencias : g.ficha).push(r);
+  });
+  const semEntidade = temAba('entidades') ? 'Sem ' + (entidadeLabel().slice(0, -1).toLowerCase() || 'entidade') : 'Atividades';
+  const rotuloLado = r => r.responsavel === 'equipe' ? 'da equipe' : ('do(a) ' + (entidadeLabel().slice(0, -1).toLowerCase() || 'entidade'));
+
+  el.innerHTML = `
+    ${blocoIA}
+    <p style="font-size:12px;color:var(--gray-text);margin-bottom:10px;">${rows.length} resultado${rows.length === 1 ? '' : 's'}${avisos ? ' (' + avisos + ')' : ''}:</p>
+    ${[...grupos.values()].map(g => `
+      <div class="busca-resultado-card">
+        <div class="busca-resultado-nome ${g.id ? 'clicavel' : ''}" ${g.id ? `onclick="openModal('${g.id}')"` : ''}>${escapeHtml(g.nome || semEntidade)}</div>
+        ${g.atividades.length ? `
+          <div class="busca-secao-label">📌 Atividades</div>
+          ${g.atividades.map(a => `
+            <div class="busca-item">
+              <div class="busca-item-titulo">${escapeHtml(a.titulo || 'Atividade')}</div>
+              <div class="busca-item-meta">${a.coluna === 'concluida' ? '✔ concluída' + (a.data ? ' em ' + formatDate(a.data) : '') : '⏳ em aberto'} · 👤 ${escapeHtml(a.responsavel || '—')}</div>
+              ${a.trecho ? `<div class="busca-item-resumo">${escapeExcetoMarks(a.trecho)}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${g.pendencias.length ? `
+          <div class="busca-secao-label">⚠ Pendências</div>
+          ${g.pendencias.map(p => `
+            <div class="busca-item">
+              <div class="busca-item-titulo">${escapeHtml(p.titulo || '')}</div>
+              <div class="busca-item-meta">${p.coluna === 'feita' ? '✔ feita' : '⏳ aberta'} · ${escapeHtml(rotuloLado(p))}</div>
+              ${p.trecho ? `<div class="busca-item-resumo">${escapeExcetoMarks(p.trecho)}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${g.ficha.length ? `
+          <div class="busca-secao-label">📋 Notas</div>
+          ${g.ficha.map(f => `<div class="busca-item"><div class="busca-item-resumo">${escapeExcetoMarks(f.trecho || '')}</div></div>`).join('')}` : ''}
+      </div>`).join('')}
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════
+// NOVIDADES DO PAINEL DE IMPLANTAÇÃO, FASE 3: Lâmina (imagem e PDF de página única) e exportar o Resumo
+// ══════════════════════════════════════════════════════════════
+let laminaColapsados = new Set();
+function toggleLaminaColapso(id) {
+  if (laminaColapsados.has(id)) laminaColapsados.delete(id); else laminaColapsados.add(id);
+  renderLamina();
+}
+function laminaEntidades() {
+  return state.entidades
+    .filter(c => (c.fase || 'implantacao') === 'implantacao')
+    .sort((a, b) => (a.codigo || a.nome).localeCompare(b.codigo || b.nome, 'pt-BR', { numeric: true }));
+}
+function toggleTodasLaminas() {
+  const lista = laminaEntidades();
+  const todosRecolhidos = lista.length && lista.every(c => laminaColapsados.has(c.id));
+  laminaColapsados = todosRecolhidos ? new Set() : new Set(lista.map(c => c.id));
+  renderLamina();
+}
+function renderLamina() {
+  const hoje = todayStr();
+  const lista = laminaEntidades();
+  const rotulo = (entidadeLabel().slice(0, -1) || 'Entidade');
+  const todosRecolhidos = lista.length && lista.every(c => laminaColapsados.has(c.id));
+  const btn = document.getElementById('btn-lamina-colapsar');
+  if (btn) btn.textContent = todosRecolhidos ? '▾ Expandir todos' : '▸ Recolher todos';
+
+  const cartoes = lista.map(c => {
+    const etapa = stageOf(c.etapa);
+    const ativs = atividades.filter(a => !a.cancelado && (a.entidadeNome || '').toLowerCase() === c.nome.toLowerCase());
+    const hojeLista = ativs.filter(a => a.criadoEm && dataLocalDeISO(a.criadoEm) === hoje);
+    const antigas = ativs.filter(a => a.coluna !== 'concluida' && a.criadoEm && dataLocalDeISO(a.criadoEm) !== hoje);
+    const pends = c.pendencias.filter(p => !p.feito && p.mostrarLamina !== false);
+    const pendEnt = pends.filter(p => p.responsavel === 'entidade');
+    const pendEq = pends.filter(p => p.responsavel === 'equipe');
+    const colapsado = laminaColapsados.has(c.id);
+
+    let corpo = '';
+    if (!colapsado) {
+      const blocos = [];
+      if (hojeLista.length) blocos.push(`<div class="lamina-secao">📌 Hoje</div>` + hojeLista.map(a => `
+        <div class="lamina-item">${a.coluna === 'concluida' ? '✓ ' : ''}${escapeHtml(a.titulo)}${a.coluna === 'concluida' && a.resolucao ? `<div class="res">${escapeHtml(a.resolucao)}</div>` : ''}</div>`).join(''));
+      if (antigas.length) blocos.push(`<div class="lamina-secao">⏳ Em aberto</div>` + antigas.map(a => `
+        <div class="lamina-item antiga">${escapeHtml(a.titulo)}<span class="lamina-selo">⏳ em aberto há ${diasDesde(a.criadoEm)} dia${diasDesde(a.criadoEm) === 1 ? '' : 's'}</span></div>`).join(''));
+      if (pendEnt.length) blocos.push(`<div class="lamina-secao">⚠ Pendências do(a) ${escapeHtml(rotulo)}</div>` + pendEnt.map(p => `<div class="lamina-item">${escapeHtml(p.texto)}</div>`).join(''));
+      if (pendEq.length) blocos.push(`<div class="lamina-secao">🔧 Pendências da equipe</div>` + pendEq.map(p => `<div class="lamina-item">${escapeHtml(p.texto)}</div>`).join(''));
+      corpo = `<div class="lamina-cliente-body">${blocos.join('') || '<div class="lamina-vazio">✅ Sem pendências ou atividades em aberto no momento</div>'}</div>`;
+    }
+    return `<div class="lamina-cliente-card" style="--lam-cor:${etapa.cor}">
+      <div class="lamina-cliente-head" onclick="toggleLaminaColapso('${c.id}')">
+        <span class="lamina-cliente-nome">${escapeHtml(c.nome)}</span>
+        <span class="lamina-etapa-badge">${escapeHtml(etapa.nome)}</span>
+        <span class="lamina-chevron">${colapsado ? '▸' : '▾'}</span>
+      </div>${corpo}
+    </div>`;
+  }).join('');
+
+  document.getElementById('lamina-visual').innerHTML = `
+    <div class="lamina-doc-header"><h2>${escapeHtml(activeWorkspace.nome)} — andamento</h2><p>${formatDate(hoje)}</p></div>
+    <div class="lamina-doc-body">${cartoes || '<div class="lamina-vazio" style="color:#64748B;">Nada em andamento por aqui ainda.</div>'}</div>`;
+}
+async function gerarCanvasDe(el, extra) {
+  return await html2canvas(el, Object.assign({ backgroundColor: '#ffffff', scale: 2 }, extra || {}));
+}
+function nomeArquivoData(prefixo, ext) { return prefixo + '-' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-') + '.' + ext; }
+async function baixarCanvasImagem(canvas, nome) {
+  const link = document.createElement('a');
+  link.download = nome; link.href = canvas.toDataURL('image/png'); link.click();
+}
+// PDF de UMA página do tamanho exato do conteúdo (paginar em A4 cortaria um card no meio). px (já sem o scale) → mm a 96dpi.
+function baixarCanvasPDF(canvas, nome, scale) {
+  if (!window.jspdf) { alert('Não consegui carregar a biblioteca de PDF agora. Use "Baixar Imagem".'); return; }
+  const widthMm = (canvas.width / scale) * 0.264583;
+  const heightMm = (canvas.height / scale) * 0.264583;
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: widthMm > heightMm ? 'landscape' : 'portrait', unit: 'mm', format: [widthMm, heightMm] });
+  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, widthMm, heightMm);
+  pdf.save(nome);
+}
+async function copiarCanvasImagem(canvas) {
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    alert('Imagem copiada! Agora é só colar (Ctrl+V) onde precisar.');
+  } catch (e) {
+    alert('Não foi possível copiar a imagem automaticamente neste navegador. Use "Baixar Imagem".');
+  }
+}
+async function baixarLaminaImagem() { baixarCanvasImagem(await gerarCanvasDe(document.getElementById('lamina-visual')), nomeArquivoData('Lamina', 'png')); }
+async function baixarLaminaPDF() { baixarCanvasPDF(await gerarCanvasDe(document.getElementById('lamina-visual')), nomeArquivoData('Lamina', 'pdf'), 2); }
+async function copiarLaminaImagem() { await copiarCanvasImagem(await gerarCanvasDe(document.getElementById('lamina-visual'))); }
+// Resumo do Dia como imagem/PDF: o texto é escuro sobre fundo transparente no tema escuro, então a cópia usada na captura ganha fundo branco e texto escuro.
+const RESUMO_ONCLONE = { onclone: doc => { const n = doc.getElementById('resumo-texto'); if (n) { n.style.color = '#111'; n.style.background = '#fff'; n.style.padding = '16px'; } } };
+async function baixarResumoImagem() { baixarCanvasImagem(await gerarCanvasDe(document.getElementById('resumo-texto'), RESUMO_ONCLONE), nomeArquivoData('Resumo', 'png')); }
+async function baixarResumoPDF() { baixarCanvasPDF(await gerarCanvasDe(document.getElementById('resumo-texto'), RESUMO_ONCLONE), nomeArquivoData('Resumo', 'pdf'), 2); }
+
 function mensagemErroAmigavel(error, contexto) {
   if (error && error.code === '23505') {
     if (contexto === 'codigo-entidade') return 'Esse código já está sendo usado por outro ' + entidadeLabel().slice(0,-1).toLowerCase() + '. Escolha outro código.';
@@ -1979,6 +2311,8 @@ function render() {
   else if (activeTab === 'atividades') renderAtividades();
   else if (activeTab === 'resumo') renderResumo();
   else if (activeTab === 'indicadores') renderIndicadores();
+  else if (activeTab === 'buscar') renderBuscar();
+  else if (activeTab === 'lamina') renderLamina();
   else if (activeTab === 'treinamentos') renderTreinamentos();
   else if (activeTab === 'configuracoes') renderConfiguracoes();
   else if (activeTab === 'ajuda') renderAjuda();
