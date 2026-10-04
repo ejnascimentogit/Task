@@ -466,6 +466,15 @@
     .add-contato-row { flex-direction: column; }
     .add-contato-row input { width: 100%; }
   }
+
+  /* ── Fase 1 (novidades do Painel de Implantação): idade do card e corretor ortográfico ── */
+  .kc-idade { font-size:10px; font-weight:700; color:var(--gray-text); margin-left:auto; }
+  .kc-idade.kc-idade-atencao { color:var(--amber); }
+  .kc-idade.kc-idade-atrasada { color:var(--red); }
+  .ortografia-wrap { position:relative; display:block; background:var(--white); border-radius:8px; }
+  .ortografia-overlay { position:absolute; inset:0; margin:0; pointer-events:none; overflow:hidden; white-space:pre-wrap; word-wrap:break-word; color:transparent; border-style:solid; border-color:transparent; }
+  .ortografia-wrap textarea { position:relative; display:block; background:transparent; }
+  .ortografia-erro { text-decoration:underline wavy var(--red); text-decoration-thickness:1.5px; text-underline-offset:3px; }
 </style>
 </head>
 <body>
@@ -581,6 +590,7 @@
   <div class="main-area">
     <div class="topbar">
       <div class="header-sub" id="header-date" style="color:var(--gray-text);font-size:13.5px;"></div>
+      <button class="btn btn-sm" id="btn-atualizar" title="Recarregar os dados do banco (sem sair da aba)" onclick="withLock(this, refreshDados)">🔄 Atualizar</button>
       <div class="stats-row" id="stats-row"></div>
     </div>
 
@@ -658,7 +668,7 @@
           </div>
           <div class="pessoa-filter" id="pessoa-filter-agenda" style="margin-top:14px;"></div>
           <input type="text" id="search-agenda" placeholder="Buscar..." style="margin-top:10px;width:100%;max-width:360px;padding:9px 12px;border-radius:10px;border:1px solid var(--border-light);" oninput="renderAgenda()">
-          <label class="chk" style="margin-top:10px;"><input type="checkbox" id="show-concluidos-agenda" onchange="renderAgenda()"> Mostrar concluídos</label>
+          <label class="chk" style="margin-top:10px;"><input type="checkbox" id="show-concluidos-agenda" autocomplete="off" onchange="renderAgenda()"> Mostrar concluídos</label>
           <div id="agenda-list" class="calendario-list"></div>
           <div id="agenda-cards-wrap" style="display:none"></div>
           <div id="agenda-mensal-nav" style="display:none;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;">
@@ -1003,6 +1013,7 @@
 <div class="modal-overlay" id="atividade-modal-overlay">
   <div class="modal-box" style="max-width:480px;">
     <h2 id="atividade-modal-title">Nova Atividade</h2>
+    <div id="atividade-modal-criado" style="font-size:12px;color:var(--gray-text);margin:-4px 0 10px;"></div>
     <div class="form-grid">
       <div class="form-field full" id="at-entidade-field">
         <label id="at-entidade-label">Entidade</label>
@@ -1062,6 +1073,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/typo-js@1.3.2/typo.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 // CONFIGURAÇÃO — troque pela URL/chave do seu projeto Supabase
@@ -1219,6 +1231,130 @@ function daysBetween(a,b) { const da=new Date(a+'T00:00:00'), db=new Date(b+'T00
 function formatDate(dateStr) { if (!dateStr) return '—'; const [y,m,d]=dateStr.split('-'); return d+'/'+m+'/'+y; }
 function uid() { return crypto.randomUUID(); }
 function escapeHtml(str) { return (str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ══════════════════════════════════════════════════════════════
+// NOVIDADES DO PAINEL DE IMPLANTAÇÃO, FASE 1: idade do card, "hoje" que não congela, atualizar, corretor ortográfico
+// ══════════════════════════════════════════════════════════════
+function diasDesde(iso) {
+  if (!iso) return 0;
+  const criado = new Date(iso); criado.setHours(0,0,0,0);
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  return Math.round((hoje - criado) / 86400000);
+}
+function formatDataHora(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+// Badge de idade (só pra cards que NÃO estão em Concluído): cinza até 7 dias, âmbar 8 a 14, vermelho a partir de 15.
+function idadeBadgeHtml(a) {
+  if (!a.criadoEm || a.coluna === 'concluida') return '';
+  const dias = diasDesde(a.criadoEm);
+  const cls = dias >= 15 ? ' kc-idade-atrasada' : dias >= 8 ? ' kc-idade-atencao' : '';
+  const d = new Date(a.criadoEm);
+  const dd = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+  return `<span class="kc-idade${cls}" title="Criado em ${formatDataHora(a.criadoEm)}">${dd} · ${dias === 0 ? 'hoje' : dias + 'd'}</span>`;
+}
+// Filtro de "hoje" que não fica preso no dia anterior se a aba passar da meia-noite aberta.
+// Só avança se o filtro ainda estava no "hoje antigo" (se a pessoa escolheu outra data, respeita).
+let ultimoDiaConhecido = todayStr();
+function sincronizarFiltrosDeHoje() {
+  const hoje = todayStr();
+  if (hoje === ultimoDiaConhecido) return;
+  if (concluidoFiltroData === ultimoDiaConhecido) concluidoFiltroData = hoje;
+  if (resumoFiltroData === ultimoDiaConhecido) resumoFiltroData = hoje;
+  ultimoDiaConhecido = hoje;
+}
+// Recarrega os dados do banco sem recarregar a página (mantém aba e filtros).
+async function refreshDados() {
+  await loadWorkspaceData();
+  render();
+}
+
+// ── Corretor ortográfico PT-BR embutido (Typo.js + dicionário Hunspell), igual em qualquer navegador ──
+let dicionarioOrtografico = null;
+let dicionarioOrtograficoPromise = null;
+const DICIONARIO_PT_AFF_URL = 'https://raw.githubusercontent.com/titoBouzout/Dictionaries/master/Portuguese%20(Brazilian).aff';
+const DICIONARIO_PT_DIC_URL = 'https://raw.githubusercontent.com/titoBouzout/Dictionaries/master/Portuguese%20(Brazilian).dic';
+function carregarDicionarioOrtografico() {
+  if (dicionarioOrtograficoPromise) return dicionarioOrtograficoPromise;
+  dicionarioOrtograficoPromise = (async () => {
+    try {
+      if (typeof Typo === 'undefined') throw new Error('Typo.js não carregou');
+      const [affRes, dicRes] = await Promise.all([fetch(DICIONARIO_PT_AFF_URL), fetch(DICIONARIO_PT_DIC_URL)]);
+      const [affData, dicData] = await Promise.all([affRes.text(), dicRes.text()]);
+      dicionarioOrtografico = new Typo('pt_BR', affData, dicData);
+    } catch (e) {
+      console.warn('Não consegui carregar o dicionário de correção ortográfica (segue sem marcar erros):', e);
+    }
+  })();
+  return dicionarioOrtograficoPromise;
+}
+// Testa a palavra como veio, minúscula e com 1ª maiúscula (nomes próprios não podem virar erro só pela caixa).
+function palavraCorreta(palavra) {
+  if (!dicionarioOrtografico) return true;
+  return dicionarioOrtografico.check(palavra)
+    || dicionarioOrtografico.check(palavra.toLowerCase())
+    || dicionarioOrtografico.check(palavra[0].toUpperCase() + palavra.slice(1).toLowerCase());
+}
+function destacarErrosOrtograficos(texto) {
+  if (!texto) return '';
+  if (!dicionarioOrtografico) return escapeHtml(texto);
+  return texto.split(/(\s+)/).map(parte => {
+    if (!parte || /^\s+$/.test(parte)) return escapeHtml(parte);
+    const palavra = parte.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+    if (!palavra || palavra.length < 2 || /^\d+$/.test(palavra)) return escapeHtml(parte);
+    return palavraCorreta(palavra) ? escapeHtml(parte) : `<span class="ortografia-erro">${escapeHtml(parte)}</span>`;
+  }).join('') + '​';   // zero-width space: não corta a última linha quando termina em branco
+}
+// Não dá pra colorir trecho dentro de <textarea>: uma <div> transparente atrás (mesma fonte, padding e borda)
+// repete o texto e só as palavras erradas ganham sublinhado ondulado. O texto real continua só no textarea.
+const ORTOGRAFIA_ESTILOS = ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','wordSpacing','textTransform','textIndent',
+  'paddingTop','paddingRight','paddingBottom','paddingLeft','borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','borderRadius','boxSizing','tabSize'];
+async function atualizarOrtografia(ta) {
+  const overlay = ta._ortografiaOverlay;
+  if (!overlay) return;
+  if (!dicionarioOrtografico) await carregarDicionarioOrtografico();
+  if (!overlay.isConnected) return;
+  const cs = getComputedStyle(ta);
+  ORTOGRAFIA_ESTILOS.forEach(p => { overlay.style[p] = cs[p]; });
+  overlay.innerHTML = destacarErrosOrtograficos(ta.value);
+  overlay.scrollTop = ta.scrollTop; overlay.scrollLeft = ta.scrollLeft;
+}
+function ativarOrtografia(ta) {
+  if (!ta || ta.dataset.ortografia) return;
+  ta.dataset.ortografia = '1';
+  const wrap = document.createElement('div');
+  wrap.className = 'ortografia-wrap';
+  ta.parentNode.insertBefore(wrap, ta);
+  const overlay = document.createElement('div');
+  overlay.className = 'ortografia-overlay';
+  overlay.setAttribute('aria-hidden', 'true');
+  wrap.appendChild(overlay);
+  wrap.appendChild(ta);
+  ta.spellcheck = false;
+  ta._ortografiaOverlay = overlay;
+  ta.addEventListener('input', () => atualizarOrtografia(ta));
+  ta.addEventListener('scroll', () => { overlay.scrollTop = ta.scrollTop; overlay.scrollLeft = ta.scrollLeft; });
+  if (window.ResizeObserver) new ResizeObserver(() => atualizarOrtografia(ta)).observe(ta);
+  atualizarOrtografia(ta);
+}
+function ortografiaAtualizarTodos() {
+  document.querySelectorAll('textarea[data-ortografia]').forEach(atualizarOrtografia);
+}
+['at-descricao','at-resolucao','ag-obs','f-observacao'].forEach(id => ativarOrtografia(document.getElementById(id)));
+// Quando o código preenche o textarea por programação (abrir modal de edição) o evento "input" não dispara:
+// reaplica o destaque depois de abrir cada modal, e liga o corretor nas observações de pendência (renderizadas dinamicamente).
+['openAtividadeModal','openAgendamentoModal','openModal','renderPendenciasOverview'].forEach(nome => {
+  const orig = window[nome];
+  if (typeof orig !== 'function') return;
+  window[nome] = function() {
+    const r = orig.apply(this, arguments);
+    if (nome === 'renderPendenciasOverview') document.querySelectorAll('.pend-obs-row textarea').forEach(ativarOrtografia);
+    setTimeout(ortografiaAtualizarTodos, 0);
+    return r;
+  };
+});
+
 function mensagemErroAmigavel(error, contexto) {
   if (error && error.code === '23505') {
     if (contexto === 'codigo-entidade') return 'Esse código já está sendo usado por outro ' + entidadeLabel().slice(0,-1).toLowerCase() + '. Escolha outro código.';
@@ -1514,7 +1650,7 @@ async function loadWorkspaceData() {
   atividades = (ativsRows||[]).map(a => ({
     id:a.id, responsavel:a.responsavel, criadoPor:a.criado_por||'', titulo:a.titulo, descricao:a.descricao||'', entidadeNome:a.entidade_nome||'',
     label:a.label, coluna:a.coluna, cancelado:a.cancelado, resolucao:a.resolucao||'', participantes:a.participantes||[],
-    concluidoEm:a.concluido_em, ordem:a.ordem,
+    concluidoEm:a.concluido_em, criadoEm:a.created_at, ordem:a.ordem,
     imagens: imagens.filter(i => i.atividade_id===a.id).map(i => ({ id:i.id, url:i.url, path:i.path })),
   }));
 
@@ -1532,6 +1668,7 @@ let pessoaFiltro = 'Todos';
 
 function setTab(tab) {
   if (tab !== 'configuracoes' && tab !== 'ajuda' && !temAba(tab)) tab = abasAtivas()[0] || 'configuracoes';
+  if (tab === 'agenda' && activeTab !== 'agenda') { const chk = document.getElementById('show-concluidos-agenda'); if (chk) chk.checked = false; }
   activeTab = tab;
   ['entidades','agenda','pendencias','atividades','resumo','treinamentos','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
@@ -1543,6 +1680,7 @@ function setTab(tab) {
 }
 
 function render() {
+  sincronizarFiltrosDeHoje();
   document.getElementById('header-date').textContent = 'Hoje é ' + formatDate(todayStr());
   renderStats();
   populateStageOptions();
@@ -2081,6 +2219,7 @@ async function persistAgendamento() {
     participantes,
   };
   if (!payload.titulo) { alert('Título é obrigatório.'); return null; }
+  if (!payload.hora) { alert('Informe o horário do agendamento.'); return null; }
   if (editingAgendamentoId) {
     const old = agendamentos.find(a=>a.id===editingAgendamentoId);
     if (old.data !== data) payload.reagendado_de = old.data;
@@ -2127,7 +2266,7 @@ async function criarAtividadeDoAgendamento() {
   if (error) { alert(error.message); return; }
   atividades.push({ id:data.id, entidadeNome:payload.entidade_nome, titulo:payload.titulo, descricao:payload.descricao,
     criadoPor:payload.criado_por, responsavel:payload.responsavel, coluna:payload.coluna, resolucao:'', label:null,
-    participantes:payload.participantes, concluidoEm:null, ordem:0, cancelado:false, imagens:[] });
+    participantes:payload.participantes, concluidoEm:null, criadoEm:data.created_at, ordem:0, cancelado:false, imagens:[] });
   const { error: linkErr } = await sb.from('agendamentos').update({ atividade_id: data.id }).eq('id', ag.id);
   if (!linkErr) ag.atividadeId = data.id;
   alert('Atividade criada a partir deste agendamento.');
@@ -2183,7 +2322,7 @@ function atividadeCardHtml(a) {
     <div class="kc-titulo">${escapeHtml(a.titulo)}</div>
     <div class="kc-footer">
       ${a.entidadeNome?`<span class="kc-entidade">${escapeHtml(a.entidadeNome)}</span>`:''}
-      <span class="kc-pessoa">${escapeHtml(a.responsavel)}</span>
+      <span class="kc-pessoa">${escapeHtml(a.responsavel)}</span>${idadeBadgeHtml(a)}
       ${a.criadoPor?`<span class="kc-criador">pedido por ${escapeHtml(a.criadoPor)}</span>`:''}
     </div>
     ${(a.imagens && a.imagens.length) ? `<div class="kc-imagens">${a.imagens.slice(0,3).map(img=>`<img src="${img.url}">`).join('')}${a.imagens.length>3?`<span class="kc-imagens-mais">+${a.imagens.length-3}</span>`:''}</div>` : ''}
@@ -2212,6 +2351,7 @@ function openAtividadeModal(id, colunaForcada) {
   const a = id ? atividades.find(x=>x.id===id) : null;
   editingAtividadeLabel = a ? a.label : null;
   document.getElementById('atividade-modal-title').textContent = a ? 'Editar Atividade' : 'Nova Atividade';
+  document.getElementById('atividade-modal-criado').textContent = a && a.criadoEm ? ('Criado em ' + formatDataHora(a.criadoEm) + ' (há ' + diasDesde(a.criadoEm) + ' dias)') : '';
   const usaEntidade = temAba('entidades');
   document.getElementById('at-entidade-field').style.display = usaEntidade ? '' : 'none';
   document.getElementById('at-entidade-nome').value = a ? a.entidadeNome : '';
@@ -2342,7 +2482,7 @@ async function saveAtividade() {
     const { data, error } = await sb.from('atividades').insert(payload).select().single();
     if (error) { alert(error.message); return; }
     atividades.push({ id:data.id, entidadeNome, titulo:payload.titulo, descricao:payload.descricao, criadoPor:payload.criado_por, responsavel:payload.responsavel,
-      coluna, resolucao, label:payload.label, participantes, concluidoEm:payload.concluido_em, ordem:payload.ordem, cancelado:false, imagens:[] });
+      coluna, resolucao, label:payload.label, participantes, concluidoEm:payload.concluido_em, criadoEm:data.created_at, ordem:payload.ordem, cancelado:false, imagens:[] });
     savedId = data.id;
   }
   if (usaEntidade && coluna === 'concluida' && mudouRelevante) {
