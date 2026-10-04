@@ -545,6 +545,26 @@
   .lamina-item .res { color:#475569; font-size:12px; margin-top:3px; }
   .lamina-selo { font-size:10.5px; font-weight:700; color:#B45309; margin-left:6px; }
   .lamina-vazio { font-size:13px; color:#16A34A; padding:6px 0; }
+
+  /* ── Analista, previsão de entrega, busca na observação, esqueci a senha, status na Buscar ── */
+  .prazo-badge { font-size:11px; font-weight:700; padding:2px 9px; border-radius:100px; white-space:nowrap; display:inline-block; }
+  .prazo-badge.ok { color:#047857; background:rgba(16,185,129,.12); }
+  .prazo-badge.atencao { color:#B45309; background:rgba(245,158,11,.14); }
+  .prazo-badge.atrasado { color:#B91C1C; background:rgba(220,38,38,.12); }
+  .prazo-lista-linha { display:grid; grid-template-columns:minmax(120px,1.2fr) 2fr minmax(150px,1fr); gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--border-light); cursor:pointer; }
+  .prazo-lista-linha:first-child { border-top:none; }
+  .prazo-barra { height:8px; border-radius:100px; background:var(--border-light); overflow:hidden; }
+  .prazo-barra > span { display:block; height:100%; border-radius:100px; }
+  .obs-busca { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+  .obs-busca input { flex:1; font-family:inherit; font-size:12.5px; padding:7px 10px; border-radius:8px; border:1px solid var(--border-light); }
+  .obs-busca .contador { font-size:12px; color:var(--gray-text); min-width:64px; text-align:center; }
+  .obs-highlight { min-height:80px; max-height:260px; overflow:auto; white-space:pre-wrap; padding:10px; border:1px solid var(--border-light); border-radius:8px; font-size:13px; background:var(--white); }
+  .obs-highlight mark { background:#FDE68A; color:#111; padding:0 2px; border-radius:3px; }
+  .obs-highlight mark.atual { background:#F59E0B; outline:2px solid #B45309; }
+  .link-esqueci { font-size:12.5px; color:var(--gray-text); text-decoration:underline; cursor:pointer; }
+  .busca-status { font-size:11.5px; font-weight:700; padding:1px 8px; border-radius:100px; }
+  .busca-status.aberto { color:#B45309; background:rgba(245,158,11,.14); }
+  .busca-status.ok { color:#047857; background:rgba(16,185,129,.12); }
 </style>
 </head>
 <body>
@@ -564,6 +584,7 @@
         <div class="senha-wrap"><input type="password" id="login-senha"><span class="senha-toggle" onclick="toggleSenhaVisivel('login-senha', this)">👁</span></div>
       </div>
       <button class="btn btn-primary" style="width:100%;" onclick="withLock(this, doLogin)">Entrar</button>
+      <div style="text-align:center; margin-top:10px;"><a class="link-esqueci" onclick="doForgotPassword()">Esqueci minha senha</a></div>
     </div>
     <div id="auth-form-signup" style="display:none;">
       <div class="form-field" style="margin-bottom:12px;"><label>Seu nome</label><input type="text" id="signup-nome" placeholder="Como quer aparecer pro time"></div>
@@ -580,6 +601,21 @@
       <button class="btn btn-primary" style="width:100%;" onclick="withLock(this, doSignup)">Criar conta</button>
     </div>
     <div id="auth-msg" style="margin-top:14px; font-size:12.5px; text-align:center;"></div>
+  </div>
+</div>
+
+<div id="recovery-screen" class="auth-screen" style="display:none;">
+  <div class="modal-box" style="max-width:380px; width:100%;">
+    <div class="app-title-auth">TaskFull</div>
+    <p style="font-size:13px; color:var(--gray-text); margin-bottom:14px;">Crie uma nova senha para entrar.</p>
+    <div class="form-field" style="margin-bottom:12px;"><label>Nova senha</label>
+      <div class="senha-wrap"><input type="password" id="recovery-senha"><span class="senha-toggle" onclick="toggleSenhaVisivel('recovery-senha', this)">👁</span></div>
+    </div>
+    <div class="form-field" style="margin-bottom:12px;"><label>Confirmar nova senha</label>
+      <div class="senha-wrap"><input type="password" id="recovery-senha2"><span class="senha-toggle" onclick="toggleSenhaVisivel('recovery-senha2', this)">👁</span></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;" onclick="withLock(this, doResetPassword)">Salvar nova senha</button>
+    <div id="recovery-msg" style="margin-top:14px; font-size:12.5px; text-align:center;"></div>
   </div>
 </div>
 
@@ -696,6 +732,8 @@
             <th class="sortable" onclick="sortEntidades('etapa')">Etapa</th>
             <th class="sortable" onclick="sortEntidades('saude')">Saúde</th>
             <th class="sortable" onclick="sortEntidades('responsavel')">Responsável</th>
+            <th class="sortable" onclick="sortEntidades('analista')">Analista</th>
+            <th id="th-prazo" style="display:none">Prazo</th>
             <th>Pendências</th>
           </tr></thead>
           <tbody id="entidades-tbody"></tbody>
@@ -793,6 +831,11 @@
               </span>
             </div>
             <div id="ind-barras"></div>
+          </div>
+          <div class="ind-bloco" id="ind-prazos-wrap" style="--ind-cor:#14B8A6;display:none;">
+            <div class="ind-bloco-titulo">⏳ Prazo de entrega dos projetos</div>
+            <div class="pizza-explicacao">Mais urgentes primeiro. Clique para abrir o projeto.</div>
+            <div id="ind-prazos"></div>
           </div>
           <div class="pizza-row">
             <div class="ind-bloco" style="--ind-cor:#8B5CF6;">
@@ -1007,6 +1050,8 @@
       <div class="form-field"><label>Código</label><input type="text" id="f-codigo" placeholder="Ex: 21" autocomplete="off"></div>
       <div class="form-field"><label>Nome</label><input type="text" id="f-nome"></div>
       <div class="form-field"><label>Responsável</label><input type="text" id="f-responsavel"></div>
+      <div class="form-field"><label>Analista responsável (equipe)</label><select id="f-analista"></select></div>
+      <div class="form-field" id="f-previsao-field" style="display:none;"><label>Previsão de entrega</label><input type="date" id="f-previsao"></div>
       <div class="form-field"><label>Etapa Atual</label><select id="f-etapa"></select></div>
       <div class="form-field">
         <label>Fase</label>
@@ -1022,7 +1067,16 @@
         </select>
       </div>
       <div class="form-field full"><label>Motivo (se amarelo/vermelho)</label><input type="text" id="f-saude-motivo"></div>
-      <div class="form-field full"><label>Observação</label><textarea id="f-observacao"></textarea></div>
+      <div class="form-field full"><label>Observação</label>
+        <div class="obs-busca">
+          <input type="text" id="f-observacao-busca" placeholder="🔍 Buscar nesta observação..." oninput="pesquisarObservacao(true)" onkeydown="if(event.key==='Enter'){event.preventDefault();navegarObservacao(1);}">
+          <span class="contador" id="f-observacao-contador"></span>
+          <button type="button" class="btn btn-sm" onclick="navegarObservacao(-1)" title="Anterior">▲</button>
+          <button type="button" class="btn btn-sm" onclick="navegarObservacao(1)" title="Próximo">▼</button>
+        </div>
+        <div id="f-observacao-highlight" class="obs-highlight" hidden></div>
+        <textarea id="f-observacao"></textarea>
+      </div>
     </div>
 
     <div class="modal-section">
@@ -1214,6 +1268,7 @@ let sb = null;
 let CONFIG_OK = false;
 try {
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  sb.auth.onAuthStateChange((evento) => { if (evento === 'PASSWORD_RECOVERY') { modoRecuperacaoSenha = true; mostrarTelaNovaSenha(); } });
   CONFIG_OK = /^https?:\/\//.test(SUPABASE_URL);
 } catch (e) {
   CONFIG_OK = false;
@@ -1859,7 +1914,7 @@ function renderResultadosBusca(rows, aproximado, entidadeFiltrada, ia) {
           ${g.atividades.map(a => `
             <div class="busca-item">
               <div class="busca-item-titulo">${escapeHtml(a.titulo || 'Atividade')}</div>
-              <div class="busca-item-meta">${a.coluna === 'concluida' ? '✔ concluída' + (a.data ? ' em ' + formatDate(a.data) : '') : '⏳ em aberto'} · 👤 ${escapeHtml(a.responsavel || '—')}</div>
+              <div class="busca-item-meta">${a.coluna === 'concluida' ? '<span class="busca-status ok">✔ já concluída' + (a.data ? ' em ' + formatDate(a.data) : '') + '</span>' : '<span class="busca-status aberto">⏳ ainda em aberto</span>'} · 👤 ${escapeHtml(a.responsavel || '—')}</div>
               ${a.trecho ? `<div class="busca-item-resumo">${escapeExcetoMarks(a.trecho)}</div>` : ''}
             </div>`).join('')}` : ''}
         ${g.pendencias.length ? `
@@ -1867,7 +1922,7 @@ function renderResultadosBusca(rows, aproximado, entidadeFiltrada, ia) {
           ${g.pendencias.map(p => `
             <div class="busca-item">
               <div class="busca-item-titulo">${escapeHtml(p.titulo || '')}</div>
-              <div class="busca-item-meta">${p.coluna === 'feita' ? '✔ feita' : '⏳ aberta'} · ${escapeHtml(rotuloLado(p))}</div>
+              <div class="busca-item-meta">${p.coluna === 'feita' ? '<span class="busca-status ok">✔ já resolvida</span>' : '<span class="busca-status aberto">⏳ ainda em aberto</span>'} · ${escapeHtml(rotuloLado(p))}</div>
               ${p.trecho ? `<div class="busca-item-resumo">${escapeExcetoMarks(p.trecho)}</div>` : ''}
             </div>`).join('')}` : ''}
         ${g.ficha.length ? `
@@ -1972,6 +2027,153 @@ async function copiarLaminaImagem() { await copiarCanvasImagem(await gerarCanvas
 const RESUMO_ONCLONE = { onclone: doc => { const n = doc.getElementById('resumo-texto'); if (n) { n.style.color = '#111'; n.style.background = '#fff'; n.style.padding = '16px'; } } };
 async function baixarResumoImagem() { baixarCanvasImagem(await gerarCanvasDe(document.getElementById('resumo-texto'), RESUMO_ONCLONE), nomeArquivoData('Resumo', 'png')); }
 async function baixarResumoPDF() { baixarCanvasPDF(await gerarCanvasDe(document.getElementById('resumo-texto'), RESUMO_ONCLONE), nomeArquivoData('Resumo', 'pdf'), 2); }
+
+// ══════════════════════════════════════════════════════════════
+// NOVIDADES DO PAINEL: analista e previsão de entrega, busca dentro da observação, "Esqueci minha senha"
+// ══════════════════════════════════════════════════════════════
+// Previsão de entrega (só Gestão de Projeto, só projetos ativos). Datas "AAAA-MM-DD" usam daysBetween (diasDesde erraria um dia por causa do fuso).
+function prazoEntregaInfo(c) {
+  if (!activeWorkspace || activeWorkspace.perfilTipo !== 'projeto' || !c.previsaoEntrega || (c.fase || 'implantacao') !== 'implantacao') return null;
+  const hoje = todayStr();
+  const restantes = daysBetween(hoje, c.previsaoEntrega);
+  const decorridos = Math.max(0, daysBetween(c.inicio || hoje, hoje));
+  const classe = restantes < 0 ? 'atrasado' : restantes <= 7 ? 'atencao' : 'ok';
+  const n = Math.abs(restantes);
+  const texto = restantes < 0 ? 'Atrasado há ' + n + (n === 1 ? ' dia' : ' dias') : restantes === 0 ? 'Entrega hoje' : 'Entrega em ' + n + (n === 1 ? ' dia' : ' dias');
+  return { restantes, decorridos, total: Math.max(1, decorridos + Math.max(0, restantes)), classe, texto };
+}
+function prazoBadgeHtml(c) {
+  const i = prazoEntregaInfo(c);
+  return i ? `<div style="margin-top:6px;"><span class="prazo-badge ${i.classe}">⏳ ${i.texto}</span></div>` : '';
+}
+function prazoTd(c) {
+  if (!activeWorkspace || activeWorkspace.perfilTipo !== 'projeto') return '';
+  const i = prazoEntregaInfo(c);
+  return `<td>${i ? `<span class="prazo-badge ${i.classe}">${i.texto}</span>` : '—'}</td>`;
+}
+function renderPrazosIndicadores() {
+  const wrap = document.getElementById('ind-prazos-wrap');
+  if (!wrap) return;
+  const projeto = activeWorkspace && activeWorkspace.perfilTipo === 'projeto';
+  wrap.style.display = projeto ? '' : 'none';
+  if (!projeto) return;
+  const itens = state.entidades.map(c => ({ c, i: prazoEntregaInfo(c) })).filter(x => x.i)
+    .sort((a, b) => a.i.restantes - b.i.restantes);
+  const cor = { ok: '#10B981', atencao: '#F59E0B', atrasado: '#DC2626' };
+  document.getElementById('ind-prazos').innerHTML = itens.length ? itens.map(({ c, i }) => `
+    <div class="prazo-lista-linha" onclick="openModal('${c.id}')">
+      <div style="font-weight:700;font-size:13.5px;">${escapeHtml(c.nome)}</div>
+      <div class="prazo-barra"><span style="width:${i.classe === 'atrasado' ? 100 : Math.min(100, Math.round((i.decorridos / i.total) * 100))}%;background:${cor[i.classe]}"></span></div>
+      <div style="font-size:12px;"><span class="prazo-badge ${i.classe}">${i.texto}</span><div style="color:var(--gray-text);margin-top:2px;">previsto para ${formatDate(c.previsaoEntrega)}</div></div>
+    </div>`).join('') : '<div style="font-size:12.5px;color:var(--gray-text);">Nenhum projeto ativo com previsão de entrega. Defina a previsão no cadastro do projeto.</div>';
+}
+(function () {
+  const origIndicadores = window.renderIndicadores;
+  if (typeof origIndicadores === 'function') window.renderIndicadores = function () { const r = origIndicadores.apply(this, arguments); renderPrazosIndicadores(); return r; };
+  const origEntidades = window.renderEntidades;
+  if (typeof origEntidades === 'function') window.renderEntidades = function () {
+    const th = document.getElementById('th-prazo');
+    if (th) th.style.display = (activeWorkspace && activeWorkspace.perfilTipo === 'projeto') ? '' : 'none';
+    return origEntidades.apply(this, arguments);
+  };
+  const origModal = window.openModal;
+  if (typeof origModal === 'function') window.openModal = function () {
+    const r = origModal.apply(this, arguments);
+    const selAn = document.getElementById('f-analista');
+    const c = editingEntidadeId ? state.entidades.find(x => x.id === editingEntidadeId) : null;
+    const atual = c ? (c.analista || '') : '';
+    selAn.innerHTML = '<option value="">Sem analista definido</option>' + membrosAtivos().map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    if (atual && !membrosAtivos().includes(atual)) selAn.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(atual)}">${escapeHtml(atual)} (fora da equipe)</option>`);
+    selAn.value = atual;
+    document.getElementById('f-previsao-field').style.display = (activeWorkspace.perfilTipo === 'projeto') ? '' : 'none';
+    document.getElementById('f-previsao').value = c ? (c.previsaoEntrega || '') : '';
+    limparBuscaObservacao();
+    return r;
+  };
+})();
+
+// Busca dentro da observação (estilo Ctrl+F): o textarea some e uma <div> com <mark> em cada ocorrência aparece no lugar.
+// O texto real continua no textarea (só escondido), então salvar funciona igual. Limpar a busca volta ao campo editável.
+let obsBuscaTotal = 0, obsBuscaAtual = 0;
+function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function obsWrap() { const ta = document.getElementById('f-observacao'); return ta.closest('.ortografia-wrap') || ta; }
+function limparBuscaObservacao() {
+  document.getElementById('f-observacao-busca').value = '';
+  document.getElementById('f-observacao-highlight').hidden = true;
+  document.getElementById('f-observacao-contador').textContent = '';
+  obsWrap().style.display = '';
+  obsBuscaTotal = 0; obsBuscaAtual = 0;
+  if (typeof ortografiaAtualizarTodos === 'function') ortografiaAtualizarTodos();
+}
+function pesquisarObservacao(reset) {
+  const termo = document.getElementById('f-observacao-busca').value.trim();
+  if (!termo) { limparBuscaObservacao(); return; }
+  if (reset) obsBuscaAtual = 0;
+  const texto = document.getElementById('f-observacao').value;
+  const re = new RegExp(escapeRegExp(termo), 'gi');
+  let html = '', ultimo = 0, count = 0, m;
+  while ((m = re.exec(texto)) !== null) {
+    html += escapeHtml(texto.slice(ultimo, m.index)) + '<mark>' + escapeHtml(m[0]) + '</mark>';
+    ultimo = m.index + m[0].length; count++;
+  }
+  html += escapeHtml(texto.slice(ultimo));
+  obsBuscaTotal = count;
+  if (obsBuscaAtual >= count) obsBuscaAtual = 0;
+  const hl = document.getElementById('f-observacao-highlight');
+  obsWrap().style.display = 'none';
+  hl.hidden = false;
+  hl.innerHTML = count ? html : '<span style="color:var(--gray-text);">Nada encontrado nesta observação.</span>';
+  const marks = [...hl.querySelectorAll('mark')];
+  marks.forEach((mk, i) => mk.classList.toggle('atual', i === obsBuscaAtual));
+  document.getElementById('f-observacao-contador').textContent = count ? (obsBuscaAtual + 1) + ' de ' + count : '0 resultados';
+  if (marks[obsBuscaAtual]) marks[obsBuscaAtual].scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+function navegarObservacao(delta) {
+  if (!obsBuscaTotal) return;
+  obsBuscaAtual = (obsBuscaAtual + delta + obsBuscaTotal) % obsBuscaTotal;
+  pesquisarObservacao(false);
+}
+
+// ── Esqueci minha senha e tela de nova senha ──
+// O evento PASSWORD_RECOVERY chega quando a pessoa abre o link do e-mail; sem tratar, ela entraria direto sem nunca definir a senha nova.
+// ATENÇÃO: o e-mail só chega pra qualquer pessoa depois de configurar SMTP próprio no Supabase (o padrão só entrega pra membros da organização do projeto).
+let modoRecuperacaoSenha = false;
+async function doForgotPassword() {
+  const email = document.getElementById('login-email').value.trim();
+  const msg = document.getElementById('auth-msg');
+  if (!email || !email.includes('@')) { msg.style.color = 'var(--red)'; msg.textContent = 'Digite seu e-mail no campo acima e clique de novo em "Esqueci minha senha".'; return; }
+  msg.style.color = 'var(--gray-text)'; msg.textContent = 'Enviando...';
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  if (error) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = /rate limit|too many|over_email/i.test(error.message) ? 'Muitos pedidos agora. Espere alguns minutos e tente de novo.' : error.message;
+    return;
+  }
+  msg.style.color = 'var(--green-mid)';
+  msg.textContent = 'Se esse e-mail tiver uma conta, você vai receber um link para criar uma nova senha. Se não chegar em alguns minutos, fale com quem administra o seu workspace.';
+}
+function mostrarTelaNovaSenha() {
+  ['auth-screen', 'onboarding-screen', 'app-shell'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  document.getElementById('recovery-screen').style.display = 'flex';
+}
+async function doResetPassword() {
+  const senha = document.getElementById('recovery-senha').value;
+  const senha2 = document.getElementById('recovery-senha2').value;
+  const msg = document.getElementById('recovery-msg');
+  if (!senha || senha.length < 6) { msg.style.color = 'var(--red)'; msg.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+  if (senha !== senha2) { msg.style.color = 'var(--red)'; msg.textContent = 'As senhas não coincidem.'; return; }
+  msg.style.color = 'var(--gray-text)'; msg.textContent = 'Salvando...';
+  const { error } = await sb.auth.updateUser({ password: senha });
+  if (error) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = /different from the old/i.test(error.message) ? 'A nova senha precisa ser diferente da atual.' : error.message;
+    return;
+  }
+  modoRecuperacaoSenha = false;
+  history.replaceState(null, '', location.pathname);
+  document.getElementById('recovery-screen').style.display = 'none';
+  await afterAuth();
+}
 
 function mensagemErroAmigavel(error, contexto) {
   if (error && error.code === '23505') {
@@ -2252,7 +2454,7 @@ async function loadWorkspaceData() {
   state.entidades = (entidadesRows||[]).map(c => ({
     id:c.id, codigo:c.codigo||'', nome:c.nome, responsavel:c.responsavel||'', etapa:c.etapa, fase:c.fase||'implantacao',
     saude:c.saude||'verde', saudeMotivo:c.saude_motivo||'', observacao:c.observacao||'', inicio:c.inicio,
-    ultimoContato:c.ultimo_contato, proximoContato:c.proximo_contato,
+    ultimoContato:c.ultimo_contato, proximoContato:c.proximo_contato, analista:c.analista_responsavel||'', previsaoEntrega:c.previsao_entrega||null,
     contatos: contatos.filter(ct => ct.entidade_id===c.id).map(ct => ({ id:ct.id, nome:ct.nome, telefone:ct.telefone||'', cargo:ct.cargo||'' })),
     pendencias: pendencias.filter(p => p.entidade_id===c.id).map(p => ({ id:p.id, texto:p.texto, responsavel:p.responsavel, feito:p.feito, observacao:p.observacao||'', ordem:p.ordem, mostrarLamina:p.mostrar_lamina !== false })).sort((a, b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9)),
     historico: historico.filter(h => h.entidade_id===c.id).map(h => ({ id:h.id, data:h.data, texto:h.texto })),
@@ -2417,13 +2619,14 @@ function renderEntidades() {
         <td><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span></td>
         <td><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></td>
         <td>${escapeHtml(c.responsavel)}</td>
+        <td>${escapeHtml(c.analista||'—')}</td>${prazoTd(c)}
         <td>${pendenciasAbertasDe(c).length || '—'}</td>
       </tr>`).join('') || `<tr><td colspan="7"><div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div></td></tr>`;
   } else {
     document.getElementById('entidades-cards-wrap').innerHTML = list.map(c => `
       <div class="entidade-card" onclick="openModal('${c.id}')">
         <div class="cc-top"><div class="cc-name">${escapeHtml(c.nome)}</div><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></div>
-        <div class="cc-meta">${escapeHtml(c.responsavel)||'—'}</div>
+        <div class="cc-meta">${escapeHtml(c.responsavel)||'—'}${c.analista ? ' · 👤 ' + escapeHtml(c.analista) : ''}</div>${prazoBadgeHtml(c)}
         <div class="cc-badges"><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></div>
       </div>`).join('') || `<div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div>`;
   }
@@ -2556,6 +2759,8 @@ async function saveEntidade() {
     saude: document.getElementById('f-saude').value,
     saude_motivo: document.getElementById('f-saude-motivo').value.trim(),
     observacao: document.getElementById('f-observacao').value.trim(),
+    analista_responsavel: document.getElementById('f-analista').value || '',
+    previsao_entrega: document.getElementById('f-previsao').value || null,
     inicio: document.getElementById('f-inicio').value || todayStr(),
     proximo_contato: document.getElementById('f-proximo').value || null,
     updated_at: new Date().toISOString(),
@@ -2568,12 +2773,12 @@ async function saveEntidade() {
     Object.assign(state.entidades.find(c=>c.id===editingEntidadeId), {
       codigo: payload.codigo||'', nome: payload.nome, responsavel: payload.responsavel, etapa: payload.etapa,
       fase: payload.fase, saude: payload.saude, saudeMotivo: payload.saude_motivo, observacao: payload.observacao,
-      inicio: payload.inicio, proximoContato: payload.proximo_contato,
+      inicio: payload.inicio, proximoContato: payload.proximo_contato, analista: payload.analista_responsavel || '', previsaoEntrega: payload.previsao_entrega,
     });
   } else {
     const { data, error } = await sb.from('entidades').insert(payload).select().single();
     if (error) { alert(mensagemErroAmigavel(error, 'codigo-entidade')); return; }
-    state.entidades.push({ ...payload, id:data.id, proximoContato:payload.proximo_contato, contatos:[], pendencias:[], historico:[] });
+    state.entidades.push({ ...payload, id:data.id, proximoContato:payload.proximo_contato, analista: payload.analista_responsavel || '', previsaoEntrega: payload.previsao_entrega, contatos:[], pendencias:[], historico:[] });
     editingEntidadeId = data.id;
   }
   closeModal();
@@ -3822,7 +4027,9 @@ function importJSON(file) {
     return;
   }
   const { data: { session } } = await sb.auth.getSession();
-  if (session) {
+  if (session && (modoRecuperacaoSenha || /type=recovery/.test(location.hash))) {
+    mostrarTelaNovaSenha();
+  } else if (session) {
     await afterAuth();
   } else {
     document.getElementById('auth-screen').style.display = 'flex';
