@@ -24,9 +24,9 @@ Cada workspace tem um `perfil_tipo` fixo desde a criação (não muda depois), d
 
 | perfil (banco) | rótulo na tela | abas visíveis (`PERFIL_ABAS`) | rótulo padrão da entidade central (`ENTIDADE_LABEL_PADRAO`) |
 |---|---|---|---|
-| `pessoal` | **Pessoal** | Atividades, Agenda, Resumo | *(nenhuma — não tem aba de entidades)* |
-| `equipe` | **Equipe** | Entidades, Agenda, Pendências, Atividades, Resumo | "Clientes" |
-| `projeto` | **Gestão de Projeto** | Entidades, Agenda, Pendências, Atividades, Resumo, **Treinamentos** | "Projetos" |
+| `pessoal` | **Pessoal** | Atividades, Agenda, Resumo, Indicadores, Buscar | *(nenhuma — não tem aba de entidades)* |
+| `equipe` | **Equipe** | Entidades, Agenda, Pendências, Atividades, Resumo, Indicadores, Lâmina, Buscar | "Clientes" |
+| `projeto` | **Gestão de Projeto** | Entidades, Agenda, Pendências, Atividades, Resumo, **Treinamentos**, Indicadores, Lâmina, Buscar | "Projetos" |
 
 Descrições mostradas nos cards de escolha do onboarding (`PERFIL_DESC`):
 - Pessoal: "Só suas tarefas e sua agenda pessoal."
@@ -92,6 +92,69 @@ Todas ganharam `workspace_id` (FK cascade) e entram nos `select` de `loadWorkspa
 - Site: `https://taskfull.ejnascimento1.workers.dev`. Esta documentação em formato de página fica em `/docs` (o `/docs.html` redireciona para `/docs`).
 - Só `deploy/public/` é publicado: editar o `index.html` da raiz exige copiar por cima de `deploy/public/index.html`.
 - **E-mail de confirmação**: o Supabase sem SMTP próprio só entrega e-mail para membros da organização do projeto, então quem se cadastra de fora pode não receber a confirmação. A correção definitiva é configurar SMTP próprio (Brevo ou Resend) em Authentication → SMTP Settings; até lá, confirmar a conta em Authentication → Users → "Confirm user". O convite por e-mail do workspace **não envia e-mail nenhum**: só pré-autoriza o endereço, e o convidado precisa ser avisado por fora.
+## 9. Novidades adaptadas do Painel de Implantação (outubro/2026)
+
+Em 04/10/2026 foi analisado o documento `novidades-painel-implantacao-para-taskfull.md` (um mês de evolução do Painel de Implantação da Intelipulse) e o que fazia sentido foi trazido para o Taskfull, **só incluindo, sem remover nada do que já existia**. O Painel é de uma empresa só; o Taskfull é multiusuário, então tudo foi adaptado (`workspace_id` em toda consulta, RLS por `is_member`, `entidades` no lugar de `clientes`, colunas do Kanban configuráveis por workspace).
+
+### 9.1 O que cada perfil ganhou
+
+| Recurso | Pessoal | Equipe | Gestão de Projeto |
+|---|---|---|---|
+| **Indicadores** (cards por coluna do Kanban com idade média, barras Criadas × Concluídas por dia/semana/mês, pizza da fila) | sim, sem filtro por pessoa | sim | sim |
+| Pizza "em aberto por pessoa" e filtro por pessoa | não (uso individual) | sim | sim |
+| **Buscar** (full-text no banco, sem custo) | só atividades | notas, atividades e pendências | notas, atividades e pendências |
+| **Lâmina** (visão de reunião, imagem e PDF de página única) | não | sim | sim |
+| Pendências: arrastar para reordenar, copiar em texto, flag 🖼 "aparece na Lâmina" | não tem aba de Pendências | sim | sim |
+| Resumo do Dia: exportar em imagem/PDF | sim | sim | sim |
+| Resumo e Relatório: filtro por cliente/projeto (Relatório também respeita o filtro por pessoa, regra de **união** responsável + participantes) | não | sim | sim |
+| Agenda: **hora obrigatória**; "Mostrar concluídos" volta ao padrão ao reabrir a aba | sim | sim | sim |
+| Agenda: contatos do cliente aparecem ao agendar (só leitura) | não | sim | sim |
+| Atividades: **badge de idade** colorido (cinza até 7 dias, âmbar 8 a 14, vermelho a partir de 15) e "Criado em ... (há N dias)" no modal | sim | sim | sim |
+| Filtros de "hoje" (coluna Concluído e Resumo) que **não congelam** se a aba passar da meia-noite aberta | sim | sim | sim |
+| **Corretor ortográfico PT-BR** embutido (Typo.js + dicionário Hunspell, carregado sob demanda) em Descrição, Resolução, Observação da agenda, nota do cliente e observação de pendência | sim | sim | sim |
+| Botão **🔄 Atualizar** (recarrega do banco sem perder aba nem filtros) | sim | sim | sim |
+
+Detalhes que vale saber:
+- **Corretor**: usa uma `<div>` transparente atrás do `<textarea>` com o mesmo texto e sublinha só as palavras erradas. Se o dicionário não carregar (rede/CDN), o campo segue normal, só sem sublinhar. Só marca, não sugere correção.
+- **Indicadores** lê `atividades.created_at` (agora carregado como `criadoEm`) e `concluido_em`. Atividades concluídas antes de `concluido_em` existir não entram nas barras.
+- **Buscar** diferente do Painel: inclui atividades **em aberto** e concluídas (o Painel só olhava as concluídas), porque aqui a Descrição também guarda informação útil. Mostra se está "em aberto" ou "concluída".
+- **Arrastar pendências**: só a alça ⠿ é arrastável (para não atrapalhar selecionar texto no campo de observação). A ordem grava em `pendencias.ordem`.
+
+### 9.2 Banco (aplicado em produção e registrado no fim de `workspace-schema.sql`)
+
+- `pendencias.ordem integer` e `pendencias.mostrar_lamina boolean not null default true` (toda pendência, antiga ou nova, já nasce aparecendo na Lâmina; o fluxo é tirar as exceções).
+- `entidades.ultimo_contato_canal text` (reservada para o "contato do dia por canal", ainda sem tela; ver 9.4).
+- Função `buscar_workspace(p_workspace_id uuid, p_termo text)`: full-text em português, **sem `security definer` de propósito**, então a RLS (`is_member`) filtra sozinha. Devolve uma linha por resultado (`origem` = `ficha`/`atividade`/`pendencia`), no máximo 3 atividades e 3 pendências por entidade.
+- Tabelas `busca_ia_config` e `busca_ia_uso` (estrutura da IA, ver 9.3).
+
+### 9.3 Busca com IA: estrutura pronta, **desligada**
+
+Nada disso gasta nada hoje. Foi deixado pronto porque a chave da Anthropic é do dono do app e valeria para **todos os workspaces de todos os usuários**, então o desenho é mais restrito que o do Painel:
+
+- **`busca_ia_config`** (`workspace_id`, `ativo`, `limite_mensal_usd`): quem liga a IA é **o dono do app pelo SQL Editor**; membros só leem (sem policy de escrita). Um admin de workspace não consegue ligar e gastar a chave sozinho.
+- **`busca_ia_uso`**: uma linha por pergunta (tokens e custo estimado). Gravada só pela Edge Function com a service role; membro só lê, para ninguém zerar o contador do limite.
+- **`supabase-edge-functions/buscar-ia/index.ts`**: **não está publicada**. Antes de qualquer chamada confere (1) se a pessoa é membro ativo, (2) se o workspace está ligado, (3) se o gasto do mês está abaixo do limite. **Refaz a busca no servidor com o token de quem chamou**: o navegador não manda "contexto", então ninguém usa a chave como chat grátis. Modelo Haiku 4.5.
+- **Front-end**: já existe o gancho em `buscarNoWorkspace()` (`buscaIaAtiva()` consulta `busca_ia_config`; se estiver desligado, nada acontece). A resposta apareceria num bloco acima dos cartões; se a IA falhar, os cartões seguem.
+- **Para ligar (só quando decidido)**: publicar a função; criar o secret `ANTHROPIC_API_KEY` (conta com limite mensal definido); e, por workspace, `insert into public.busca_ia_config (workspace_id, ativo, limite_mensal_usd) values ('<id>', true, 1.00) on conflict (workspace_id) do update set ativo = true, limite_mensal_usd = excluded.limite_mensal_usd, updated_at = now();`.
+- Como o custo da IA do Painel de Implantação e do Taskfull sairia da mesma chave se fosse reaproveitada, a decisão é **ligar por último**, depois de observar como se comporta nas duas plataformas.
+
+### 9.4 Ainda em análise (não implementado)
+
+- **Contato do dia por canal** (ligação/mensagem/e-mail/reunião, que reseta sozinho todo dia): no Painel mora em cada card de Pendências, mas aqui a aba só lista clientes **com pendência aberta**, então o check e o contador ficariam incoerentes. Falta decidir onde fica (lista de Clientes?) e se vale para Gestão de Projeto. A coluna já existe.
+- **Analista responsável** e **Previsão pós-implantação** (Gestão de Projeto: "responsável do projeto" e "previsão de entrega").
+- **Busca com destaque dentro da nota** (estilo Ctrl+F): conflita com o corretor ortográfico no mesmo campo (dois overlays) e precisa de desenho próprio.
+- **"Esqueci minha senha"**: o e-mail de redefinição depende do SMTP do Supabase, que hoje só entrega para membros da organização do projeto (ver seção 8). Só vale a pena junto da configuração de SMTP próprio.
+- **Cronograma do cliente** (portal em que o cliente acompanha o projeto): grande (6 tabelas, 3 funções, 1 Edge Function), só para Gestão de Projeto, se for compartilhar com externos.
+- **Hora obrigatória no perfil Pessoal**: foi aplicada nos três perfis; se na agenda pessoal houver compromisso "o dia todo" (aniversário, por exemplo), pode fazer sentido liberar.
+
+### 9.5 Outras funcionalidades do período (já em produção, documentadas aqui)
+
+- **Feriados & Datas** (Configurações): feriados nacionais vêm sozinhos da BrasilAPI e aparecem no Calendário da Agenda; estaduais, municipais e datas comerciais ficam numa lista editável por workspace (`feriados_datas`). O botão "🔄 Sincronizar datas comerciais conhecidas" insere as datas de uma lista fixa embutida (`DEFAULT_FERIADOS_COMERCIAIS`) que ainda não estão cadastradas, **depois de uma confirmação do navegador**; feriados nacionais ficam de fora de propósito para não duplicar. Lista atualizada em 01/10/2026 com o **Dia Internacional do Café** (oficial da OIC) e o **Dia do Vendedor**.
+- **Calendário mensal** da Agenda com setas, "Hoje" e seletor direto de mês/ano.
+- **Observação por pendência** (coluna ao lado da pendência) e **botão "+ Nova atividade" no fim de cada raia** do Kanban.
+- **"Criado por"** da atividade é sempre o nome (do workspace) de quem abre o modal, fixo e não editável.
+- **Nome de exibição dos membros** editável (o próprio membro e o admin).
+
 
 ---
 
