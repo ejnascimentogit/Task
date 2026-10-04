@@ -94,7 +94,7 @@ Todas ganharam `workspace_id` (FK cascade) e entram nos `select` de `loadWorkspa
 - **E-mail de confirmação**: o Supabase sem SMTP próprio só entrega e-mail para membros da organização do projeto, então quem se cadastra de fora pode não receber a confirmação. A correção definitiva é configurar SMTP próprio (Brevo ou Resend) em Authentication → SMTP Settings; até lá, confirmar a conta em Authentication → Users → "Confirm user". O convite por e-mail do workspace **não envia e-mail nenhum**: só pré-autoriza o endereço, e o convidado precisa ser avisado por fora.
 ## 9. Novidades adaptadas do Painel de Implantação (outubro/2026)
 
-Em 04/10/2026 foi analisado o documento `novidades-painel-implantacao-para-taskfull.md` (um mês de evolução do Painel de Implantação da Intelipulse) e o que fazia sentido foi trazido para o Taskfull, **só incluindo, sem remover nada do que já existia**. O Painel é de uma empresa só; o Taskfull é multiusuário, então tudo foi adaptado (`workspace_id` em toda consulta, RLS por `is_member`, `entidades` no lugar de `clientes`, colunas do Kanban configuráveis por workspace).
+Em 04/10/2026 foi analisado o documento `novidades-painel-implantacao-para-taskfull.md` (um mês de evolução do Painel de Implantação da Intelipulse; documento interno, não incluído neste repositório público) e o que fazia sentido foi trazido para o Taskfull, **só incluindo, sem remover nada do que já existia**. O Painel é de uma empresa só; o Taskfull é multiusuário, então tudo foi adaptado (`workspace_id` em toda consulta, RLS por `is_member`, `entidades` no lugar de `clientes`, colunas do Kanban configuráveis por workspace).
 
 ### 9.1 O que cada perfil ganhou
 
