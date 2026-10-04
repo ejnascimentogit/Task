@@ -475,6 +475,40 @@
   .ortografia-overlay { position:absolute; inset:0; margin:0; pointer-events:none; overflow:hidden; white-space:pre-wrap; word-wrap:break-word; color:transparent; border-style:solid; border-color:transparent; }
   .ortografia-wrap textarea { position:relative; display:block; background:transparent; }
   .ortografia-erro { text-decoration:underline wavy var(--red); text-decoration-thickness:1.5px; text-underline-offset:3px; }
+
+  /* ── Fase 2 (novidades do Painel de Implantação): pendências, filtros e contatos ao agendar ── */
+  .pend-drag-handle { cursor:grab; color:var(--gray-text); font-size:13px; margin:0 4px 0 2px; user-select:none; }
+  .pend-obs-row.dragging { opacity:.45; }
+  .lamina-toggle { cursor:pointer; margin-left:6px; font-size:12px; user-select:none; }
+  .lamina-toggle.off { opacity:.35; filter:grayscale(1); }
+  .ag-contatos { margin-top:6px; font-size:12px; color:var(--gray-text); display:flex; flex-direction:column; gap:2px; }
+  .ag-contatos b { color:var(--text-main); }
+
+  /* ── Fase 2: Indicadores (barras e pizzas em HTML/CSS puro, sem biblioteca de gráfico) ── */
+  .ind-bloco { background:var(--light-bg); border:1px solid var(--border-light); border-top:3px solid var(--ind-cor, #64748B); border-radius:12px; padding:14px 16px; margin-top:16px; flex:1; min-width:280px; }
+  .ind-bloco-titulo { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:800; margin-bottom:10px; }
+  .ind-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .ind-card { background:var(--white); border:1px solid var(--border-light); border-radius:10px; padding:12px; }
+  .ind-card .num { font-size:26px; font-weight:800; line-height:1.1; }
+  .ind-card .lbl { font-size:11.5px; color:var(--gray-text); text-transform:uppercase; letter-spacing:.04em; font-weight:700; margin-top:2px; }
+  .ind-card .sub { font-size:11.5px; color:var(--gray-text); margin-top:4px; }
+  .ind-chart { display:flex; align-items:flex-end; gap:6px; height:200px; padding-top:18px; overflow-x:auto; }
+  .ind-col { flex:1; min-width:36px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .ind-bars { display:flex; align-items:flex-end; gap:3px; }
+  .ind-bar { width:14px; border-radius:3px 3px 0 0; position:relative; }
+  .ind-bar.criadas { background:#3B82F6; }
+  .ind-bar.concluidas { background:#00C853; }
+  .ind-bar .v { position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-size:10px; font-weight:700; color:var(--text-main); }
+  .ind-col .rot { font-size:10px; color:var(--gray-text); margin-top:5px; white-space:nowrap; }
+  .ind-legenda { display:flex; gap:14px; font-size:12px; margin-top:8px; color:var(--gray-text); }
+  .ind-legenda .sw, .pizza-legenda .sw { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; }
+  .pizza-row { display:flex; gap:16px; flex-wrap:wrap; }
+  .pizza-explicacao { font-size:12px; color:var(--gray-text); margin:-4px 0 10px; }
+  .pizza-wrap { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .pizza-donut { width:130px; height:130px; border-radius:50%; position:relative; flex-shrink:0; }
+  .pizza-donut::after { content:''; position:absolute; inset:28px; border-radius:50%; background:var(--light-bg); }
+  .pizza-legenda { display:flex; flex-direction:column; gap:5px; font-size:12.5px; }
+  .pizza-pct { color:var(--gray-text); }
 </style>
 </head>
 <body>
@@ -647,6 +681,7 @@
           <div class="resumo-sub" id="resumo-data"></div>
           <div class="resumo-actions">
             <input type="date" id="resumo-filtro-data" onchange="setResumoFiltroData(this.value)" style="font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);">
+            <select id="resumo-filtro-entidade" onchange="setResumoFiltroEntidade(this.value)" style="display:none;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);"></select>
             <button class="btn btn-primary btn-sm" onclick="copyResumo()">📋 Copiar resumo</button>
           </div>
           <div class="resumo-pre" id="resumo-texto"></div>
@@ -701,6 +736,39 @@
           <button class="btn btn-green btn-sm" onclick="novaEtapaTreinamento()">+ Nova Etapa</button>
         </div>
         <div id="treinamentos-wrap"></div>
+      </section>
+
+      <section id="view-indicadores" style="display:none">
+        <div class="resumo-box">
+          <h2 style="margin-bottom:0;">📊 Indicadores</h2>
+          <div class="pessoa-filter" id="pessoa-filter-indicadores" style="margin-top:14px;"></div>
+          <div class="ind-bloco" style="--ind-cor:#64748B;">
+            <div class="ind-bloco-titulo">Fila atual, por coluna do quadro</div>
+            <div class="ind-cards" id="ind-cards"></div>
+          </div>
+          <div class="ind-bloco" style="--ind-cor:#3B82F6;">
+            <div class="ind-bloco-titulo">Criadas × Concluídas
+              <span class="view-toggle" style="margin-left:auto;">
+                <button class="view-toggle-btn" id="ind-per-dia" onclick="setIndicadoresPeriodo('dia')">Dia</button>
+                <button class="view-toggle-btn" id="ind-per-semana" onclick="setIndicadoresPeriodo('semana')">Semana</button>
+                <button class="view-toggle-btn" id="ind-per-mes" onclick="setIndicadoresPeriodo('mes')">Mês</button>
+              </span>
+            </div>
+            <div id="ind-barras"></div>
+          </div>
+          <div class="pizza-row">
+            <div class="ind-bloco" style="--ind-cor:#8B5CF6;">
+              <div class="ind-bloco-titulo">Distribuição da fila atual</div>
+              <div class="pizza-explicacao">Como as atividades em aberto se dividem entre as colunas do quadro.</div>
+              <div id="pizza-fila"></div>
+            </div>
+            <div class="ind-bloco" id="pizza-pessoa-wrap" style="--ind-cor:#EC4899;">
+              <div class="ind-bloco-titulo">Atividades em aberto por pessoa</div>
+              <div class="pizza-explicacao">Quanto cada pessoa tem em aberto (responsável ou participante).</div>
+              <div id="pizza-pessoa"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="view-configuracoes" style="display:none">
@@ -965,7 +1033,8 @@
     <div class="form-grid">
       <div class="form-field full" id="ag-entidade-field">
         <label id="ag-entidade-label">Entidade (opcional)</label>
-        <input type="text" id="ag-entidade-nome" list="lista-entidades-nomes" placeholder="Digite um nome...">
+        <input type="text" id="ag-entidade-nome" list="lista-entidades-nomes" placeholder="Digite um nome..." oninput="renderAgEntidadeContatos()">
+        <div class="ag-contatos" id="ag-entidade-contatos"></div>
         <datalist id="lista-entidades-nomes"></datalist>
       </div>
       <div class="form-field"><label>Tipo</label><select id="ag-tipo"></select></div>
@@ -996,6 +1065,7 @@
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
       <input type="date" id="relatorio-filter-custom" onchange="setRelatorioFiltro(this.value)">
       <button class="btn btn-sm" onclick="setRelatorioFiltro(null)">Todos os dias</button>
+      <select id="relatorio-filtro-entidade" onchange="setRelatorioFiltroEntidade(this.value)" style="display:none;font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border-light);"></select>
     </div>
     <div id="relatorio-visual" class="relatorio-visual"></div>
     <div class="modal-footer">
@@ -1091,9 +1161,9 @@ try {
 }
 
 const PERFIL_ABAS = {
-  pessoal: ['atividades', 'agenda', 'resumo'],
-  equipe:  ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo'],
-  projeto: ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'treinamentos'],
+  pessoal: ['atividades', 'agenda', 'resumo', 'indicadores'],
+  equipe:  ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'indicadores'],
+  projeto: ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'treinamentos', 'indicadores'],
 };
 const DEFAULT_COR_DESTAQUE = '#00FF7A';
 const DEFAULT_COR_FUNDO = '#F4F5F3';
@@ -1140,8 +1210,8 @@ const PERFIL_DESC = {
   projeto: 'Tudo do modo Equipe, mais treinamentos/onboarding por etapas.',
 };
 const ENTIDADE_LABEL_PADRAO = { pessoal: null, equipe: 'Clientes', projeto: 'Projetos' };
-const NAV_ICON = { entidades: '🏢', agenda: '🗓', pendencias: '⚠️', atividades: '✅', resumo: '📋', treinamentos: '🎓' };
-const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos' };
+const NAV_ICON = { entidades: '🏢', agenda: '🗓', pendencias: '⚠️', atividades: '✅', resumo: '📋', treinamentos: '🎓', indicadores: '📊', lamina: '🖼', buscar: '🔍' };
+const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', buscar: 'Buscar' };
 
 const DEFAULT_ETAPAS = [
   { id: 'kickoff', nome: 'Kickoff', cor: '#3B82F6', ordem: 1 },
@@ -1354,6 +1424,222 @@ function ortografiaAtualizarTodos() {
     return r;
   };
 });
+
+// ══════════════════════════════════════════════════════════════
+// NOVIDADES DO PAINEL DE IMPLANTAÇÃO, FASE 2: pendências (arrastar, copiar, Lâmina), filtros de Resumo/Relatório, contatos ao agendar
+// ══════════════════════════════════════════════════════════════
+// Arrastar pra reordenar (drag nativo, sem biblioteca). Só a alça ⠿ é arrastável, pra não atrapalhar selecionar texto nos textareas.
+function pendDragStart(e) {
+  const row = e.target.closest('.pend-obs-row');
+  if (!row) return;
+  row.classList.add('dragging');
+  try { e.dataTransfer.setData('text/plain', row.dataset.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setDragImage(row, 12, 12); } catch (_) {}
+}
+function pendDragEnd(e) {
+  const row = e.target.closest('.pend-obs-row');
+  if (row) row.classList.remove('dragging');
+}
+function pendDragOver(e) {
+  const container = e.currentTarget;
+  const dragging = container.querySelector('.pend-obs-row.dragging');
+  if (!dragging) return;
+  e.preventDefault();
+  const depois = [...container.querySelectorAll('.pend-obs-row:not(.dragging)')].find(el => {
+    const rect = el.getBoundingClientRect();
+    return e.clientY < rect.top + rect.height / 2;
+  });
+  if (depois) container.insertBefore(dragging, depois); else container.appendChild(dragging);
+}
+async function pendDrop(e, entidadeId) {
+  const container = e.currentTarget;
+  if (!container.querySelector('.pend-obs-row.dragging')) return;
+  e.preventDefault();
+  const idsEmOrdem = [...container.querySelectorAll('.pend-obs-row')].map(el => el.dataset.id);
+  await persistirOrdemPendencias(entidadeId, idsEmOrdem);
+}
+// Grava a posição de TODOS os itens primeiro; só atualiza a memória depois de confirmar. Se der erro, avisa e redesenha
+// (desfaz o arrasto visual, que mexeu direto no DOM).
+async function persistirOrdemPendencias(entidadeId, idsEmOrdem) {
+  const c = state.entidades.find(x => x.id === entidadeId);
+  if (!c) return;
+  const resultados = await Promise.all(idsEmOrdem.map((id, i) => sb.from('pendencias').update({ ordem: i }).eq('id', id)));
+  const falhou = resultados.find(r => r.error);
+  if (falhou) { alert('Erro ao salvar a nova ordem: ' + falhou.error.message); renderPendenciasOverview(); return; }
+  idsEmOrdem.forEach((id, i) => { const p = c.pendencias.find(x => x.id === id); if (p) p.ordem = i; });
+  c.pendencias.sort((a, b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9));
+  renderPendenciasOverview();
+}
+// Flag "aparece na Lâmina" por pendência (padrão: aparece; o fluxo é tirar as exceções).
+async function toggleLaminaPendencia(id) {
+  let alvo = null;
+  for (const c of state.entidades) { const p = c.pendencias.find(p => p.id === id); if (p) { alvo = p; break; } }
+  if (!alvo) return;
+  const novo = alvo.mostrarLamina === false;
+  const { error } = await sb.from('pendencias').update({ mostrar_lamina: novo }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  alvo.mostrarLamina = novo;
+  renderPendenciasOverview();
+}
+// Texto pronto pra colar no WhatsApp/e-mail: só as pendências em aberto, com a observação quando houver.
+function copiarPendenciasEntidade(entidadeId) {
+  const c = state.entidades.find(x => x.id === entidadeId);
+  if (!c) return;
+  const abertas = c.pendencias.filter(p => !p.feito);
+  const linha = p => '- ' + p.texto + (p.observacao ? ' — ' + p.observacao.replace(/\s*\n\s*/g, ' ') : '');
+  const doLado = lado => abertas.filter(p => p.responsavel === lado);
+  const rotulo = entidadeLabel().slice(0, -1) || 'Entidade';
+  let texto = '📋 Pendências — ' + c.nome + '\n\n';
+  texto += '⚠ Do(a) ' + rotulo + ':\n' + (doLado('entidade').length ? doLado('entidade').map(linha).join('\n') : 'Nenhuma pendência.');
+  texto += '\n\n🔧 Da equipe:\n' + (doLado('equipe').length ? doLado('equipe').map(linha).join('\n') : 'Nenhuma pendência.');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(
+      () => alert('Pendências copiadas! Já pode colar no WhatsApp ou e-mail.'),
+      () => window.prompt('Copie o resumo abaixo (Ctrl+C):', texto)
+    );
+  } else {
+    window.prompt('Copie o resumo abaixo (Ctrl+C):', texto);
+  }
+}
+
+// Filtro de entidade no Resumo do Dia e no Relatório: só lista as que têm atividade concluída NAQUELE dia
+// e volta sozinho pra "todas" se a escolhida sumir da lista (ex.: trocou a data).
+let resumoFiltroEntidade = '';
+let relatorioFiltroEntidade = '';
+function setResumoFiltroEntidade(v) { resumoFiltroEntidade = v; renderResumo(); }
+function setRelatorioFiltroEntidade(v) { relatorioFiltroEntidade = v; renderRelatorioVisual(); }
+function popularFiltroEntidade(selectId, data, atual) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return '';
+  if (!temAba('entidades')) { sel.style.display = 'none'; return ''; }
+  const nomes = [...new Set(atividades
+    .filter(a => a.coluna === 'concluida' && !a.cancelado && (!data || a.concluidoEm === data) && a.entidadeNome)
+    .map(a => a.entidadeNome))].sort((a, b) => a.localeCompare(b));
+  const valor = nomes.includes(atual) ? atual : '';
+  sel.innerHTML = '<option value="">Todos(as) — ' + escapeHtml(entidadeLabel()) + '</option>'
+    + nomes.map(n => `<option value="${escapeHtml(n)}" ${n === valor ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('');
+  sel.style.display = '';
+  return valor;
+}
+
+// Contatos da entidade aparecem ao agendar (só leitura): casa o nome digitado com uma entidade cadastrada.
+function renderAgEntidadeContatos() {
+  const el = document.getElementById('ag-entidade-contatos');
+  if (!el) return;
+  const nome = (document.getElementById('ag-entidade-nome').value || '').trim().toLowerCase();
+  const e = nome ? state.entidades.find(x => x.nome.toLowerCase() === nome) : null;
+  el.innerHTML = e && e.contatos.length
+    ? e.contatos.map(c => `<div><b>${escapeHtml(c.nome)}</b>${c.cargo ? ' · ' + escapeHtml(c.cargo) : ''}${c.telefone ? ' · ' + escapeHtml(c.telefone) : ''}</div>`).join('')
+    : '';
+}
+(function () {
+  const orig = window.openAgendamentoModal;
+  if (typeof orig !== 'function') return;
+  window.openAgendamentoModal = function () { const r = orig.apply(this, arguments); renderAgEntidadeContatos(); return r; };
+})();
+
+// ══════════════════════════════════════════════════════════════
+// NOVIDADES DO PAINEL DE IMPLANTAÇÃO, FASE 2: aba Indicadores
+// ══════════════════════════════════════════════════════════════
+let indicadoresPeriodo = 'dia';
+function setIndicadoresPeriodo(p) { indicadoresPeriodo = p; renderIndicadores(); }
+function setPessoaFiltroIndicadores(n) { pessoaFiltro = n; renderIndicadores(); }
+// Regra de união: o responsável SEMPRE conta, e cada participante marcado soma por cima (nunca substitui).
+function atividadeNoFiltroPessoa(a) {
+  return souSolo() || pessoaFiltro === 'Todos' || a.responsavel === pessoaFiltro || (a.participantes || []).includes(pessoaFiltro);
+}
+function dataLocalDeISO(iso) {
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+// Dia = últimos 14 dias; Semana = últimas 8 janelas de 7 dias corridos (contando pra trás a partir de hoje); Mês = últimos 6 meses de calendário.
+function gerarBucketsIndicadores(periodo) {
+  const hoje = todayStr();
+  const buckets = [];
+  if (periodo === 'dia') {
+    for (let i = 13; i >= 0; i--) { const d = addDays(hoje, -i); buckets.push({ label: d.slice(8,10) + '/' + d.slice(5,7), from: d, to: d }); }
+  } else if (periodo === 'semana') {
+    for (let i = 7; i >= 0; i--) { const to = addDays(hoje, -i * 7); const from = addDays(to, -6); buckets.push({ label: from.slice(8,10) + '/' + from.slice(5,7), from, to }); }
+  } else {
+    const [ano, mes] = hoje.split('-').map(Number);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(ano, mes - 1 - i, 1);
+      const m2 = String(d.getMonth() + 1).padStart(2, '0');
+      const ultimo = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      buckets.push({ label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''), from: d.getFullYear() + '-' + m2 + '-01', to: d.getFullYear() + '-' + m2 + '-' + String(ultimo).padStart(2,'0') });
+    }
+  }
+  return buckets;
+}
+// Donut em CSS puro: itens = [{label, valor, cor}]
+function montarPizza(containerId, itens) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const total = itens.reduce((soma, i) => soma + i.valor, 0);
+  if (!total) { el.innerHTML = '<div style="font-size:12.5px;color:var(--gray-text);padding:12px 0;">Sem dados no momento.</div>'; return; }
+  let acumulado = 0;
+  const stops = itens.filter(i => i.valor > 0).map(i => {
+    const ini = (acumulado / total) * 100;
+    acumulado += i.valor;
+    return `${i.cor} ${ini}% ${(acumulado / total) * 100}%`;
+  }).join(', ');
+  const legenda = itens.map(i => `<div><span class="sw" style="background:${i.cor}"></span>${escapeHtml(i.label)} <b>${i.valor}</b> <span class="pizza-pct">(${Math.round((i.valor / total) * 100)}%)</span></div>`).join('');
+  el.innerHTML = `<div class="pizza-wrap"><div class="pizza-donut" style="background:conic-gradient(${stops});"></div><div class="pizza-legenda">${legenda}</div></div>`;
+}
+const CORES_COLUNAS = ['#DC2626', '#F59E0B', '#8B5CF6', '#06B6D4', '#84CC16', '#EC4899', '#64748B'];
+const CORES_PESSOA = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4'];
+function renderIndicadores() {
+  const solo = souSolo();
+  const filtroEl = document.getElementById('pessoa-filter-indicadores');
+  if (solo) filtroEl.innerHTML = ''; else renderPessoaFiltro('pessoa-filter-indicadores', 'setPessoaFiltroIndicadores');
+
+  const todas = atividades.filter(a => !a.cancelado && atividadeNoFiltroPessoa(a));
+  const cols = colunasAtivas();
+
+  // Cards por coluna: contagem atual + idade média em aberto (não há histórico diário no banco, então sem "tendência" das colunas abertas).
+  document.getElementById('ind-cards').innerHTML = cols.map(col => {
+    const doCol = todas.filter(a => a.coluna === col.id);
+    const concl = col.id === 'concluida';
+    const comData = doCol.filter(a => a.criadoEm);
+    const media = !concl && comData.length ? Math.round(comData.reduce((s, a) => s + diasDesde(a.criadoEm), 0) / comData.length) : null;
+    const sub = concl ? 'total (todo o período)' : (media === null ? '' : 'idade média em aberto: ' + media + (media === 1 ? ' dia' : ' dias'));
+    return `<div class="ind-card"><div class="num">${doCol.length}</div><div class="lbl">${escapeHtml(col.nome)}</div><div class="sub">${sub}</div></div>`;
+  }).join('');
+
+  // Barras Criadas × Concluídas: essas duas têm data confiável (created_at e concluido_em).
+  const buckets = gerarBucketsIndicadores(indicadoresPeriodo);
+  buckets.forEach(b => {
+    b.criadasQtd = todas.filter(a => a.criadoEm && dataLocalDeISO(a.criadoEm) >= b.from && dataLocalDeISO(a.criadoEm) <= b.to).length;
+    b.concluidasQtd = todas.filter(a => a.coluna === 'concluida' && a.concluidoEm && a.concluidoEm >= b.from && a.concluidoEm <= b.to).length;
+  });
+  const maxValor = Math.max(1, ...buckets.map(b => Math.max(b.criadasQtd, b.concluidasQtd)));
+  const altura = v => Math.max(3, Math.round((v / maxValor) * 140));
+  document.getElementById('ind-barras').innerHTML = `
+    <div class="ind-chart">${buckets.map(b => `
+      <div class="ind-col" title="${escapeHtml(b.from === b.to ? formatDate(b.from) : formatDate(b.from) + ' a ' + formatDate(b.to))}: ${b.criadasQtd} criadas, ${b.concluidasQtd} concluídas">
+        <div class="ind-bars">
+          <div class="ind-bar criadas" style="height:${altura(b.criadasQtd)}px"><span class="v">${b.criadasQtd}</span></div>
+          <div class="ind-bar concluidas" style="height:${altura(b.concluidasQtd)}px"><span class="v">${b.concluidasQtd}</span></div>
+        </div>
+        <div class="rot">${escapeHtml(b.label)}</div>
+      </div>`).join('')}
+    </div>
+    <div class="ind-legenda"><span><span class="sw" style="background:#3B82F6"></span>Criadas</span><span><span class="sw" style="background:#00C853"></span>Concluídas</span></div>`;
+  ['dia', 'semana', 'mes'].forEach(p => { const btn = document.getElementById('ind-per-' + p); if (btn) btn.classList.toggle('active', p === indicadoresPeriodo); });
+
+  // Pizzas
+  const abertas = cols.filter(c => c.id !== 'concluida');
+  montarPizza('pizza-fila', abertas.map((c, i) => ({ label: c.nome, valor: todas.filter(a => a.coluna === c.id).length, cor: CORES_COLUNAS[i % CORES_COLUNAS.length] })));
+  const wrapPessoa = document.getElementById('pizza-pessoa-wrap');
+  const mostrarPessoa = !solo && pessoaFiltro === 'Todos';
+  wrapPessoa.style.display = mostrarPessoa ? '' : 'none';
+  if (mostrarPessoa) {
+    montarPizza('pizza-pessoa', membrosAtivos().map((n, i) => ({
+      label: n,
+      valor: atividades.filter(a => !a.cancelado && a.coluna !== 'concluida' && (a.responsavel === n || (a.participantes || []).includes(n))).length,
+      cor: CORES_PESSOA[i % CORES_PESSOA.length]
+    })));
+  }
+}
 
 function mensagemErroAmigavel(error, contexto) {
   if (error && error.code === '23505') {
@@ -1636,7 +1922,7 @@ async function loadWorkspaceData() {
     saude:c.saude||'verde', saudeMotivo:c.saude_motivo||'', observacao:c.observacao||'', inicio:c.inicio,
     ultimoContato:c.ultimo_contato, proximoContato:c.proximo_contato,
     contatos: contatos.filter(ct => ct.entidade_id===c.id).map(ct => ({ id:ct.id, nome:ct.nome, telefone:ct.telefone||'', cargo:ct.cargo||'' })),
-    pendencias: pendencias.filter(p => p.entidade_id===c.id).map(p => ({ id:p.id, texto:p.texto, responsavel:p.responsavel, feito:p.feito, observacao:p.observacao||'' })),
+    pendencias: pendencias.filter(p => p.entidade_id===c.id).map(p => ({ id:p.id, texto:p.texto, responsavel:p.responsavel, feito:p.feito, observacao:p.observacao||'', ordem:p.ordem, mostrarLamina:p.mostrar_lamina !== false })).sort((a, b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9)),
     historico: historico.filter(h => h.entidade_id===c.id).map(h => ({ id:h.id, data:h.data, texto:h.texto })),
   }));
 
@@ -1670,7 +1956,7 @@ function setTab(tab) {
   if (tab !== 'configuracoes' && tab !== 'ajuda' && !temAba(tab)) tab = abasAtivas()[0] || 'configuracoes';
   if (tab === 'agenda' && activeTab !== 'agenda') { const chk = document.getElementById('show-concluidos-agenda'); if (chk) chk.checked = false; }
   activeTab = tab;
-  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','configuracoes','ajuda'].forEach(t => {
+  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','buscar','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
     if (navBtn) navBtn.classList.toggle('active', t===tab);
     const view = document.getElementById('view-'+t);
@@ -1692,6 +1978,7 @@ function render() {
   else if (activeTab === 'pendencias') renderPendenciasOverview();
   else if (activeTab === 'atividades') renderAtividades();
   else if (activeTab === 'resumo') renderResumo();
+  else if (activeTab === 'indicadores') renderIndicadores();
   else if (activeTab === 'treinamentos') renderTreinamentos();
   else if (activeTab === 'configuracoes') renderConfiguracoes();
   else if (activeTab === 'ajuda') renderAjuda();
@@ -1982,6 +2269,7 @@ function renderPendenciasOverview() {
       <div class="pendencia-card-header">
         <div class="pendencia-card-nome">${escapeHtml(c.nome)}</div>
         <div class="pendencia-card-count">${pendenciasAbertasDe(c).length} aberta(s)</div>
+        <button class="btn btn-sm" title="Copiar as pendências abertas (pronto pra colar)" onclick="copiarPendenciasEntidade('${c.id}')">📋</button>
       </div>
       <div class="pend-cols">
         ${pendObsHtml(c)}
@@ -1991,13 +2279,13 @@ function renderPendenciasOverview() {
 }
 function pendObsHtml(c) {
   if (!c.pendencias.length) return '';
-  return `<div style="grid-column:1 / -1;">
+  return `<div style="grid-column:1 / -1;" ondragover="pendDragOver(event)" ondrop="pendDrop(event, '${c.id}')">
     <div class="pend-obs-head"><h4>Pendência</h4><h4>Observação</h4></div>
     ${c.pendencias.map(p => `
-      <div class="pend-obs-row">
+      <div class="pend-obs-row" data-id="${p.id}">
         <div class="pend-item ${p.feito?'done':''}">
           <input type="checkbox" ${p.feito?'checked':''} onchange="withLock(this, () => togglePendencia('${p.id}', this.checked))">
-          <span>${escapeHtml(p.texto)}${p.responsavel==='equipe' ? '<span class="pend-tag-nossa">nossa</span>' : ''}</span>
+          <span class="pend-drag-handle" draggable="true" title="Arraste para reordenar" ondragstart="pendDragStart(event)" ondragend="pendDragEnd(event)">⠿</span><span>${escapeHtml(p.texto)}${p.responsavel==='equipe' ? '<span class="pend-tag-nossa">nossa</span>' : ''}</span><span class="lamina-toggle ${p.mostrarLamina===false?'off':''}" title="${p.mostrarLamina===false?'Fora da Lâmina (clique para incluir)':'Aparece na Lâmina (clique para tirar)'}" onclick="withLock(this, () => toggleLaminaPendencia('${p.id}'))">🖼</span>
         </div>
         <textarea placeholder="Observação sobre esta pendência..." onchange="withLock(this, () => salvarObservacaoPendencia('${p.id}', this.value))">${escapeHtml(p.observacao||'')}</textarea>
       </div>`).join('')}
@@ -2512,9 +2800,10 @@ async function deleteAtividadeCard(id, fecharModal) {
 let resumoFiltroData = todayStr();
 function setResumoFiltroData(v) { resumoFiltroData = v || todayStr(); renderResumo(); }
 function renderResumo() {
-  document.getElementById('resumo-data').textContent = 'Referente a ' + formatDate(resumoFiltroData);
+  resumoFiltroEntidade = popularFiltroEntidade('resumo-filtro-entidade', resumoFiltroData, resumoFiltroEntidade);
+  document.getElementById('resumo-data').textContent = 'Referente a ' + formatDate(resumoFiltroData) + (resumoFiltroEntidade ? ' — ' + resumoFiltroEntidade : '');
   document.getElementById('resumo-filtro-data').value = resumoFiltroData;
-  const concluidas = atividades.filter(a => a.coluna==='concluida' && !a.cancelado && a.concluidoEm===resumoFiltroData);
+  const concluidas = atividades.filter(a => a.coluna==='concluida' && !a.cancelado && a.concluidoEm===resumoFiltroData && (!resumoFiltroEntidade || a.entidadeNome===resumoFiltroEntidade));
   if (!concluidas.length) { document.getElementById('resumo-texto').textContent = 'Nada concluído nesse dia.'; return; }
   if (souSolo()) {
     const texto = concluidas.map(a => '✓ ' + a.titulo + (a.resolucao?(' — ' + a.resolucao):'')).join('\n');
@@ -2532,9 +2821,9 @@ function renderResumo() {
       texto += '  ' + pessoa + ':\n';
       porPessoa[pessoa].forEach(a => { texto += '   ✓ ' + a.titulo + (a.resolucao?(' — ' + a.resolucao):'') + '\n'; });
     });
-    texto += '\n';
+    texto += '\n' + '─'.repeat(24) + '\n\n';
   });
-  document.getElementById('resumo-texto').textContent = texto.trim();
+  document.getElementById('resumo-texto').textContent = texto.replace(/\s*─{24}\s*$/, '').trim();
 }
 function copyResumo() {
   navigator.clipboard.writeText(document.getElementById('resumo-texto').textContent).then(() => alert('Copiado!'));
@@ -2566,12 +2855,15 @@ function setRelatorioFiltro(d) {
 function concluidasDoRelatorio() {
   let lista = atividades.filter(a => a.coluna==='concluida' && !a.cancelado);
   if (relatorioFiltroData) lista = lista.filter(a => a.concluidoEm===relatorioFiltroData);
+  if (relatorioFiltroEntidade) lista = lista.filter(a => a.entidadeNome===relatorioFiltroEntidade);
+  if (!souSolo() && pessoaFiltro!=='Todos') lista = lista.filter(a => a.responsavel===pessoaFiltro || (a.participantes||[]).includes(pessoaFiltro));
   return lista;
 }
 function renderRelatorioVisual() {
+  relatorioFiltroEntidade = popularFiltroEntidade('relatorio-filtro-entidade', relatorioFiltroData, relatorioFiltroEntidade);
   const concluidas = concluidasDoRelatorio();
   const dataLabel = relatorioFiltroData ? formatDate(relatorioFiltroData) : 'todos os dias';
-  let html = `<div class="rv-header"><h3>${escapeHtml(activeWorkspace.nome)} — Relatório de Atividades</h3><p>Referente a ${dataLabel}</p></div>`;
+  let html = `<div class="rv-header"><h3>${escapeHtml(activeWorkspace.nome)} — Relatório de Atividades</h3><p>Referente a ${dataLabel}${(!souSolo() && pessoaFiltro!=='Todos') ? ' — ' + escapeHtml(pessoaFiltro) : ''}</p></div>`;
   if (!concluidas.length) {
     html += `<div class="rv-empty">Nada concluído nesse período.</div>`;
   } else if (souSolo()) {
