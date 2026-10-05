@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cronograma do projeto</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --navy:#021F33; --green:#00FF7A; --page-bg:#F4F5F3; --white:#FFFFFF; --gray-text:#6B7280; --border-light:#E5E7EB; --text-main:#1a1a1a; --light-bg:#F4F5F3; --red:#DC2626; --on-navy:#FFFFFF; }
+  :root[data-theme="dark"] { --page-bg:#0B1622; --white:#14212F; --gray-text:#94A3B8; --border-light:#24374D; --text-main:#E5E7EB; --light-bg:#0B1622; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page-bg:#0B1622; --white:#14212F; --gray-text:#94A3B8; --border-light:#24374D; --text-main:#E5E7EB; --light-bg:#0B1622; } }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { max-width:100vw; overflow-x:clip; }
+  body { font-family:'Inter',sans-serif; background:var(--page-bg); color:var(--text-main); line-height:1.5; min-height:100vh; }
+  [hidden] { display:none !important; }
+  header { background:var(--navy); color:var(--on-navy); padding:18px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header .marca { font-weight:800; font-size:15px; letter-spacing:.02em; }
+  header .espaco { flex:1; }
+  .btn { font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 14px; border-radius:8px; border:1px solid rgba(255,255,255,.25); background:transparent; color:var(--on-navy); cursor:pointer; }
+  .btn-primary { background:var(--green); color:var(--navy); border-color:var(--green); width:100%; padding:11px; font-size:14px; }
+  main { max-width:980px; margin:0 auto; padding:24px 16px 60px; }
+  .cartao { background:var(--white); border:1px solid var(--border-light); border-radius:16px; padding:24px; }
+  .login { max-width:380px; margin:60px auto 0; }
+  .login h1 { font-size:20px; margin-bottom:4px; }
+  .login p { font-size:13px; color:var(--gray-text); margin-bottom:16px; }
+  label { display:block; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--gray-text); margin-bottom:4px; }
+  .campo { margin-bottom:12px; }
+  .campo input, td input, td select { width:100%; font-family:inherit; font-size:14px; padding:10px 12px; border-radius:8px; border:1px solid var(--border-light); background:var(--white); color:var(--text-main); }
+  .msg { margin-top:12px; font-size:12.5px; text-align:center; min-height:18px; }
+  .titulo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:4px; }
+  .titulo h1 { font-size:22px; }
+  .sub { font-size:13px; color:var(--gray-text); margin-bottom:18px; }
+  .pct { font-size:12px; font-weight:800; padding:3px 11px; border-radius:100px; }
+  .pct.alta { color:#047857; background:rgba(16,185,129,.14); } .pct.media { color:#B45309; background:rgba(245,158,11,.16); } .pct.baixa { color:#B91C1C; background:rgba(220,38,38,.12); }
+  .etapa { border:1px solid var(--border-light); border-radius:12px; margin-bottom:14px; background:var(--white); overflow:hidden; }
+  .etapa-head { display:flex; align-items:center; gap:10px; padding:12px 16px; flex-wrap:wrap; }
+  .etapa-nome { font-weight:800; font-size:15px; }
+  .etapa-corpo { padding:0 16px 14px; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; min-width:640px; table-layout:fixed; }
+  th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--gray-text); padding:6px 4px; }
+  td { padding:6px 4px; vertical-align:top; border-top:1px solid var(--border-light); }
+  td input, td select { font-size:13px; padding:6px 8px; }
+  .item-nome { font-weight:600; }
+  .item-detalhe { font-size:12px; color:var(--gray-text); white-space:pre-wrap; margin-top:2px; }
+  .pill { font-size:11px; font-weight:700; padding:2px 9px; border-radius:100px; white-space:nowrap; display:inline-block; }
+  .pill.concluido { color:#047857; background:rgba(16,185,129,.14); } .pill.pendente { color:var(--gray-text); background:var(--light-bg); }
+  .pill.andamento { color:#1D4ED8; background:rgba(29,78,216,.12); } .pill.bloqueada { color:#B91C1C; background:rgba(220,38,38,.12); }
+  .pill.cliente { color:#B45309; background:rgba(245,158,11,.14); } .pill.equipe { color:#1D4ED8; background:rgba(29,78,216,.12); }
+  .bloqueio { background:rgba(220,38,38,.08); border:1px dashed rgba(220,38,38,.4); border-radius:8px; padding:8px 12px; margin:6px 0 10px; font-size:12.5px; }
+  .dica { font-size:12px; color:var(--gray-text); margin-bottom:14px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="marca">TaskFull · Cronograma</span>
+  <span class="espaco"></span>
+  <button class="btn" id="btn-tema" onclick="alternarTema()">🌓</button>
+  <button class="btn" id="btn-sair" onclick="sair()" hidden>Sair</button>
+</header>
+<main>
+  <div id="tela-login" class="cartao login">
+    <h1>Acompanhe o seu projeto</h1>
+    <p>Entre com o usuário e a senha que a equipe do projeto te passou.</p>
+    <div class="campo"><label>Usuário</label><input type="text" id="login-usuario" autocomplete="username" autocapitalize="none"></div>
+    <div class="campo"><label>Senha</label><input type="password" id="login-senha" autocomplete="current-password"></div>
+    <button class="btn btn-primary" onclick="entrar()">Entrar</button>
+    <div class="msg" id="login-msg"></div>
+  </div>
+
+  <div id="tela-senha" class="cartao login" hidden>
+    <h1>Crie a sua senha</h1>
+    <p>Por segurança, troque a senha provisória por uma só sua (mínimo de 8 caracteres).</p>
+    <div class="campo"><label>Nova senha</label><input type="password" id="nova-senha" autocomplete="new-password"></div>
+    <div class="campo"><label>Confirmar nova senha</label><input type="password" id="nova-senha2" autocomplete="new-password"></div>
+    <button class="btn btn-primary" onclick="salvarSenha()">Salvar e continuar</button>
+    <div class="msg" id="senha-msg"></div>
+  </div>
+
+  <div id="app" hidden>
+    <div class="titulo"><h1 id="proj-nome"></h1><span id="pct-geral"></span></div>
+    <div class="sub" id="proj-ws"></div>
+    <div class="dica">Nos itens marcados como <strong>Cliente</strong> você pode atualizar o status, o baseline e a data de validação. Os demais são acompanhados pela equipe.</div>
+    <div id="etapas"></div>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://dubbmmjtbunzmdmfbbja.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_txUpzlIpslm3DEh_GCFlBQ_WRl_BwHx';   // chave publishable/anon: segura de expor; quem protege os dados é a RLS do banco
+const DOMINIO = 'cliente.taskfull.invalid';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+let projeto = null, etapas = [], itens = [], subitens = [];
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function fmtData(d) { if (!d) return '—'; const [y, m, dia] = d.split('-'); return dia + '/' + m + '/' + y; }
+function mostrar(tela) { ['tela-login', 'tela-senha', 'app'].forEach(id => { $(id).hidden = id !== tela; }); $('btn-sair').hidden = tela === 'tela-login'; }
+function alternarTema() {
+  const atual = document.documentElement.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const novo = atual === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', novo);
+  try { localStorage.setItem('cron_tema', novo); } catch (e) {}
+}
+try { const t = localStorage.getItem('cron_tema'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+
+function traduzErro(m) {
+  if (/invalid login credentials/i.test(m)) return 'Usuário ou senha incorretos.';
+  if (/different from the old/i.test(m)) return 'A nova senha precisa ser diferente da atual.';
+  if (/at least/i.test(m)) return 'A senha é curta demais.';
+  return m;
+}
+async function entrar() {
+  const usuario = $('login-usuario').value.trim().toLowerCase();
+  const senha = $('login-senha').value;
+  const msg = $('login-msg');
+  if (!usuario || !senha) { msg.style.color = 'var(--red)'; msg.textContent = 'Informe o usuário e a senha.'; return; }
+  msg.style.color = 'var(--gray-text)'; msg.textContent = 'Entrando...';
+  const { error } = await sb.auth.signInWithPassword({ email: usuario.includes('@') ? usuario : usuario + '@' + DOMINIO, password: senha });
+  if (error) { msg.style.color = 'var(--red)'; msg.textContent = traduzErro(error.message); return; }
+  msg.textContent = '';
+  await iniciar();
+}
+async function iniciar() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { mostrar('tela-login'); return; }
+  const { data, error } = await sb.rpc('cronograma_meu_projeto');
+  if (error || !data || !data.length) {
+    await sb.auth.signOut();
+    mostrar('tela-login');
+    $('login-msg').style.color = 'var(--red)';
+    $('login-msg').textContent = 'Esta conta não tem um cronograma. Se acha que é um engano, fale com a equipe do projeto.';
+    return;
+  }
+  projeto = data[0];
+  if (!projeto.senha_trocada) { mostrar('tela-senha'); return; }
+  await carregar();
+  mostrar('app');
+  render();
+}
+async function salvarSenha() {
+  const s1 = $('nova-senha').value, s2 = $('nova-senha2').value, msg = $('senha-msg');
+  if (s1.length < 8) { msg.style.color = 'var(--red)'; msg.textContent = 'A senha precisa ter pelo menos 8 caracteres.'; return; }
+  if (s1 !== s2) { msg.style.color = 'var(--red)'; msg.textContent = 'As senhas não coincidem.'; return; }
+  msg.style.color = 'var(--gray-text)'; msg.textContent = 'Salvando...';
+  const { error } = await sb.auth.updateUser({ password: s1 });
+  if (error) { msg.style.color = 'var(--red)'; msg.textContent = traduzErro(error.message); return; }
+  const r = await sb.rpc('cronograma_marcar_senha_trocada');
+  if (r.error) { msg.style.color = 'var(--red)'; msg.textContent = r.error.message; return; }
+  msg.textContent = '';
+  await iniciar();
+}
+async function sair() { await sb.auth.signOut(); projeto = null; mostrar('tela-login'); }
+async function carregar() {
+  const rs = await Promise.all([
+    sb.from('cronograma_etapas').select('*').eq('entidade_id', projeto.entidade_id).order('ordem'),
+    sb.from('cronograma_itens').select('*').order('ordem'),
+    sb.from('cronograma_subitens').select('*').order('ordem'),
+  ]);
+  const falhou = rs.find(r => r.error);
+  if (falhou) { alert('Não consegui carregar o cronograma: ' + falhou.error.message); return; }
+  etapas = rs[0].data || []; itens = rs[1].data || []; subitens = rs[2].data || [];
+}
+function pct(lista) { return lista.length ? Math.round(lista.filter(i => i.status === 'concluido').length / lista.length * 100) : 0; }
+function pctBadge(lista) {
+  if (!lista.length) return '';
+  const p = pct(lista);
+  return `<span class="pct ${p >= 80 ? 'alta' : p >= 40 ? 'media' : 'baixa'}">${p}%</span>`;
+}
+function estadoEtapa(e, its) {
+  if (e.bloqueada) return ['bloqueada', 'Bloqueada'];
+  if (its.length && its.every(i => i.status === 'concluido')) return ['concluido', 'Concluída'];
+  if (its.some(i => i.status === 'concluido')) return ['andamento', 'Em andamento'];
+  return ['pendente', 'Pendente'];
+}
+function render() {
+  $('proj-nome').textContent = projeto.nome;
+  $('proj-ws').textContent = projeto.workspace_nome;
+  $('pct-geral').innerHTML = pctBadge(itens);
+  $('etapas').innerHTML = etapas.map(e => {
+    const its = itens.filter(i => i.etapa_id === e.id).sort((a, b) => a.ordem - b.ordem);
+    const [cls, txt] = estadoEtapa(e, its);
+    return `<div class="etapa">
+      <div class="etapa-head"><span class="etapa-nome">${esc(e.nome)}</span>${pctBadge(its)}<span class="pill ${cls}">${txt}</span></div>
+      <div class="etapa-corpo">
+        ${e.bloqueada ? `<div class="bloqueio">🔒 ${esc(e.nota_bloqueio || 'Esta etapa está bloqueada no momento.')}</div>` : ''}
+        <table>
+          <colgroup><col><col style="width:96px"><col style="width:130px"><col style="width:150px"><col style="width:130px"></colgroup>
+          <thead><tr><th>Item</th><th>Responsável</th><th>Baseline</th><th>Data validação</th><th>Status</th></tr></thead>
+          <tbody>${its.map(linha).join('') || '<tr><td colspan="5" style="color:var(--gray-text)">Sem itens.</td></tr>'}</tbody>
+        </table>
+      </div></div>`;
+  }).join('') || '<div class="cartao">O cronograma ainda está sendo montado pela equipe.</div>';
+}
+function linha(i) {
+  const subs = subitens.filter(s => s.item_id === i.id).sort((a, b) => a.ordem - b.ordem);
+  const meu = i.responsavel === 'cliente';
+  return `<tr>
+    <td><div class="item-nome">${esc(i.nome)}</div>${i.escopo ? `<div class="item-detalhe">${esc(i.escopo)}</div>` : ''}${subs.map(s => `<div class="item-detalhe">${s.feito ? '☑' : '☐'} ${s.grupo ? '<em>' + esc(s.grupo) + ':</em> ' : ''}${esc(s.nome)}</div>`).join('')}</td>
+    <td><span class="pill ${i.responsavel}">${meu ? 'Cliente' : 'Equipe'}</span></td>
+    <td>${meu ? `<input type="text" maxlength="60" placeholder="Data ou dias" value="${esc(i.baseline || '')}" onchange="atualizar('${i.id}', { baseline: this.value.trim() })">` : esc(i.baseline || '?')}</td>
+    <td>${meu ? `<input type="date" value="${i.data_validacao || ''}" onchange="atualizar('${i.id}', { data_validacao: this.value || null })">` : fmtData(i.data_validacao)}</td>
+    <td>${meu ? `<select onchange="atualizar('${i.id}', { status: this.value })"><option value="pendente" ${i.status === 'pendente' ? 'selected' : ''}>Pendente</option><option value="concluido" ${i.status === 'concluido' ? 'selected' : ''}>Concluído</option></select>` : `<span class="pill ${i.status}">${i.status === 'concluido' ? 'Concluído' : 'Pendente'}</span>`}</td>
+  </tr>`;
+}
+// Atualiza na tela na hora e grava pela função segura do banco (só aceita item do próprio projeto e marcado como do cliente).
+// Se o banco recusar, desfaz na tela e avisa.
+async function atualizar(id, mudanca) {
+  const it = itens.find(x => x.id === id);
+  const antes = { status: it.status, baseline: it.baseline, data_validacao: it.data_validacao };
+  const novo = Object.assign({ status: it.status, baseline: it.baseline || '', data_validacao: it.data_validacao || null }, mudanca);
+  Object.assign(it, novo);
+  if ('status' in mudanca) render();
+  const { error } = await sb.rpc('atualizar_item_cronograma_cliente', { p_item_id: id, p_status: novo.status, p_baseline: novo.baseline, p_data_validacao: novo.data_validacao });
+  if (error) { Object.assign(it, antes); render(); alert('Não consegui salvar: ' + error.message); }
+}
+iniciar();
+</script>
+</body>
+</html>

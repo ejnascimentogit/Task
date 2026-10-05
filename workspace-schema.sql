@@ -563,3 +563,212 @@ create index if not exists idx_busca_ia_uso_workspace on public.busca_ia_uso(wor
 alter table public.busca_ia_uso enable row level security;
 drop policy if exists "membros leem busca_ia_uso" on public.busca_ia_uso;
 create policy "membros leem busca_ia_uso" on public.busca_ia_uso for select using (is_member(workspace_id));
+
+-- ══════════════════════════════════════════════════════════════
+-- CRONOGRAMA DO CLIENTE (só perfil Gestão de Projeto): estrutura por projeto + portal do cliente (/cronograma)
+-- Cada projeto (entidade) tem etapas > itens > checklist. O cliente entra no portal com um login próprio (conta sintética
+-- usuario@cliente.taskfull.invalid criada pela Edge Function cronograma-criar-login) e só enxerga o próprio projeto.
+-- ══════════════════════════════════════════════════════════════
+create table if not exists public.cronograma_acessos (
+  entidade_id uuid primary key references public.entidades(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid unique references auth.users(id) on delete set null,
+  usuario text not null unique,
+  senha_trocada boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.cronograma_etapas (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  entidade_id uuid not null references public.entidades(id) on delete cascade,
+  nome text not null,
+  ordem int not null default 0,
+  bloqueada boolean not null default false,
+  nota_bloqueio text default '',
+  created_at timestamptz not null default now()
+);
+create table if not exists public.cronograma_itens (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  etapa_id uuid not null references public.cronograma_etapas(id) on delete cascade,
+  nome text not null,
+  ordem int not null default 0,
+  responsavel text not null default 'equipe' check (responsavel in ('cliente','equipe')),
+  baseline text default '',
+  data_validacao date,
+  status text not null default 'pendente' check (status in ('pendente','concluido')),
+  escopo text default '',
+  created_at timestamptz not null default now()
+);
+create table if not exists public.cronograma_subitens (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  item_id uuid not null references public.cronograma_itens(id) on delete cascade,
+  grupo text default '',
+  nome text not null,
+  ordem int not null default 0,
+  feito boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.cronograma_log (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  entidade_id uuid not null references public.entidades(id) on delete cascade,
+  item_id uuid references public.cronograma_itens(id) on delete set null,
+  item_nome text,
+  status_antes text, status_depois text,
+  baseline_antes text, baseline_depois text,
+  data_validacao_antes date, data_validacao_depois date,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_cron_etapas_entidade on public.cronograma_etapas(entidade_id);
+create index if not exists idx_cron_itens_etapa on public.cronograma_itens(etapa_id);
+create index if not exists idx_cron_subitens_item on public.cronograma_subitens(item_id);
+create index if not exists idx_cron_log_entidade on public.cronograma_log(entidade_id, created_at);
+create index if not exists idx_cron_acessos_workspace on public.cronograma_acessos(workspace_id);
+
+alter table public.cronograma_acessos enable row level security;
+alter table public.cronograma_etapas enable row level security;
+alter table public.cronograma_itens enable row level security;
+alter table public.cronograma_subitens enable row level security;
+alter table public.cronograma_log enable row level security;
+
+create or replace function public.cronograma_entidade_do_usuario()
+returns uuid language sql stable security definer set search_path = public
+as $$ select entidade_id from public.cronograma_acessos where user_id = auth.uid(); $$;
+
+-- Membros do workspace gerenciam tudo; o CLIENTE só lê o próprio projeto (e só altera item pela função abaixo).
+-- Logins (cronograma_acessos) só são escritos pela Edge Function, com a service role. O log só é escrito pela função de atualização.
+drop policy if exists "membros leem cronograma_acessos" on public.cronograma_acessos;
+create policy "membros leem cronograma_acessos" on public.cronograma_acessos for select using (is_member(workspace_id));
+drop policy if exists "membros gerenciam cronograma_etapas" on public.cronograma_etapas;
+create policy "membros gerenciam cronograma_etapas" on public.cronograma_etapas for all using (is_member(workspace_id)) with check (is_member(workspace_id));
+drop policy if exists "cliente le as proprias etapas" on public.cronograma_etapas;
+create policy "cliente le as proprias etapas" on public.cronograma_etapas for select using (entidade_id = public.cronograma_entidade_do_usuario());
+drop policy if exists "membros gerenciam cronograma_itens" on public.cronograma_itens;
+create policy "membros gerenciam cronograma_itens" on public.cronograma_itens for all using (is_member(workspace_id)) with check (is_member(workspace_id));
+drop policy if exists "cliente le os proprios itens" on public.cronograma_itens;
+create policy "cliente le os proprios itens" on public.cronograma_itens for select using (
+  etapa_id in (select id from public.cronograma_etapas where entidade_id = public.cronograma_entidade_do_usuario()));
+drop policy if exists "membros gerenciam cronograma_subitens" on public.cronograma_subitens;
+create policy "membros gerenciam cronograma_subitens" on public.cronograma_subitens for all using (is_member(workspace_id)) with check (is_member(workspace_id));
+drop policy if exists "cliente le os proprios subitens" on public.cronograma_subitens;
+create policy "cliente le os proprios subitens" on public.cronograma_subitens for select using (
+  item_id in (select i.id from public.cronograma_itens i join public.cronograma_etapas e on e.id = i.etapa_id
+              where e.entidade_id = public.cronograma_entidade_do_usuario()));
+drop policy if exists "membros leem cronograma_log" on public.cronograma_log;
+create policy "membros leem cronograma_log" on public.cronograma_log for select using (is_member(workspace_id));
+
+create or replace function public.cronograma_meu_projeto()
+returns table(entidade_id uuid, nome text, workspace_nome text, senha_trocada boolean)
+language sql stable security definer set search_path = public
+as $$
+  select a.entidade_id, e.nome, w.nome, a.senha_trocada
+  from public.cronograma_acessos a
+  join public.entidades e on e.id = a.entidade_id
+  join public.workspaces w on w.id = a.workspace_id
+  where a.user_id = auth.uid();
+$$;
+grant execute on function public.cronograma_meu_projeto() to authenticated;
+
+create or replace function public.cronograma_marcar_senha_trocada()
+returns void language sql security definer set search_path = public
+as $$ update public.cronograma_acessos set senha_trocada = true where user_id = auth.uid(); $$;
+grant execute on function public.cronograma_marcar_senha_trocada() to authenticated;
+
+-- ÚNICO caminho do cliente alterar um item: valida que o item é do projeto dele E que está marcado como do cliente; grava o log sempre.
+create or replace function public.atualizar_item_cronograma_cliente(p_item_id uuid, p_status text, p_baseline text, p_data_validacao date)
+returns void language plpgsql security definer set search_path = public
+as $$
+declare
+  v_entidade uuid := public.cronograma_entidade_do_usuario();
+  v_item record;
+begin
+  if v_entidade is null then raise exception 'Sem permissão.'; end if;
+  if p_status not in ('pendente','concluido') then raise exception 'Status inválido.'; end if;
+  if length(coalesce(p_baseline, '')) > 60 then raise exception 'Baseline muito longo.'; end if;
+
+  select i.id, i.nome, i.status, i.responsavel, i.baseline, i.data_validacao, i.workspace_id, e.entidade_id
+    into v_item
+  from public.cronograma_itens i join public.cronograma_etapas e on e.id = i.etapa_id
+  where i.id = p_item_id;
+
+  -- checar "is null" à parte ANTES do "<>": comparar com null dá null (não true) e um "if null" não dispara.
+  if v_item.id is null or v_item.entidade_id is distinct from v_entidade then raise exception 'Sem permissão para alterar este item.'; end if;
+  if v_item.responsavel <> 'cliente' then raise exception 'Este item é de responsabilidade da equipe: só ela pode alterá-lo.'; end if;
+
+  insert into public.cronograma_log (workspace_id, entidade_id, item_id, item_nome, status_antes, status_depois, baseline_antes, baseline_depois, data_validacao_antes, data_validacao_depois)
+  values (v_item.workspace_id, v_entidade, v_item.id, v_item.nome, v_item.status, p_status, v_item.baseline, p_baseline, v_item.data_validacao, p_data_validacao);
+
+  update public.cronograma_itens set status = p_status, baseline = p_baseline, data_validacao = p_data_validacao where id = p_item_id;
+end; $$;
+grant execute on function public.atualizar_item_cronograma_cliente(uuid, text, text, date) to authenticated;
+
+-- Copia a estrutura de um projeto para outro projeto SEM cronograma (status e datas voltam em branco). Checagem de membro à mão (security definer ignora a RLS).
+create or replace function public.duplicar_cronograma(p_origem uuid, p_destino uuid)
+returns void language plpgsql security definer set search_path = public
+as $$
+declare
+  v_ws_o uuid; v_ws_d uuid; r_etapa record; v_nova uuid; r_item record; v_novo_item uuid; r_sub record;
+begin
+  select workspace_id into v_ws_o from public.entidades where id = p_origem;
+  select workspace_id into v_ws_d from public.entidades where id = p_destino;
+  if v_ws_o is null or v_ws_d is null or v_ws_o <> v_ws_d then raise exception 'Projetos inválidos.'; end if;
+  if not public.is_member(v_ws_d) then raise exception 'Sem permissão.'; end if;
+  if exists (select 1 from public.cronograma_etapas where entidade_id = p_destino) then raise exception 'O projeto de destino já tem cronograma.'; end if;
+  for r_etapa in select * from public.cronograma_etapas where entidade_id = p_origem order by ordem loop
+    insert into public.cronograma_etapas (workspace_id, entidade_id, nome, ordem, bloqueada, nota_bloqueio)
+    values (v_ws_d, p_destino, r_etapa.nome, r_etapa.ordem, r_etapa.bloqueada, r_etapa.nota_bloqueio) returning id into v_nova;
+    for r_item in select * from public.cronograma_itens where etapa_id = r_etapa.id order by ordem loop
+      insert into public.cronograma_itens (workspace_id, etapa_id, nome, ordem, responsavel, baseline, data_validacao, status, escopo)
+      values (v_ws_d, v_nova, r_item.nome, r_item.ordem, r_item.responsavel, r_item.baseline, null, 'pendente', r_item.escopo) returning id into v_novo_item;
+      for r_sub in select * from public.cronograma_subitens where item_id = r_item.id order by ordem loop
+        insert into public.cronograma_subitens (workspace_id, item_id, grupo, nome, ordem, feito)
+        values (v_ws_d, v_novo_item, r_sub.grupo, r_sub.nome, r_sub.ordem, false);
+      end loop;
+    end loop;
+  end loop;
+end; $$;
+grant execute on function public.duplicar_cronograma(uuid, uuid) to authenticated;
+
+-- Endurecimento: contas de cliente (e-mail sintético @cliente.taskfull.invalid) não criam nem entram em workspaces.
+create or replace function public.join_workspace_by_code(p_code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_workspace_id uuid;
+  v_email text;
+  v_nome text;
+begin
+  select id into v_workspace_id from public.workspaces where invite_code = p_code;
+  if v_workspace_id is null then
+    raise exception 'Código de convite inválido';
+  end if;
+
+  select email, coalesce(raw_user_meta_data->>'nome', split_part(email, '@', 1))
+    into v_email, v_nome
+  from auth.users where id = auth.uid();
+
+  if v_email like '%@cliente.taskfull.invalid' then
+    raise exception 'Contas de cliente do cronograma não entram em workspaces.';
+  end if;
+
+  insert into public.workspace_membros (workspace_id, user_id, email, nome, role, status)
+  values (v_workspace_id, auth.uid(), v_email, v_nome, 'membro', 'ativo')
+  on conflict (workspace_id, lower(email))
+  do update set user_id = excluded.user_id, status = 'ativo';
+
+  return v_workspace_id;
+end;
+$$;
+
+drop policy if exists "insert own workspace" on public.workspaces;
+create policy "insert own workspace" on public.workspaces for insert
+  with check (owner_id = auth.uid() and coalesce(auth.jwt() ->> 'email', '') not like '%@cliente.taskfull.invalid');
+
+-- ── Colunas novas em entidades (analista responsável e previsão de entrega, perfil Gestão de Projeto) ──
+alter table public.entidades add column if not exists analista_responsavel text default '';
+alter table public.entidades add column if not exists previsao_entrega date;
