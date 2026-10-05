@@ -138,14 +138,14 @@ Nada disso gasta nada hoje. Foi deixado pronto porque a chave da Anthropic é do
 - **Para ligar (só quando decidido)**: publicar a função; criar o secret `ANTHROPIC_API_KEY` (conta com limite mensal definido); e, por workspace, `insert into public.busca_ia_config (workspace_id, ativo, limite_mensal_usd) values ('<id>', true, 1.00) on conflict (workspace_id) do update set ativo = true, limite_mensal_usd = excluded.limite_mensal_usd, updated_at = now();`.
 - Como o custo da IA do Painel de Implantação e do Taskfull sairia da mesma chave se fosse reaproveitada, a decisão é **ligar por último**, depois de observar como se comporta nas duas plataformas.
 
-### 9.4 Ainda em análise (não implementado)
+### 9.4 Decisões tomadas e o que continua em aberto
 
-- **Contato do dia por canal** (ligação/mensagem/e-mail/reunião, que reseta sozinho todo dia): no Painel mora em cada card de Pendências, mas aqui a aba só lista clientes **com pendência aberta**, então o check e o contador ficariam incoerentes. Falta decidir onde fica (lista de Clientes?) e se vale para Gestão de Projeto. A coluna já existe.
-- **Analista responsável** e **Previsão pós-implantação** (Gestão de Projeto: "responsável do projeto" e "previsão de entrega").
-- **Busca com destaque dentro da nota** (estilo Ctrl+F): conflita com o corretor ortográfico no mesmo campo (dois overlays) e precisa de desenho próprio.
-- **"Esqueci minha senha"**: o e-mail de redefinição depende do SMTP do Supabase, que hoje só entrega para membros da organização do projeto (ver seção 8). Só vale a pena junto da configuração de SMTP próprio.
-- **Cronograma do cliente** (portal em que o cliente acompanha o projeto): grande (6 tabelas, 3 funções, 1 Edge Function), só para Gestão de Projeto, se for compartilhar com externos.
-- **Hora obrigatória no perfil Pessoal**: foi aplicada nos três perfis; se na agenda pessoal houver compromisso "o dia todo" (aniversário, por exemplo), pode fazer sentido liberar.
+- **Contato do dia por canal** (ligação/mensagem/e-mail/reunião): **decidido deixar como está** (não implementado). No Painel mora em cada card de Pendências, mas aqui a aba só lista clientes com pendência aberta, então o check ficaria incoerente. A coluna `entidades.ultimo_contato_canal` já existe, sem tela.
+- **Hora obrigatória** na Agenda: **decidido manter nos três perfis**, inclusive Pessoal.
+- **Analista responsável**, **previsão de entrega**, **busca dentro da nota**, **"Esqueci minha senha"** e **Cronograma do cliente**: implementados, ver 9.6.
+- **Busca com IA**: continua desligada e será a última etapa (seção 9.3).
+- **SMTP próprio** (Brevo ou Resend): pendente, configuração do dono do projeto. Sem ele, o e-mail de redefinição de senha só chega para membros da organização do Supabase (seção 8).
+- Ideia separada, sem escopo: integração com Instagram.
 
 ### 9.5 Outras funcionalidades do período (já em produção, documentadas aqui)
 
@@ -159,3 +159,23 @@ Nada disso gasta nada hoje. Foi deixado pronto porque a chave da Anthropic é do
 ---
 
 *Gerado a partir da leitura de `index.html` e `workspace-schema.sql` deste repositório. Se o código mudar, atualizar este documento junto — ele descreve decisões e comportamento, não só estrutura, então fica desatualizado silenciosamente se só o código for editado.*
+
+### 9.6 Cronograma do cliente, analista/previsão, busca na nota e "Esqueci minha senha" (outubro/2026)
+
+**Analista responsável** (perfis Equipe e Gestão de Projeto) e **Previsão de entrega** (só Gestão de Projeto): colunas `entidades.analista_responsavel` (texto) e `entidades.previsao_entrega` (data). A previsão mostra "N dias de projeto" e o prazo restante com cor (ok, atenção até 7 dias, atrasado) na lista, nos cards e em Indicadores. É só aviso visual, nada muda sozinho.
+
+**Busca dentro da nota** (campo da nota do cliente/projeto, estilo Ctrl+F): um campo de busca acima do texto troca a caixa por uma visão somente leitura com as ocorrências marcadas (a atual em cor mais forte), contador "N de M" e setas para navegar. Limpar a busca volta ao campo editável. Como não há corretor ortográfico ativo nessa visão, não há conflito entre os dois overlays.
+
+**Buscar**: cada resultado de atividade agora diz se está **em aberto** (com a coluna) ou **concluída**, em vez de esconder as concluídas.
+
+**"Esqueci minha senha"**: link na tela de login (`resetPasswordForEmail`). Ao abrir o link recebido, o app mostra uma tela própria para digitar a senha nova (evento `PASSWORD_RECOVERY`) antes de entrar. O `redirectTo` aponta para o próprio site. **Depende do SMTP próprio** para chegar a quem não é da organização do Supabase (seção 8).
+
+**Cronograma do cliente (só perfil Gestão de Projeto)**: cada projeto (entidade) tem etapas, itens e checklist (tópicos). O cliente acompanha em `/cronograma` com um login só dele.
+
+- **Aba "Cronograma"** (só no perfil Gestão de Projeto): lista de projetos à esquerda e, para o selecionado, etapas recolhíveis (renomear, bloquear com nota, mover, excluir), itens (nome, responsável cliente/equipe, baseline em texto livre, data de validação, status, escopo) e checklist por item. "Visão do cliente" mostra a tela como o cliente vê, só leitura. "Duplicar cronograma" copia a estrutura de outro projeto (status e datas voltam em branco).
+- **Login do cliente**: "Criar login do cliente" (só **administrador do workspace**) chama a Edge Function `cronograma-criar-login`, que gera um **usuário** e uma **senha provisória aleatória**, mostrados uma única vez (com botão de copiar). A conta usa e-mail sintético `usuario@cliente.taskfull.invalid` (nunca recebe mensagem). No primeiro acesso o portal obriga trocar a senha (mínimo 8). Se perder, gera-se uma nova senha.
+- **O que o cliente pode alterar**: somente `status`, `baseline` e `data_validacao`, e só nos itens marcados como **do cliente**. Quem define de quem é o item é a equipe.
+- **Tabelas** (todas com RLS): `cronograma_acessos` (login por projeto), `cronograma_etapas`, `cronograma_itens`, `cronograma_subitens`, `cronograma_log` (auditoria das alterações feitas pelo cliente). Membros do workspace gerenciam tudo; o cliente só **lê** o próprio projeto.
+- **Funções SQL**: `cronograma_entidade_do_usuario()` (de qual projeto é a conta), `cronograma_meu_projeto()`, `cronograma_marcar_senha_trocada()`, `atualizar_item_cronograma_cliente(item, status, baseline, data)` (**único caminho de escrita do cliente**: confere dono e responsável do item, com checagem nula-segura, e grava o log) e `duplicar_cronograma(origem, destino)` (checagem de membro à mão, pois é `security definer`).
+- **Endurecimento**: contas de cliente não criam workspace nem entram por código de convite (`join_workspace_by_code` e a policy de inserção em `workspaces`), e o login normal do app redireciona essas contas para `/cronograma`. A Edge Function valida o JWT de quem chamou, confere com o token dele que é admin do workspace e que o perfil é Gestão de Projeto, e só então usa a service role. Fonte em `supabase-edge-functions/cronograma-criar-login/index.ts`.
+- **Portal**: arquivo `deploy/public/cronograma.html` (servido em `/cronograma`), com tema claro/escuro, percentuais por etapa e geral, e atualização otimista com reversão se o banco recusar.

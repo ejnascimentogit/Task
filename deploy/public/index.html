@@ -3935,6 +3935,14 @@ const AJUDA_CONTEUDO = [
   { categoria: 'Backup', itens: [
     { p: 'Como faço backup dos meus dados?', r: 'Configurações → Backup → "Exportar backup" baixa um arquivo .json com os dados do workspace atual.' },
   ]},
+  { categoria: 'Cronograma do cliente (Gestão de Projeto)', itens: [
+    { p: 'O que é o Cronograma?', r: 'Só existe no perfil Gestão de Projeto. Cada projeto tem etapas, itens e checklist, e o cliente acompanha pelo portal /cronograma com um login só dele. Você monta tudo na aba Cronograma; Visão do cliente mostra a tela como ele vê.' },
+    { p: 'Como dou acesso ao cliente?', r: 'Na aba Cronograma, escolha o projeto e clique em Criar login do cliente (só o administrador do workspace). O sistema mostra o usuário e uma senha provisória uma única vez: copie e envie ao cliente. No primeiro acesso ele é obrigado a trocar a senha. Se ele perder, gere uma nova.' },
+    { p: 'O que o cliente consegue alterar?', r: 'Só status, baseline e data de validação, e apenas nos itens marcados como do cliente. Ele nunca vê nem altera outros projetos, e as alterações dele ficam registradas em um log.' },
+    { p: 'Esqueci minha senha', r: 'Na tela de login, clique em Esqueci minha senha. Você recebe um link por e-mail e define a nova senha no próprio Taskfull. O envio para pessoas de fora da organização do Supabase depende de o SMTP próprio estar configurado.' },
+    { p: 'Analista responsável e previsão de entrega', r: 'No cadastro do cliente (Equipe) ou do projeto (Gestão de Projeto) você escolhe o analista responsável. Em Gestão de Projeto também informa a previsão de entrega, e a lista mostra quantos dias faltam, com cor de atenção ou atraso.' },
+    { p: 'Como procuro um assunto dentro da nota do cliente?', r: 'No cadastro do cliente, use o campo de busca acima da nota: as ocorrências ficam marcadas, com contador e setas para ir de uma à outra. Apague a busca para voltar a editar o texto.' }
+  ] }
 ];
 let ajudaAberta = null;
 function toggleAjudaItem(idx) {

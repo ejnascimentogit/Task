@@ -236,14 +236,14 @@
       <li>Como o custo da IA do Painel de Implantação e do Taskfull sairia da mesma chave se fosse reaproveitada, a decisão é <strong>ligar por último</strong>, depois de observar como se comporta nas duas plataformas.</li>
     </ul>
 
-    <h3>9.4 Ainda em análise (não implementado)</h3>
+    <h3>9.4 Decisões tomadas e o que continua em aberto</h3>
     <ul>
-      <li><strong>Contato do dia por canal</strong> (ligação/mensagem/e-mail/reunião, que reseta sozinho todo dia): no Painel mora em cada card de Pendências, mas aqui a aba só lista clientes <em>com pendência aberta</em>, então o check e o contador ficariam incoerentes. Falta decidir onde fica (lista de Clientes?) e se vale para Gestão de Projeto. A coluna já existe.</li>
-      <li><strong>Analista responsável</strong> e <strong>Previsão pós-implantação</strong> (Gestão de Projeto: "responsável do projeto" e "previsão de entrega").</li>
-      <li><strong>Busca com destaque dentro da nota</strong> (estilo Ctrl+F): conflita com o corretor ortográfico no mesmo campo (dois overlays) e precisa de desenho próprio.</li>
-      <li><strong>"Esqueci minha senha"</strong>: o e-mail de redefinição depende do SMTP do Supabase, que hoje só entrega para membros da organização do projeto (ver seção 8). Só vale a pena junto da configuração de SMTP próprio.</li>
-      <li><strong>Cronograma do cliente</strong> (portal em que o cliente acompanha o projeto): grande (6 tabelas, 3 funções, 1 Edge Function), só para Gestão de Projeto, se for compartilhar com externos.</li>
-      <li><strong>Hora obrigatória no perfil Pessoal</strong>: foi aplicada nos três perfis; se na agenda pessoal houver compromisso "o dia todo" (aniversário, por exemplo), pode fazer sentido liberar.</li>
+      <li><strong>Contato do dia por canal</strong> (ligação/mensagem/e-mail/reunião): <strong>decidido deixar como está</strong> (não implementado). No Painel mora em cada card de Pendências, mas aqui a aba só lista clientes com pendência aberta, então o check ficaria incoerente. A coluna <code>entidades.ultimo_contato_canal</code> já existe, sem tela.</li>
+      <li><strong>Hora obrigatória</strong> na Agenda: <strong>decidido manter nos três perfis</strong>, inclusive Pessoal.</li>
+      <li><strong>Analista responsável</strong>, <strong>previsão de entrega</strong>, <strong>busca dentro da nota</strong>, <strong>"Esqueci minha senha"</strong> e <strong>Cronograma do cliente</strong>: implementados, ver 9.6.</li>
+      <li><strong>Busca com IA</strong>: continua desligada e será a última etapa (seção 9.3).</li>
+      <li><strong>SMTP próprio</strong> (Brevo ou Resend): pendente, configuração do dono do projeto. Sem ele, o e-mail de redefinição de senha só chega para membros da organização do Supabase (seção 8).</li>
+      <li>Ideia separada, sem escopo: integração com Instagram.</li>
     </ul>
 
     <h3>9.5 Outras funcionalidades do período (já em produção, documentadas aqui)</h3>
@@ -254,6 +254,29 @@
       <li><strong>"Criado por"</strong> da atividade é sempre o nome (do workspace) de quem abre o modal, fixo e não editável.</li>
       <li><strong>Nome de exibição dos membros</strong> editável (o próprio membro e o admin).</li>
     </ul>
+
+    <h3>9.6 Cronograma do cliente, analista/previsão, busca na nota e "Esqueci minha senha" (outubro/2026)</h3>
+
+    <p><strong>Analista responsável</strong> (perfis Equipe e Gestão de Projeto) e <strong>Previsão de entrega</strong> (só Gestão de Projeto): colunas <code>entidades.analista_responsavel</code> (texto) e <code>entidades.previsao_entrega</code> (data). A previsão mostra "N dias de projeto" e o prazo restante com cor (ok, atenção até 7 dias, atrasado) na lista, nos cards e em Indicadores. É só aviso visual, nada muda sozinho.</p>
+
+    <p><strong>Busca dentro da nota</strong> (campo da nota do cliente/projeto, estilo Ctrl+F): um campo de busca acima do texto troca a caixa por uma visão somente leitura com as ocorrências marcadas (a atual em cor mais forte), contador "N de M" e setas para navegar. Limpar a busca volta ao campo editável. Como não há corretor ortográfico ativo nessa visão, não há conflito entre os dois overlays.</p>
+
+    <p><strong>Buscar</strong>: cada resultado de atividade agora diz se está <strong>em aberto</strong> (com a coluna) ou <strong>concluída</strong>, em vez de esconder as concluídas.</p>
+
+    <p><strong>"Esqueci minha senha"</strong>: link na tela de login (<code>resetPasswordForEmail</code>). Ao abrir o link recebido, o app mostra uma tela própria para digitar a senha nova (evento <code>PASSWORD_RECOVERY</code>) antes de entrar. O <code>redirectTo</code> aponta para o próprio site. <strong>Depende do SMTP próprio</strong> para chegar a quem não é da organização do Supabase (seção 8).</p>
+
+    <p><strong>Cronograma do cliente (só perfil Gestão de Projeto)</strong>: cada projeto (entidade) tem etapas, itens e checklist (tópicos). O cliente acompanha em <code>/cronograma</code> com um login só dele.</p>
+
+    <ul>
+      <li><strong>Aba "Cronograma"</strong> (só no perfil Gestão de Projeto): lista de projetos à esquerda e, para o selecionado, etapas recolhíveis (renomear, bloquear com nota, mover, excluir), itens (nome, responsável cliente/equipe, baseline em texto livre, data de validação, status, escopo) e checklist por item. "Visão do cliente" mostra a tela como o cliente vê, só leitura. "Duplicar cronograma" copia a estrutura de outro projeto (status e datas voltam em branco).</li>
+      <li><strong>Login do cliente</strong>: "Criar login do cliente" (só <strong>administrador do workspace</strong>) chama a Edge Function <code>cronograma-criar-login</code>, que gera um <strong>usuário</strong> e uma <strong>senha provisória aleatória</strong>, mostrados uma única vez (com botão de copiar). A conta usa e-mail sintético <code>usuario@cliente.taskfull.invalid</code> (nunca recebe mensagem). No primeiro acesso o portal obriga trocar a senha (mínimo 8). Se perder, gera-se uma nova senha.</li>
+      <li><strong>O que o cliente pode alterar</strong>: somente <code>status</code>, <code>baseline</code> e <code>data_validacao</code>, e só nos itens marcados como <strong>do cliente</strong>. Quem define de quem é o item é a equipe.</li>
+      <li><strong>Tabelas</strong> (todas com RLS): <code>cronograma_acessos</code> (login por projeto), <code>cronograma_etapas</code>, <code>cronograma_itens</code>, <code>cronograma_subitens</code>, <code>cronograma_log</code> (auditoria das alterações feitas pelo cliente). Membros do workspace gerenciam tudo; o cliente só <strong>lê</strong> o próprio projeto.</li>
+      <li><strong>Funções SQL</strong>: <code>cronograma_entidade_do_usuario()</code> (de qual projeto é a conta), <code>cronograma_meu_projeto()</code>, <code>cronograma_marcar_senha_trocada()</code>, <code>atualizar_item_cronograma_cliente(item, status, baseline, data)</code> (<strong>único caminho de escrita do cliente</strong>: confere dono e responsável do item, com checagem nula-segura, e grava o log) e <code>duplicar_cronograma(origem, destino)</code> (checagem de membro à mão, pois é <code>security definer</code>).</li>
+      <li><strong>Endurecimento</strong>: contas de cliente não criam workspace nem entram por código de convite (<code>join_workspace_by_code</code> e a policy de inserção em <code>workspaces</code>), e o login normal do app redireciona essas contas para <code>/cronograma</code>. A Edge Function valida o JWT de quem chamou, confere com o token dele que é admin do workspace e que o perfil é Gestão de Projeto, e só então usa a service role. Fonte em <code>supabase-edge-functions/cronograma-criar-login/index.ts</code>.</li>
+      <li><strong>Portal</strong>: arquivo <code>deploy/public/cronograma.html</code> (servido em <code>/cronograma</code>), com tema claro/escuro, percentuais por etapa e geral, e atualização otimista com reversão se o banco recusar.</li>
+    </ul>
+
 
     <hr>
     <p class="footnote">Gerado a partir da leitura de <code>index.html</code> e <code>workspace-schema.sql</code> deste repositório. Se o código mudar, atualizar este documento junto — ele descreve decisões e comportamento, não só estrutura. Fonte editável: <a href="https://github.com/ejnascimentogit/Task/blob/master/DOCUMENTACAO-TASKFULL.md">DOCUMENTACAO-TASKFULL.md</a>.</p>
