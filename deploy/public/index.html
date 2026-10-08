@@ -1939,10 +1939,10 @@ async function renderUsoAssessor() {
       : 'Telegram não conectado';
     box.innerHTML = `
       <div class="ind-cards">
-        <div class="ind-card"><div class="num">${doMes.length}</div><div class="lbl">Mensagens este mês</div><div class="sub">${usos.length} desde o início</div></div>
+        <div class="ind-card"><div class="num">${doMes.length}</div><div class="lbl">Mensagens este mês</div><div class="sub">${usos.length} desde o início · total ${formatarUsdAssessor(gastoTotal)} (${brl(gastoTotal)})</div></div>
         <div class="ind-card"><div class="num">${formatarUsdAssessor(gastoMes)}</div><div class="lbl">Gasto do mês</div><div class="sub">${brl(gastoMes)}</div></div>
         <div class="ind-card" style="border-color:${cor};"><div class="num">${formatarUsdAssessor(restante)}</div><div class="lbl">Ainda pode gastar</div><div class="sub">${brl(restante)} até o fim do mês</div></div>
-        <div class="ind-card"><div class="num">${formatarUsdAssessor(gastoTotal)}</div><div class="lbl">Total desde o início</div><div class="sub">${brl(gastoTotal)}</div></div>
+        <div class="ind-card"><div class="num">${brl(gastoMes)}</div><div class="lbl">Gasto do mês em reais</div><div class="sub">ainda tem ${brl(restante)}</div></div>
       </div>
       <div style="margin-top:12px;">
         <div style="height:10px;border-radius:6px;background:var(--border-light);overflow:hidden;"><div style="height:100%;width:${pct}%;background:${cor};"></div></div>
