@@ -772,3 +772,146 @@ create policy "insert own workspace" on public.workspaces for insert
 -- ── Colunas novas em entidades (analista responsável e previsão de entrega, perfil Gestão de Projeto) ──
 alter table public.entidades add column if not exists analista_responsavel text default '';
 alter table public.entidades add column if not exists previsao_entrega date;
+
+-- ══════════════════════════════════════════════════════════════
+-- ASSESSOR PESSOAL (perfil Pessoal) — canal Telegram. Aplicado em produção em 2026-10-07.
+-- Aditivo e idempotente. Ver CLAUDE.md, seção "Assessor pessoal".
+-- ══════════════════════════════════════════════════════════════
+create table if not exists public.assessor_vinculos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  canal text not null default 'telegram',
+  chat_id bigint,
+  telegram_usuario text,
+  codigo text,
+  codigo_expira_em timestamptz,
+  lembrete_minutos integer not null default 60,
+  ativo boolean not null default true,
+  vinculado_em timestamptz,
+  created_at timestamptz not null default now(),
+  unique (user_id, canal)
+);
+alter table public.assessor_vinculos add column if not exists limite_mensal_usd numeric not null default 3.00;
+create unique index if not exists assessor_vinculos_chat_uidx on public.assessor_vinculos (canal, chat_id) where chat_id is not null;
+create unique index if not exists assessor_vinculos_codigo_uidx on public.assessor_vinculos (codigo) where codigo is not null;
+alter table public.assessor_vinculos enable row level security;
+drop policy if exists assessor_vinculos_select on public.assessor_vinculos;
+create policy assessor_vinculos_select on public.assessor_vinculos for select using (user_id = auth.uid());
+-- Sem policy de update: o navegador só altera o vínculo pelas funções abaixo.
+drop policy if exists assessor_vinculos_update on public.assessor_vinculos;
+
+create table if not exists public.assessor_mensagens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  canal text not null default 'telegram',
+  papel text not null check (papel in ('user','assistant')),
+  conteudo text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists assessor_mensagens_user_idx on public.assessor_mensagens (user_id, created_at desc);
+alter table public.assessor_mensagens enable row level security;
+drop policy if exists assessor_mensagens_select on public.assessor_mensagens;
+create policy assessor_mensagens_select on public.assessor_mensagens for select using (user_id = auth.uid());
+drop policy if exists assessor_mensagens_delete on public.assessor_mensagens;
+create policy assessor_mensagens_delete on public.assessor_mensagens for delete using (user_id = auth.uid());
+
+create table if not exists public.assessor_uso (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  canal text not null default 'telegram',
+  modelo text not null,
+  tokens_input integer not null default 0,
+  tokens_output integer not null default 0,
+  tokens_cache_leitura integer not null default 0,
+  tokens_cache_escrita integer not null default 0,
+  custo_estimado_usd numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists assessor_uso_user_idx on public.assessor_uso (user_id, created_at desc);
+alter table public.assessor_uso enable row level security;
+drop policy if exists assessor_uso_select on public.assessor_uso;
+create policy assessor_uso_select on public.assessor_uso for select using (user_id = auth.uid());
+
+create table if not exists public.assessor_lembretes_enviados (
+  agendamento_id uuid not null references public.agendamentos(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  enviado_em timestamptz not null default now(),
+  primary key (agendamento_id, user_id)
+);
+alter table public.assessor_lembretes_enviados enable row level security;
+
+create or replace function public.assessor_gerar_codigo(p_workspace_id uuid)
+returns text language plpgsql security definer set search_path = public as $fn$
+declare
+  v_uid uuid := auth.uid();
+  v_codigo text;
+begin
+  if v_uid is null then raise exception 'Não autenticado'; end if;
+  if not exists (
+    select 1 from workspaces w join workspace_membros m on m.workspace_id = w.id
+    where w.id = p_workspace_id and w.perfil_tipo = 'pessoal' and m.user_id = v_uid and m.status = 'ativo'
+  ) then
+    raise exception 'O assessor só está disponível no seu perfil Pessoal';
+  end if;
+  v_codigo := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+  insert into assessor_vinculos (user_id, workspace_id, canal, codigo, codigo_expira_em)
+  values (v_uid, p_workspace_id, 'telegram', v_codigo, now() + interval '15 minutes')
+  on conflict (user_id, canal) do update
+    set workspace_id = excluded.workspace_id, codigo = excluded.codigo,
+        codigo_expira_em = excluded.codigo_expira_em, ativo = true;
+  return v_codigo;
+end;
+$fn$;
+revoke all on function public.assessor_gerar_codigo(uuid) from public, anon;
+grant execute on function public.assessor_gerar_codigo(uuid) to authenticated;
+
+create or replace function public.assessor_desconectar()
+returns void language plpgsql security definer set search_path = public as $fn$
+begin
+  if auth.uid() is null then raise exception 'Não autenticado'; end if;
+  delete from assessor_mensagens where user_id = auth.uid() and canal = 'telegram';
+  delete from assessor_vinculos where user_id = auth.uid() and canal = 'telegram';
+end;
+$fn$;
+revoke all on function public.assessor_desconectar() from public, anon;
+grant execute on function public.assessor_desconectar() to authenticated;
+
+create or replace function public.assessor_definir_lembrete(p_minutos integer)
+returns void language plpgsql security definer set search_path = public as $fn$
+begin
+  if auth.uid() is null then raise exception 'Não autenticado'; end if;
+  if p_minutos not in (15, 30, 60, 120) then raise exception 'Escolha 15, 30, 60 ou 120 minutos'; end if;
+  update assessor_vinculos set lembrete_minutos = p_minutos where user_id = auth.uid() and canal = 'telegram';
+end;
+$fn$;
+revoke all on function public.assessor_definir_lembrete(integer) from public, anon;
+grant execute on function public.assessor_definir_lembrete(integer) to authenticated;
+
+create or replace function public.assessor_lembretes_pendentes()
+returns table (agendamento_id uuid, user_id uuid, chat_id bigint, titulo text, data date, hora time, minutos_faltando integer)
+language sql security definer set search_path = public as $fn$
+  select a.id, v.user_id, v.chat_id, a.titulo, a.data, a.hora,
+         ceil(extract(epoch from (((a.data + a.hora) at time zone 'America/Sao_Paulo') - now())) / 60)::int
+  from assessor_vinculos v
+  join agendamentos a on a.workspace_id = v.workspace_id
+  where v.canal = 'telegram' and v.ativo and v.chat_id is not null
+    and a.feito = false and a.hora is not null
+    and ((a.data + a.hora) at time zone 'America/Sao_Paulo') > now()
+    and ((a.data + a.hora) at time zone 'America/Sao_Paulo') <= now() + make_interval(mins => v.lembrete_minutos)
+    and not exists (select 1 from assessor_lembretes_enviados e where e.agendamento_id = a.id and e.user_id = v.user_id);
+$fn$;
+revoke all on function public.assessor_lembretes_pendentes() from public, anon, authenticated;
+grant execute on function public.assessor_lembretes_pendentes() to service_role;
+
+-- Agendador (rodar uma vez; a chave no Authorization é a anon pública, a mesma do index.html):
+create extension if not exists pg_net;
+create extension if not exists pg_cron;
+-- select cron.schedule('assessor-lembretes', '* * * * *', $c$ select net.http_post(
+--   url := 'https://dubbmmjtbunzmdmfbbja.supabase.co/functions/v1/assessor-lembretes',
+--   headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <anon key>'),
+--   body := '{}'::jsonb); $c$);
+-- select cron.schedule('assessor-limpar-mensagens', '15 3 * * *',
+--   $c$ delete from public.assessor_mensagens where created_at < now() - interval '30 days'; $c$);

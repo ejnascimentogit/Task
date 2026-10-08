@@ -66,3 +66,33 @@ Também entraram: analista responsável (Equipe e Projeto) e previsão de entreg
 - Ao ler o estado pelo console, esperar o `loadWorkspaceData` terminar (variáveis como `activeWorkspace` e `atividades` só existem depois).
 - Botão "Sincronizar datas comerciais" abre uma confirmação do navegador: sem confirmar, nada é gravado.
 - Mudou a lista `DEFAULT_FERIADOS_COMERCIAIS`? Cada workspace precisa clicar em Sincronizar para receber as datas novas.
+
+## Assessor pessoal (perfil Pessoal) — canal Telegram (desde 2026-10-07)
+
+Produto pessoal do Edimilson com o sócio Ryan: um assessor que conversa pelo Telegram (WhatsApp oficial depois), cria e consulta compromissos e tarefas do perfil **Pessoal** e avisa antes de cada compromisso. O Taskfull é a memória e o painel; o assessor é uma camada em cima do perfil Pessoal (não existe perfil novo). Só funciona em workspace com `perfil_tipo = 'pessoal'`.
+
+**Como funciona**
+- Bot: `@assessor_ej_teste_bot` (teste). Conexão: Configurações → "🤖 Assessor no Telegram" → "Conectar Telegram" gera um código de 6 caracteres (vale 15 min) → a pessoa envia ao bot (ou abre `t.me/<bot>?start=<código>`).
+- Edge Function `assessor-telegram` (`verify_jwt = false`): webhook do Telegram, autenticado pelo cabeçalho `X-Telegram-Bot-Api-Secret-Token`, que é um SHA-256 derivado do próprio token do bot. `GET ...?acao=configurar` registra o webhook e os comandos (e mostra um diagnóstico sem expor o token). Responde 200 na hora e processa em segundo plano (`EdgeRuntime.waitUntil`).
+- IA: Claude `claude-sonnet-5-5` (constante `MODELO`, preços em `PRECO`, atualizar à mão), com cache de prompt e ferramentas: listar/criar/remarcar/concluir compromisso, listar/criar/cancelar tarefa. Regra de produto: **com dia e hora → Agenda; sem hora → tarefa em Atividades; dia sem hora → pergunta**; toda confirmação começa com "📅 Agenda:" ou "📝 Tarefa:". Botão "↩ Desfazer" em tudo que é criado.
+- Histórico curto (`assessor_mensagens`, últimas 10) entra no contexto; respostas guardam no fim "[Ações executadas: ...]" (registro interno, removido do texto enviado) para o modelo não achar que inventou ações anteriores.
+- Lembretes: Edge Function `assessor-lembretes` (`verify_jwt = true`), chamada a cada minuto pelo `pg_cron` (job `assessor-lembretes`, via `pg_net`, com a chave anon). RPC `assessor_lembretes_pendentes()` (só `service_role`) acha os compromissos dentro da janela `lembrete_minutos` (15/30/60/120, padrão 60) no horário de Brasília; `assessor_lembretes_enviados` evita aviso duplicado (remarcar limpa o registro).
+- Privacidade: job `assessor-limpar-mensagens` apaga conversas com mais de 30 dias; "Desconectar" apaga vínculo e conversas. O navegador não tem policy de update em `assessor_vinculos`: só altera pelas RPCs `assessor_gerar_codigo`, `assessor_definir_lembrete`, `assessor_desconectar`.
+- Medidor: `assessor_uso` grava tokens (entrada, saída, cache lido/gravado) e custo estimado por mensagem. Indicadores → "🤖 Uso do Assessor Pessoal" mostra mensagens do mês, gasto do mês, quanto ainda pode gastar (`assessor_vinculos.limite_mensal_usd`, padrão US$ 3) e total, em US$ e R$ (AwesomeAPI, reserva 5,5).
+- Tabelas: `assessor_vinculos`, `assessor_mensagens`, `assessor_uso`, `assessor_lembretes_enviados` (schema em `workspace-schema.sql`). Código das funções em `supabase-edge-functions/assessor-telegram` e `supabase-edge-functions/assessor-lembretes` (deploy feito pelo MCP do Supabase; ao mudar, publicar de novo).
+
+**Segredos (Supabase → Edge Functions → Secrets, nunca em arquivo)**: `TELEGRAM_BOT_TOKEN` (do @BotFather; se vazar, `/revoke` e trocar), `ANTHROPIC_API_KEY` (conta individual da Anthropic, workspace "Assessor Pessoal", chave "Assessor Pessoal - teste" até 31/12/2026, limite US$ 3/mês), `OPENAI_API_KEY` (pendente, para transcrever áudio).
+
+**Custo medido no primeiro teste**: 8 mensagens, US$ 0,093 no total (≈ R$ 0,06 por mensagem com Sonnet e cache), abaixo da estimativa de R$ 0,10 do plano Avançado.
+
+**Visão do produto e decisões (antes ficavam fora do repositório)**
+- Documento de escopo (Claude Docs, privado): https://claude.ai/code/artifact/9520a0df-7359-4f7e-84b5-b0fbdb33be9c. Protótipo "Central de Conexões": https://claude.ai/artifact/2GrkYaxSVbCuPqY72Ps8QP.
+- Planos: Básico R$ 29 (Haiku, 150 msg/mês), Avançado R$ 79 (Sonnet, 300), Hiper avançado R$ 249 (Sonnet + Opus semanal, 600), Jarvis-Full R$ 499 (Sonnet + Opus diário, 900). "Jarvis" é marca da Marvel/Disney: confirmar com advogado antes de usar comercialmente.
+- Princípio: a pessoa escolhe o que é analisado (listas de permissão por fonte: contatos de WhatsApp, remetentes de e-mail; redes sociais abertas com triagem). Saúde sem diagnóstico; crise → CVV 188.
+- Número do assessor: API oficial da Meta (precisa de CNPJ e verificação). Evolution/WuzAPI só para protótipo interno ou leitura opcional do WhatsApp pessoal, com consentimento.
+- Teste grátis planejado: 7 dias ou 50 mensagens (nível Avançado), Telegram + e-mail; ao acabar, o bloco some dos Indicadores e aparece a tela "Escolha seu plano".
+- Ideia aprovada, não feita: item "Novidades" no menu do perfil Pessoal (vídeo geral na 1ª vez, depois só as novidades; botão "Quero testar" como medida de interesse).
+- Próximos passos: áudio (OpenAI), "bom dia" (clima, notícias, vídeos novos de canais favoritos), e-mail (Outlook/IMAP, depois Gmail com auditoria), WhatsApp oficial. Música e redes sociais em ondas.
+
+## Corretor ortográfico: Web Worker e carga sob demanda (2026-10-07)
+O dicionário pt-BR (~5,4 MB, Typo.js) era montado ao abrir a página e travava a tela por vários segundos. Agora roda num Web Worker (blob, `importScripts` do typo.js) e só é baixado quando a pessoa digita num campo com corretor (`atualizarOrtografia(ta, true)` no `input`); abrir página ou modal não dispara o download. O `<script>` do typo.js saiu da página. Palavras já verificadas ficam em cache (`palavrasErradasCache`). Se o worker falhar, segue sem sublinhar nada.

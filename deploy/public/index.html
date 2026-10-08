@@ -894,6 +894,11 @@
               <div id="pizza-pessoa"></div>
             </div>
           </div>
+          <div class="ind-bloco" id="ind-assessor-wrap" style="--ind-cor:#EC4899;display:none;">
+            <div class="ind-bloco-titulo">🤖 Uso do Assessor Pessoal</div>
+            <div class="pizza-explicacao">Quanto o assessor gastou com a IA neste mês e quanto ainda resta do limite. Só aparece no perfil Pessoal.</div>
+            <div id="ind-assessor"></div>
+          </div>
         </div>
       </section>
 
@@ -1070,6 +1075,14 @@
               <button class="btn btn-green btn-sm" onclick="addTreinamentoPadrao()">+ Adicionar</button>
             </div>
             <div id="treinamentos-padrao-list" class="etapas-list"></div>
+          </div>
+        </div>
+
+        <div class="resumo-box config-section" id="section-assessor" style="display:none">
+          <div class="config-section-header" onclick="toggleConfigSection('assessor')"><h2>🤖 Assessor no Telegram</h2><span class="config-chevron" id="chevron-assessor">▸</span></div>
+          <div class="config-section-body" id="body-assessor" style="display:none">
+            <p class="config-hint">Converse com o seu assessor pelo Telegram: com dia e hora ele marca na Agenda, sem hora cria uma tarefa em Atividades, e avisa antes de cada compromisso. Só no perfil Pessoal.</p>
+            <div id="assessor-config"></div>
           </div>
         </div>
 
@@ -1323,7 +1336,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/typo-js@1.3.2/typo.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -1523,54 +1535,101 @@ async function refreshDados() {
 }
 
 // ── Corretor ortográfico PT-BR embutido (Typo.js + dicionário Hunspell), igual em qualquer navegador ──
-let dicionarioOrtografico = null;
-let dicionarioOrtograficoPromise = null;
+// O dicionário (~5 MB) é processado num Web Worker, fora da thread da tela, e só começa a carregar quando a pessoa
+// digita num campo com corretor. Antes ele era montado ao abrir a página e travava o carregamento por vários segundos.
 const DICIONARIO_PT_AFF_URL = 'https://raw.githubusercontent.com/titoBouzout/Dictionaries/master/Portuguese%20(Brazilian).aff';
 const DICIONARIO_PT_DIC_URL = 'https://raw.githubusercontent.com/titoBouzout/Dictionaries/master/Portuguese%20(Brazilian).dic';
-function carregarDicionarioOrtografico() {
-  if (dicionarioOrtograficoPromise) return dicionarioOrtograficoPromise;
-  dicionarioOrtograficoPromise = (async () => {
-    try {
-      if (typeof Typo === 'undefined') throw new Error('Typo.js não carregou');
-      const [affRes, dicRes] = await Promise.all([fetch(DICIONARIO_PT_AFF_URL), fetch(DICIONARIO_PT_DIC_URL)]);
-      const [affData, dicData] = await Promise.all([affRes.text(), dicRes.text()]);
-      dicionarioOrtografico = new Typo('pt_BR', affData, dicData);
-    } catch (e) {
-      console.warn('Não consegui carregar o dicionário de correção ortográfica (segue sem marcar erros):', e);
-    }
-  })();
-  return dicionarioOrtograficoPromise;
+const TYPO_JS_URL = 'https://cdn.jsdelivr.net/npm/typo-js@1.3.2/typo.js';
+let ortografiaWorker = null;
+let ortografiaPronta = false;
+let ortografiaFalhou = false;
+let ortografiaSeq = 0;
+const ortografiaPendentes = new Map();
+const palavrasErradasCache = new Map();   // palavra -> true (errada) | false (certa)
+function iniciarOrtografiaWorker() {
+  if (ortografiaWorker || ortografiaFalhou) return;
+  try {
+    const codigo = `
+      importScripts(${JSON.stringify(TYPO_JS_URL)});
+      let dic = null;
+      const pronto = (async () => {
+        const [a, d] = await Promise.all([fetch(${JSON.stringify(DICIONARIO_PT_AFF_URL)}), fetch(${JSON.stringify(DICIONARIO_PT_DIC_URL)})]);
+        dic = new Typo('pt_BR', await a.text(), await d.text());
+      })();
+      function ok(p) { return dic.check(p) || dic.check(p.toLowerCase()) || dic.check(p[0].toUpperCase() + p.slice(1).toLowerCase()); }
+      onmessage = async (e) => {
+        try { await pronto; postMessage({ id: e.data.id, erradas: e.data.palavras.filter(p => !ok(p)) }); }
+        catch (err) { postMessage({ id: e.data.id, falhou: String(err) }); }
+      };`;
+    ortografiaWorker = new Worker(URL.createObjectURL(new Blob([codigo], { type: 'text/javascript' })));
+    ortografiaWorker.onmessage = (e) => {
+      const { id, erradas, falhou } = e.data;
+      const pend = ortografiaPendentes.get(id);
+      ortografiaPendentes.delete(id);
+      if (falhou) {
+        ortografiaFalhou = true;
+        console.warn('Corretor ortográfico indisponível (segue sem marcar erros):', falhou);
+      } else {
+        ortografiaPronta = true;
+        const erradasSet = new Set(erradas);
+        (pend ? pend.palavras : []).forEach(p => palavrasErradasCache.set(p, erradasSet.has(p)));
+      }
+      if (pend) pend.resolve();
+    };
+    ortografiaWorker.onerror = (err) => {
+      ortografiaFalhou = true;
+      console.warn('Corretor ortográfico indisponível (segue sem marcar erros):', err.message);
+      ortografiaPendentes.forEach(p => p.resolve());
+      ortografiaPendentes.clear();
+    };
+  } catch (e) {
+    ortografiaFalhou = true;
+  }
 }
-// Testa a palavra como veio, minúscula e com 1ª maiúscula (nomes próprios não podem virar erro só pela caixa).
-function palavraCorreta(palavra) {
-  if (!dicionarioOrtografico) return true;
-  return dicionarioOrtografico.check(palavra)
-    || dicionarioOrtografico.check(palavra.toLowerCase())
-    || dicionarioOrtografico.check(palavra[0].toUpperCase() + palavra.slice(1).toLowerCase());
+function palavrasDoTexto(texto) {
+  return [...new Set((texto || '').split(/\s+/)
+    .map(p => p.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, ''))
+    .filter(p => p && p.length >= 2 && !/^\d+$/.test(p)))];
+}
+function verificarPalavras(palavras) {
+  const novas = palavras.filter(p => !palavrasErradasCache.has(p));
+  if (!novas.length || ortografiaFalhou) return Promise.resolve();
+  iniciarOrtografiaWorker();
+  if (!ortografiaWorker) return Promise.resolve();
+  return new Promise(resolve => {
+    const id = ++ortografiaSeq;
+    ortografiaPendentes.set(id, { palavras: novas, resolve });
+    ortografiaWorker.postMessage({ id, palavras: novas });
+  });
 }
 function destacarErrosOrtograficos(texto) {
   if (!texto) return '';
-  if (!dicionarioOrtografico) return escapeHtml(texto);
   return texto.split(/(\s+)/).map(parte => {
     if (!parte || /^\s+$/.test(parte)) return escapeHtml(parte);
     const palavra = parte.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
     if (!palavra || palavra.length < 2 || /^\d+$/.test(palavra)) return escapeHtml(parte);
-    return palavraCorreta(palavra) ? escapeHtml(parte) : `<span class="ortografia-erro">${escapeHtml(parte)}</span>`;
+    return palavrasErradasCache.get(palavra) === true ? `<span class="ortografia-erro">${escapeHtml(parte)}</span>` : escapeHtml(parte);
   }).join('') + '​';   // zero-width space: não corta a última linha quando termina em branco
 }
 // Não dá pra colorir trecho dentro de <textarea>: uma <div> transparente atrás (mesma fonte, padding e borda)
 // repete o texto e só as palavras erradas ganham sublinhado ondulado. O texto real continua só no textarea.
 const ORTOGRAFIA_ESTILOS = ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','wordSpacing','textTransform','textIndent',
   'paddingTop','paddingRight','paddingBottom','paddingLeft','borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','borderRadius','boxSizing','tabSize'];
-async function atualizarOrtografia(ta) {
+function pintarOrtografia(ta) {
   const overlay = ta._ortografiaOverlay;
-  if (!overlay) return;
-  if (!dicionarioOrtografico) await carregarDicionarioOrtografico();
-  if (!overlay.isConnected) return;
+  if (!overlay || !overlay.isConnected) return;
   const cs = getComputedStyle(ta);
   ORTOGRAFIA_ESTILOS.forEach(p => { overlay.style[p] = cs[p]; });
   overlay.innerHTML = destacarErrosOrtograficos(ta.value);
   overlay.scrollTop = ta.scrollTop; overlay.scrollLeft = ta.scrollLeft;
+}
+// carregar=true só quando a pessoa digita; abrir a página ou um modal nunca dispara o download do dicionário.
+async function atualizarOrtografia(ta, carregar) {
+  if (!ta || !ta._ortografiaOverlay) return;
+  pintarOrtografia(ta);
+  if (!carregar && !ortografiaPronta) return;
+  await verificarPalavras(palavrasDoTexto(ta.value));
+  pintarOrtografia(ta);
 }
 function ativarOrtografia(ta) {
   if (!ta || ta.dataset.ortografia) return;
@@ -1585,13 +1644,13 @@ function ativarOrtografia(ta) {
   wrap.appendChild(ta);
   ta.spellcheck = false;
   ta._ortografiaOverlay = overlay;
-  ta.addEventListener('input', () => atualizarOrtografia(ta));
+  ta.addEventListener('input', () => atualizarOrtografia(ta, true));
   ta.addEventListener('scroll', () => { overlay.scrollTop = ta.scrollTop; overlay.scrollLeft = ta.scrollLeft; });
   if (window.ResizeObserver) new ResizeObserver(() => atualizarOrtografia(ta)).observe(ta);
   atualizarOrtografia(ta);
 }
 function ortografiaAtualizarTodos() {
-  document.querySelectorAll('textarea[data-ortografia]').forEach(atualizarOrtografia);
+  document.querySelectorAll('textarea[data-ortografia]').forEach(ta => atualizarOrtografia(ta));
 }
 ['at-descricao','at-resolucao','ag-obs','f-observacao'].forEach(id => ativarOrtografia(document.getElementById(id)));
 // Quando o código preenche o textarea por programação (abrir modal de edição) o evento "input" não dispara:
@@ -1821,6 +1880,132 @@ function renderIndicadores() {
       cor: CORES_PESSOA[i % CORES_PESSOA.length]
     })));
   }
+  renderUsoAssessor();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ASSESSOR PESSOAL (perfil Pessoal): conexão com o Telegram e uso/gasto da IA
+// Backend: tabelas assessor_* + Edge Functions assessor-telegram e assessor-lembretes (ver CLAUDE.md).
+// ══════════════════════════════════════════════════════════════
+const ASSESSOR_BOT = 'assessor_ej_teste_bot';
+let cotacaoDolarAssessor = null;
+async function obterCotacaoDolarAssessor() {
+  if (cotacaoDolarAssessor && Date.now() - cotacaoDolarAssessor.em < 3600000) return cotacaoDolarAssessor;
+  try {
+    const r = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+    const j = await r.json();
+    const v = parseFloat(j && j.USDBRL && j.USDBRL.bid);
+    if (!v) throw new Error('sem cotação');
+    cotacaoDolarAssessor = { valor: v, em: Date.now(), reserva: false };
+  } catch (e) {
+    cotacaoDolarAssessor = { valor: 5.5, em: Date.now(), reserva: true };
+  }
+  return cotacaoDolarAssessor;
+}
+function formatarUsdAssessor(v) {
+  const casas = v < 1 ? 3 : 2;
+  return 'US$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+async function renderUsoAssessor() {
+  const wrap = document.getElementById('ind-assessor-wrap');
+  const box = document.getElementById('ind-assessor');
+  if (!wrap || !box) return;
+  if (!souSolo() || !sb || !currentUser || !activeWorkspace) { wrap.style.display = 'none'; return; }
+  try {
+    const [vincRes, usoRes] = await Promise.all([
+      sb.from('assessor_vinculos').select('chat_id, telegram_usuario, limite_mensal_usd')
+        .eq('user_id', currentUser.id).eq('canal', 'telegram').eq('workspace_id', activeWorkspace.id).maybeSingle(),
+      sb.from('assessor_uso').select('custo_estimado_usd, created_at')
+        .eq('user_id', currentUser.id).eq('workspace_id', activeWorkspace.id),
+    ]);
+    const vinc = vincRes.data;
+    const usos = usoRes.data || [];
+    if (usoRes.error || (!vinc && !usos.length)) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    const agora = new Date();
+    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const doMes = usos.filter(u => new Date(u.created_at) >= inicioMes);
+    const soma = lista => lista.reduce((s, u) => s + Number(u.custo_estimado_usd || 0), 0);
+    const gastoMes = soma(doMes);
+    const gastoTotal = soma(usos);
+    const limite = Number((vinc && vinc.limite_mensal_usd) || 3);
+    const restante = Math.max(0, limite - gastoMes);
+    const pct = Math.min(100, Math.round(gastoMes / limite * 100));
+    const cor = pct >= 100 ? 'var(--red)' : (pct >= 80 ? 'var(--amber)' : '#EC4899');
+    const cot = await obterCotacaoDolarAssessor();
+    const brl = v => (v * cot.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const status = vinc && vinc.chat_id
+      ? 'Telegram conectado' + (vinc.telegram_usuario ? ' como @' + escapeHtml(vinc.telegram_usuario) : '')
+      : 'Telegram não conectado';
+    box.innerHTML = `
+      <div class="ind-cards">
+        <div class="ind-card"><div class="num">${doMes.length}</div><div class="lbl">Mensagens este mês</div><div class="sub">${usos.length} desde o início</div></div>
+        <div class="ind-card"><div class="num">${formatarUsdAssessor(gastoMes)}</div><div class="lbl">Gasto do mês</div><div class="sub">${brl(gastoMes)}</div></div>
+        <div class="ind-card" style="border-color:${cor};"><div class="num">${formatarUsdAssessor(restante)}</div><div class="lbl">Ainda pode gastar</div><div class="sub">${brl(restante)} até o fim do mês</div></div>
+        <div class="ind-card"><div class="num">${formatarUsdAssessor(gastoTotal)}</div><div class="lbl">Total desde o início</div><div class="sub">${brl(gastoTotal)}</div></div>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="height:10px;border-radius:6px;background:var(--border-light);overflow:hidden;"><div style="height:100%;width:${pct}%;background:${cor};"></div></div>
+        <div class="pizza-explicacao" style="margin-top:6px;">${pct}% do limite mensal de ${formatarUsdAssessor(limite)} usado · ${status}</div>
+      </div>
+      <div class="pizza-explicacao" style="margin-top:4px;">Conversão a US$ 1 = R$ ${cot.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${cot.reserva ? ' (cotação de reserva: não foi possível buscar a do dia)' : ' (cotação de hoje, AwesomeAPI)'}. Valor aproximado: a cobrança real da Anthropic depende do câmbio e do IOF do cartão. O teto de verdade fica no Console da Anthropic (workspace Assessor Pessoal).</div>`;
+  } catch (e) {
+    wrap.style.display = 'none';
+    console.warn('Uso do assessor indisponível:', e);
+  }
+}
+async function renderAssessorConfig() {
+  const box = document.getElementById('assessor-config');
+  if (!box || !sb || !currentUser || !activeWorkspace) return;
+  const { data: v, error } = await sb.from('assessor_vinculos')
+    .select('chat_id, telegram_usuario, codigo, codigo_expira_em, lembrete_minutos, vinculado_em, workspace_id')
+    .eq('user_id', currentUser.id).eq('canal', 'telegram').maybeSingle();
+  if (error) { box.innerHTML = '<p class="config-hint">Não foi possível carregar o assessor: ' + escapeHtml(error.message) + '</p>'; return; }
+  const aqui = v && v.workspace_id === activeWorkspace.id;
+  if (aqui && v.chat_id) {
+    const opcoes = [15, 30, 60, 120].map(m => `<option value="${m}" ${m === v.lembrete_minutos ? 'selected' : ''}>${m < 60 ? m + ' minutos' : (m === 60 ? '1 hora' : (m / 60) + ' horas')}</option>`).join('');
+    box.innerHTML = `
+      <p><b>✅ Conectado</b>${v.telegram_usuario ? ' como @' + escapeHtml(v.telegram_usuario) : ''}${v.vinculado_em ? ' desde ' + formatDataHora(v.vinculado_em) : ''}.</p>
+      <div class="etapas-add-row">
+        <label for="assessor-lembrete" style="white-space:nowrap;">Avisar antes de cada compromisso:</label>
+        <select id="assessor-lembrete" onchange="salvarLembreteAssessor(this.value)">${opcoes}</select>
+      </div>
+      <div class="etapas-add-row">
+        <a class="btn btn-sm" href="https://t.me/${ASSESSOR_BOT}" target="_blank" rel="noopener">Abrir no Telegram</a>
+        <button class="btn btn-sm" onclick="desconectarAssessor()">Desconectar</button>
+      </div>`;
+    return;
+  }
+  const outroWorkspace = v && v.chat_id && !aqui;
+  const codigoValido = aqui && v.codigo && v.codigo_expira_em && new Date(v.codigo_expira_em) > new Date();
+  box.innerHTML = `
+    ${outroWorkspace ? '<p class="config-hint">Seu Telegram está conectado a outro workspace Pessoal. Gerar um código aqui muda a conexão para este.</p>' : ''}
+    ${codigoValido ? `
+      <p>Seu código: <b style="font-size:22px;letter-spacing:.12em;">${escapeHtml(v.codigo)}</b> <span class="config-hint">(vale até ${formatDataHora(v.codigo_expira_em)})</span></p>
+      <ol class="config-hint" style="margin:6px 0 10px 18px;">
+        <li>Abra o Telegram e procure <b>@${ASSESSOR_BOT}</b>, ou use o botão abaixo.</li>
+        <li>Toque em <b>Iniciar</b> e envie o código.</li>
+      </ol>
+      <div class="etapas-add-row">
+        <a class="btn btn-green btn-sm" href="https://t.me/${ASSESSOR_BOT}?start=${encodeURIComponent(v.codigo)}" target="_blank" rel="noopener">Abrir no Telegram</a>
+        <button class="btn btn-sm" onclick="renderAssessorConfig()">Já enviei, atualizar</button>
+      </div>` : `
+      <div class="etapas-add-row"><button class="btn btn-green btn-sm" onclick="gerarCodigoAssessor()">Conectar Telegram</button></div>`}`;
+}
+async function gerarCodigoAssessor() {
+  const { error } = await sb.rpc('assessor_gerar_codigo', { p_workspace_id: activeWorkspace.id });
+  if (error) { alert('Não foi possível gerar o código: ' + error.message); return; }
+  renderAssessorConfig();
+}
+async function salvarLembreteAssessor(minutos) {
+  const { error } = await sb.rpc('assessor_definir_lembrete', { p_minutos: parseInt(minutos, 10) });
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderAssessorConfig(); }
+}
+async function desconectarAssessor() {
+  if (!confirm('Desconectar o Telegram? O assessor para de responder e de avisar, e as conversas guardadas são apagadas.')) return;
+  const { error } = await sb.rpc('assessor_desconectar');
+  if (error) { alert('Não foi possível desconectar: ' + error.message); return; }
+  renderAssessorConfig();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -4004,6 +4189,8 @@ function renderConfiguracoes() {
   document.getElementById('section-tipos-agenda').style.display = temAba('agenda') ? '' : 'none';
   document.getElementById('section-feriados-datas').style.display = temAba('agenda') ? '' : 'none';
   document.getElementById('section-treinamentos-padrao').style.display = temAba('treinamentos') ? '' : 'none';
+  document.getElementById('section-assessor').style.display = souSolo() ? '' : 'none';
+  if (souSolo()) renderAssessorConfig();
   renderMembrosList();
   renderKanbanColunasList();
   renderEtapasList();
