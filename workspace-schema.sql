@@ -915,3 +915,193 @@ create extension if not exists pg_cron;
 --   body := '{}'::jsonb); $c$);
 -- select cron.schedule('assessor-limpar-mensagens', '15 3 * * *',
 --   $c$ delete from public.assessor_mensagens where created_at < now() - interval '30 days'; $c$);
+
+-- ══════════════════════════════════════════════════════════════
+-- Atualização automática (2026-10-09): Realtime em Agenda e Atividades
+-- ══════════════════════════════════════════════════════════════
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'agendamentos') then
+    alter publication supabase_realtime add table public.agendamentos;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'atividades') then
+    alter publication supabase_realtime add table public.atividades;
+  end if;
+end $$;
+
+-- ══════════════════════════════════════════════════════════════
+-- Assessor: áudio, busca na web e vocabulário pessoal (2026-10-09)
+-- ══════════════════════════════════════════════════════════════
+alter table public.assessor_uso add column if not exists audio_segundos integer not null default 0;
+alter table public.assessor_uso add column if not exists buscas_web integer not null default 0;
+
+-- Nomes próprios que a transcrição de áudio erra (filmes, séries, pessoas, marcas). Aprendido quando a pessoa confirma.
+create table if not exists public.assessor_vocabulario (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  termo text not null,
+  contexto text not null default '',
+  created_at timestamptz not null default now(),
+  unique (user_id, termo)
+);
+alter table public.assessor_vocabulario enable row level security;
+drop policy if exists assessor_vocabulario_select on public.assessor_vocabulario;
+create policy assessor_vocabulario_select on public.assessor_vocabulario for select using (user_id = auth.uid());
+drop policy if exists assessor_vocabulario_delete on public.assessor_vocabulario;
+create policy assessor_vocabulario_delete on public.assessor_vocabulario for delete using (user_id = auth.uid());
+
+-- ══════════════════════════════════════════════════════════════
+-- Assessor: e-mail (Gmail) — conexão OAuth, remetentes liberados e triagem (2026-10-09)
+-- O refresh token do Google fica no Supabase Vault; as tabelas só guardam a referência.
+-- ══════════════════════════════════════════════════════════════
+create table if not exists public.assessor_email_estados (
+  state text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  expira_em timestamptz not null default now() + interval '10 minutes'
+);
+alter table public.assessor_email_estados enable row level security;
+
+create table if not exists public.assessor_email_contas (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  provedor text not null default 'gmail',
+  email text not null,
+  segredo_id uuid,
+  ativo boolean not null default true,
+  conectado_em timestamptz not null default now(),
+  ultima_varredura timestamptz,
+  ultimo_erro text,
+  unique (user_id, provedor)
+);
+alter table public.assessor_email_contas enable row level security;
+
+create table if not exists public.assessor_email_remetentes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  padrao text not null,
+  apelido text,
+  vip boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (user_id, padrao)
+);
+alter table public.assessor_email_remetentes enable row level security;
+create policy "remetentes: dono le" on public.assessor_email_remetentes for select using (user_id = auth.uid());
+create policy "remetentes: dono cria" on public.assessor_email_remetentes for insert with check (user_id = auth.uid());
+create policy "remetentes: dono altera" on public.assessor_email_remetentes for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "remetentes: dono exclui" on public.assessor_email_remetentes for delete using (user_id = auth.uid());
+
+create table if not exists public.assessor_emails (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  conta_id uuid not null references public.assessor_email_contas(id) on delete cascade,
+  mensagem_id text not null,
+  remetente text,
+  remetente_nome text,
+  assunto text,
+  recebido_em timestamptz,
+  resumo text,
+  categoria text,
+  urgente boolean not null default false,
+  vip boolean not null default false,
+  sugestao jsonb,
+  status text not null default 'novo',   -- novo | tarefa | compromisso | resolvido | ignorado
+  alertado boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (conta_id, mensagem_id)
+);
+create index if not exists assessor_emails_user_recebido on public.assessor_emails (user_id, recebido_em desc);
+alter table public.assessor_emails enable row level security;
+create policy "emails: dono le" on public.assessor_emails for select using (user_id = auth.uid());
+create policy "emails: dono altera" on public.assessor_emails for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "emails: dono exclui" on public.assessor_emails for delete using (user_id = auth.uid());
+alter publication supabase_realtime add table public.assessor_emails;
+
+alter table public.assessor_uso add column if not exists origem text default 'conversa';
+
+-- RPCs do usuário
+create or replace function public.assessor_email_iniciar(p_workspace_id uuid)
+returns text language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := auth.uid(); v_state text;
+begin
+  if v_uid is null then raise exception 'Não autenticado'; end if;
+  if not exists (
+    select 1 from workspaces w join workspace_membros m on m.workspace_id = w.id
+    where w.id = p_workspace_id and w.perfil_tipo = 'pessoal' and m.user_id = v_uid and m.status = 'ativo'
+  ) then raise exception 'O assessor só está disponível no seu perfil Pessoal'; end if;
+  delete from assessor_email_estados where expira_em < now() or user_id = v_uid;
+  v_state := encode(gen_random_bytes(24), 'hex');
+  insert into assessor_email_estados (state, user_id, workspace_id) values (v_state, v_uid, p_workspace_id);
+  return v_state;
+end $$;
+
+create or replace function public.assessor_email_status()
+returns table (email text, provedor text, ativo boolean, conectado_em timestamptz, ultima_varredura timestamptz, ultimo_erro text)
+language sql security definer set search_path = public as $$
+  select email, provedor, ativo, conectado_em, ultima_varredura, ultimo_erro
+  from assessor_email_contas where user_id = auth.uid();
+$$;
+
+create or replace function public.assessor_email_desconectar()
+returns void language plpgsql security definer set search_path = public, vault as $$
+declare r record;
+begin
+  if auth.uid() is null then raise exception 'Não autenticado'; end if;
+  for r in select id, segredo_id from assessor_email_contas where user_id = auth.uid() loop
+    if r.segredo_id is not null then delete from vault.secrets where id = r.segredo_id; end if;
+    delete from assessor_email_contas where id = r.id;
+  end loop;
+end $$;
+
+-- RPCs só do servidor (service_role)
+create or replace function public.assessor_email_salvar_conta(p_state text, p_email text, p_refresh text)
+returns uuid language plpgsql security definer set search_path = public, vault as $$
+declare v_est record; v_conta record; v_segredo uuid; v_id uuid;
+begin
+  delete from assessor_email_estados where state = p_state and expira_em >= now()
+    returning * into v_est;
+  if v_est is null then raise exception 'Link de conexão expirado. Gere de novo no Taskfull.'; end if;
+  select * into v_conta from assessor_email_contas where user_id = v_est.user_id and provedor = 'gmail';
+  if v_conta.segredo_id is not null and p_refresh is not null then
+    perform vault.update_secret(v_conta.segredo_id, p_refresh);
+    v_segredo := v_conta.segredo_id;
+  elsif p_refresh is not null then
+    v_segredo := vault.create_secret(p_refresh, 'assessor_gmail_' || v_est.user_id::text);
+  else
+    v_segredo := v_conta.segredo_id;
+  end if;
+  if v_segredo is null then raise exception 'O Google não devolveu a autorização permanente. Tente conectar de novo.'; end if;
+  insert into assessor_email_contas (user_id, workspace_id, provedor, email, segredo_id, ativo, conectado_em, ultimo_erro)
+  values (v_est.user_id, v_est.workspace_id, 'gmail', p_email, v_segredo, true, now(), null)
+  on conflict (user_id, provedor) do update set workspace_id = excluded.workspace_id, email = excluded.email,
+    segredo_id = excluded.segredo_id, ativo = true, conectado_em = now(), ultimo_erro = null
+  returning id into v_id;
+  return v_id;
+end $$;
+
+create or replace function public.assessor_email_contas_para_triagem()
+returns table (id uuid, user_id uuid, workspace_id uuid, email text, refresh_token text, ultima_varredura timestamptz)
+language sql security definer set search_path = public, vault as $$
+  select c.id, c.user_id, c.workspace_id, c.email, s.decrypted_secret, c.ultima_varredura
+  from assessor_email_contas c join vault.decrypted_secrets s on s.id = c.segredo_id
+  where c.ativo;
+$$;
+
+revoke all on function public.assessor_email_salvar_conta(text, text, text) from public, anon, authenticated;
+revoke all on function public.assessor_email_contas_para_triagem() from public, anon, authenticated;
+grant execute on function public.assessor_email_salvar_conta(text, text, text) to service_role;
+grant execute on function public.assessor_email_contas_para_triagem() to service_role;
+revoke all on function public.assessor_email_iniciar(uuid) from public, anon;
+revoke all on function public.assessor_email_status() from public, anon;
+revoke all on function public.assessor_email_desconectar() from public, anon;
+grant execute on function public.assessor_email_iniciar(uuid) to authenticated;
+grant execute on function public.assessor_email_status() to authenticated;
+grant execute on function public.assessor_email_desconectar() to authenticated;
+
+-- Cron da triagem (rodar uma vez no SQL Editor, trocando <anon key>):
+-- select cron.schedule('assessor-email-triagem', '*/15 * * * *', $c$ select net.http_post(
+--   url := 'https://dubbmmjtbunzmdmfbbja.supabase.co/functions/v1/assessor-email-triagem',
+--   headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <anon key>'),
+--   body := '{}'::jsonb, timeout_milliseconds := 120000); $c$);

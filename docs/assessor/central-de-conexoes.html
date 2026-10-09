@@ -1,0 +1,426 @@
+<title>Central de Conexões</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: HUD escuro — assessor no topo, barramento horizontal, quatro colunas de conectores, painel lateral de eventos */
+:root {
+  color-scheme: dark;
+  --bg: #070b12;
+  --panel: #0d1420;
+  --card: #111a28;
+  --line: #1f2b3d;
+  --fg: #e6edf6;
+  --muted: #8a98ab;
+  --hub: #5ce1e6;
+  --ok: #3ddc97;
+  --sync: #4fa8ff;
+  --changed: #f5b544;
+  --expiring: #ff9f43;
+  --updated: #a78bfa;
+  --down: #ff5c6c;
+  --paused: #8b97a8;
+  --off: #4a5566;
+  --f-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background:
+    linear-gradient(rgba(92,225,230,.035) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgba(92,225,230,.035) 1px, transparent 1px) 0 0 / 32px 32px,
+    var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 20px; padding-block: 24px 40px; }
+header.top { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-end; justify-content: space-between; }
+.eyebrow { font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--hub); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 3.2vw, 38px); letter-spacing: .02em; margin: 4px 0 2px; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; }
+.health { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+.health b { font-family: var(--f-display); font-size: 28px; color: var(--ok); font-variant-numeric: tabular-nums; }
+.health span { color: var(--muted); font-size: 12px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 12px; font: 500 12.5px var(--f-body); cursor: pointer;
+}
+.chip:hover { border-color: #33445c; }
+.chip[aria-pressed="true"] { border-color: var(--c); box-shadow: 0 0 0 1px var(--c) inset; }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.chip .n { font-family: var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip:focus-visible, .card:focus-visible, .btn:focus-visible, .ev:focus-visible { outline: 2px solid var(--hub); outline-offset: 2px; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+@media (max-width: 1080px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.graph-wrap { background: rgba(13,20,32,.6); border: 1px solid var(--line); border-radius: 16px; overflow-x: auto; }
+.graph { position: relative; width: 1040px; height: 700px; margin: 0 auto; }
+.graph svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+.hub {
+  position: absolute; left: 390px; top: 20px; width: 260px; height: 88px;
+  display: flex; align-items: center; gap: 14px; padding: 0 18px;
+  background: linear-gradient(180deg, rgba(92,225,230,.14), rgba(92,225,230,.04));
+  border: 1px solid rgba(92,225,230,.55); border-radius: 16px;
+  box-shadow: 0 0 24px rgba(92,225,230,.18);
+}
+.core { position: relative; width: 48px; height: 48px; flex: none; }
+.core::before, .core::after { content: ""; position: absolute; inset: 0; border-radius: 50%; }
+.core::before { border: 2px dashed var(--hub); animation: spin 9s linear infinite; }
+.core::after { inset: 12px; background: var(--hub); box-shadow: 0 0 18px var(--hub); animation: pulse 2.4s ease-in-out infinite; }
+.hub h2 { font-family: var(--f-display); font-size: 18px; margin: 0; letter-spacing: .03em; }
+.hub p { margin: 0; font-family: var(--f-mono); font-size: 11px; color: var(--hub); }
+
+.grp {
+  position: absolute; transform: translate(-50%, -50%);
+  font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+  background: var(--bg); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+}
+
+.card {
+  position: absolute; width: 228px; height: 132px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 13px; display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer; transition: opacity .25s, border-color .2s, transform .2s;
+  text-align: left; color: var(--fg); font: inherit;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--c); }
+.card.sel { border-color: var(--c); box-shadow: 0 0 0 1px var(--c), 0 0 22px color-mix(in srgb, var(--c) 30%, transparent); }
+.card.off { border-style: dashed; background: rgba(17,26,40,.5); }
+.card.dim, .edge.dim { opacity: .18; }
+.card .head { display: flex; align-items: center; gap: 9px; }
+.mono {
+  width: 30px; height: 30px; border-radius: 8px; flex: none; display: grid; place-items: center;
+  font: 600 11px var(--f-mono); color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+}
+.card .name { font-family: var(--f-display); font-weight: 600; font-size: 15px; line-height: 1.1; }
+.pill { margin-left: auto; font: 500 10.5px var(--f-mono); color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 50%, transparent); border-radius: 999px; padding: 2px 7px; white-space: nowrap; }
+.card .txt { font-size: 12.5px; color: #c9d3e0; line-height: 1.35; }
+.card .meta { margin-top: auto; font: 11px var(--f-mono); color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; flex: 1; }
+.bar i { display: block; height: 100%; width: 62%; background: var(--sync); animation: load 2.8s ease-in-out infinite; }
+.card.down .mono { animation: blink 1.6s steps(2, start) infinite; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 12px 18px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 22px; height: 0; border-top: 2px solid var(--c); }
+.legend i.dash { border-top-style: dashed; }
+
+aside { display: grid; gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+.panel h3 { font-family: var(--f-display); font-size: 15px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 12px; color: var(--muted); }
+.detail .dhead { display: flex; align-items: center; gap: 10px; }
+.detail .dhead .name { font-family: var(--f-display); font-size: 20px; font-weight: 700; }
+.detail p { margin: 10px 0; color: #c9d3e0; }
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+.kv div { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.kv small { display: block; font: 10.5px var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.kv b { font-family: var(--f-mono); font-weight: 500; font-size: 13px; font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { border: 1px solid var(--c, var(--hub)); color: var(--c, var(--hub)); background: color-mix(in srgb, var(--c, var(--hub)) 10%, transparent); border-radius: 8px; padding: 7px 12px; font: 600 12.5px var(--f-body); cursor: pointer; }
+.btn.ghost { --c: var(--muted); }
+.note { margin-top: 10px; font-size: 12px; color: var(--hub); min-height: 1em; }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ev { display: grid; grid-template-columns: 54px 14px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 6px; border-radius: 8px; cursor: pointer; }
+.ev:hover { background: var(--card); }
+.ev time { font: 11px var(--f-mono); color: var(--muted); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.ev .d { width: 10px; height: 10px; border-radius: 50%; background: var(--c); margin-top: 4px; box-shadow: 0 0 8px var(--c); }
+.ev b { font-family: var(--f-display); font-weight: 600; font-size: 13px; }
+.ev span { display: block; font-size: 12.5px; color: #c9d3e0; }
+.day { font: 10.5px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 8px 6px 2px; }
+
+.foot { margin-top: 18px; color: var(--muted); font-size: 12px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 50% { transform: scale(.78); opacity: .75; } }
+@keyframes flow { to { stroke-dashoffset: -28; } }
+@keyframes load { 0% { width: 18%; } 60% { width: 78%; } 100% { width: 18%; } }
+@keyframes blink { 50% { opacity: .35; } }
+.edge.anim { animation: flow 1.2s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Taskfull · Assessor pessoal</div>
+      <h1>Central de Conexões</h1>
+      <p class="sub">Protótipo com dados de exemplo: o que está conectado, o que mudou e o que precisa de atenção.</p>
+    </div>
+    <div class="health" aria-label="Saúde das conexões">
+      <b id="healthNum">6/12</b>
+      <span>canais funcionando<br>agora, 08:15</span>
+    </div>
+  </header>
+
+  <div class="chips" id="chips" role="group" aria-label="Filtrar por estado"></div>
+
+  <div class="main">
+    <section>
+      <div class="graph-wrap">
+        <div class="graph" id="graph">
+          <svg id="edges" aria-hidden="true"></svg>
+          <div class="hub">
+            <div class="core"></div>
+            <div>
+              <h2>Assessor</h2>
+              <p>online · 12 canais monitorados</p>
+            </div>
+          </div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </section>
+
+    <aside>
+      <div class="panel detail" id="detail" aria-live="polite"></div>
+      <div class="panel">
+        <h3>Linha do tempo</h3>
+        <ol class="timeline" id="timeline"></ol>
+      </div>
+    </aside>
+  </div>
+
+  <p class="foot">Exemplo ilustrativo para o escopo do produto. Os nomes dos canais aparecem só como texto, sem logotipos das marcas.</p>
+</div>
+
+<script>
+const ST = {
+  ok:       { label: 'Conectado',        c: 'var(--ok)',       anim: true },
+  sync:     { label: 'Sincronizando',    c: 'var(--sync)',     anim: true },
+  updated:  { label: 'Atualizado',       c: 'var(--updated)',  anim: true },
+  changed:  { label: 'Alterado',         c: 'var(--changed)',  anim: false },
+  expiring: { label: 'Expira em breve',  c: 'var(--expiring)', anim: false },
+  paused:   { label: 'Pausado',          c: 'var(--paused)',   anim: false },
+  down:     { label: 'Desconectado',     c: 'var(--down)',     anim: false },
+  off:      { label: 'Não conectado',    c: 'var(--off)',      anim: false },
+};
+const FUNCIONANDO = ['ok', 'sync', 'updated'];
+
+const COLS = [
+  { name: 'Mensagens', x: 140 },
+  { name: 'E-mail', x: 400 },
+  { name: 'Redes profissionais', x: 660 },
+  { name: 'Vídeo e outras', x: 920 },
+];
+const ROWS = [200, 368, 536];
+
+const NODES = [
+  { id: 'wa', mono: 'WA', name: 'WhatsApp', col: 0, row: 0, st: 'ok', txt: 'Número oficial do assessor · 38 conversas hoje', meta: 'Última mensagem: há 1 min', today: 38, last: 'há 1 min', plan: 'Todos', why: 'Canal principal do assessor pela API oficial da Meta. Tudo funcionando.', acts: ['Ver conversas'] },
+  { id: 'tg', mono: 'TG', name: 'Telegram', col: 0, row: 1, st: 'ok', txt: 'Bot ativo · 5 conversas hoje', meta: 'Última: há 18 min', today: 5, last: 'há 18 min', plan: 'Avançado ou acima', why: 'Segundo canal de conversa, sem custo por mensagem.', acts: ['Pausar'] },
+  { id: 'ax', mono: 'AX', name: 'Alexa', col: 0, row: 2, st: 'off', txt: 'Não conectado · disponível no Jarvis-Full', meta: 'Toque para vincular', today: 0, last: '—', plan: 'Jarvis-Full', why: 'A pessoa tem Alexa, mas ainda não ativou a skill do assessor.', acts: ['Vincular Alexa'] },
+  { id: 'gm', mono: 'GM', name: 'Gmail', col: 1, row: 0, st: 'sync', txt: 'Sincronizando 47 e-mails novos', meta: 'progress', today: 47, last: 'agora', plan: 'Avançado ou acima', why: 'Lendo e-mails novos; newsletters e propagandas são descartadas antes de chegar à IA.', acts: ['Ver triagem'] },
+  { id: 'ol', mono: 'OL', name: 'Outlook', col: 1, row: 1, st: 'expiring', txt: 'Chave de acesso expira em 5 dias', meta: 'Aviso enviado ontem, 22:40', today: 12, last: 'há 9 min', plan: 'Hiper ou acima', why: 'A Microsoft pede renovação periódica. Um toque renova sem perder nada.', acts: ['Renovar agora'] },
+  { id: 'im', mono: 'IM', name: 'E-mail corporativo', col: 1, row: 2, st: 'ok', txt: 'mail.empresa.com.br · 3 e-mails VIP hoje', meta: 'Última leitura: há 4 min', today: 21, last: 'há 4 min', plan: 'Hiper ou acima', why: 'Conectado por IMAP. Só resumos são guardados, nunca o e-mail inteiro.', acts: ['Ver VIPs'] },
+  { id: 'li', mono: 'IN', name: 'LinkedIn', col: 2, row: 0, st: 'ok', txt: '2 comentários e 1 menção hoje', meta: 'Última leitura: há 6 min', today: 3, last: 'há 6 min', plan: 'Hiper ou acima', why: 'Publica com aprovação e acompanha comentários e menções.', acts: ['Escrever post'] },
+  { id: 'ig', mono: 'IG', name: 'Instagram', col: 2, row: 1, st: 'changed', txt: 'Permissão alterada: mensagens diretas desativadas', meta: 'Alterado hoje às 07:30', today: 4, last: 'há 12 min', plan: 'Hiper ou acima', why: 'A pessoa removeu a permissão de mensagens diretas. Comentários e métricas seguem funcionando.', acts: ['Revisar permissões'] },
+  { id: 'fb', mono: 'FB', name: 'Facebook', col: 2, row: 2, st: 'down', txt: 'Desconectado: a chave expirou', meta: 'Há 3 dias sem leitura', today: 0, last: '01/10', plan: 'Jarvis-Full', why: 'A chave expirou e não foi renovada. A pessoa recebeu aviso no WhatsApp em 01/10.', acts: ['Reconectar', 'Remover'] },
+  { id: 'yt', mono: 'YT', name: 'YouTube', col: 3, row: 0, st: 'paused', txt: 'Pausado pela pessoa até segunda', meta: 'Último vídeo novo: ontem', today: 0, last: 'ontem', plan: 'Hiper ou acima', why: 'A pessoa pausou os avisos do canal. Volta sozinho na segunda.', acts: ['Retomar agora'] },
+  { id: 'tt', mono: 'TT', name: 'TikTok', col: 3, row: 1, st: 'updated', txt: 'A API mudou; conector atualizado para a versão 1.3', meta: 'Atualizado hoje às 06:10', today: 2, last: 'há 20 min', plan: 'Jarvis-Full', why: 'O TikTok mudou a API. O conector foi atualizado sem interromper nada.', acts: ['Ver mudanças'] },
+  { id: 'xx', mono: 'X', name: 'X', col: 3, row: 2, st: 'off', txt: 'Não conectado · API com custo extra', meta: 'Toque para conectar', today: 0, last: '—', plan: 'Jarvis-Full + adicional', why: 'Disponível como adicional, porque a API do X é paga.', acts: ['Conectar X'] },
+];
+
+const EVENTS = [
+  { day: 'Hoje', t: '08:12', id: 'gm', st: 'sync', txt: 'Sincronização iniciada: 47 e-mails novos.' },
+  { day: 'Hoje', t: '08:02', id: 'im', st: 'ok', txt: 'E-mail VIP do diretor: relatório até sexta. Tarefa criada.' },
+  { day: 'Hoje', t: '07:30', id: 'ig', st: 'changed', txt: 'Permissão de mensagens diretas removida pela pessoa.' },
+  { day: 'Hoje', t: '07:00', id: 'wa', st: 'ok', txt: 'Jornal da manhã enviado em áudio (3 min).' },
+  { day: 'Hoje', t: '06:10', id: 'tt', st: 'updated', txt: 'Nova versão da API aplicada sem interrupção.' },
+  { day: 'Ontem', t: '22:40', id: 'ol', st: 'expiring', txt: 'Aviso enviado: a chave expira em 5 dias.' },
+  { day: 'Ontem', t: '18:00', id: 'yt', st: 'paused', txt: 'Avisos pausados pela pessoa até segunda.' },
+  { day: '01/10', t: '09:15', id: 'fb', st: 'down', txt: 'Conexão perdida: chave expirada. Aviso enviado no WhatsApp.' },
+];
+
+const W = 228, H = 132, BUS = 160, HUB_BOTTOM = 108;
+const graph = document.getElementById('graph');
+const svg = document.getElementById('edges');
+const NS = 'http://www.w3.org/2000/svg';
+let filter = null;
+let selected = 'fb';
+
+function line(x1, y1, x2, y2, cls, color, dash) {
+  const l = document.createElementNS(NS, 'line');
+  l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+  l.setAttribute('stroke', color); l.setAttribute('stroke-width', '2');
+  if (dash) l.setAttribute('stroke-dasharray', dash);
+  l.setAttribute('class', cls);
+  svg.appendChild(l);
+  return l;
+}
+
+function drawEdges() {
+  svg.innerHTML = '';
+  line(520, HUB_BOTTOM, 520, BUS, 'edge anim', 'var(--hub)', '6 8');
+  line(COLS[0].x, BUS, COLS[3].x, BUS, 'edge', '#2a3a52');
+  NODES.forEach(n => {
+    const x = COLS[n.col].x;
+    const y1 = n.row === 0 ? BUS : ROWS[n.row - 1] + H;
+    const y2 = ROWS[n.row];
+    const s = ST[n.st];
+    const dash = (n.st === 'off' || n.st === 'down') ? '4 6' : (s.anim ? '6 8' : null);
+    const l = line(x, y1, x, y2, 'edge' + (s.anim ? ' anim' : ''), s.c, dash);
+    l.dataset.id = n.id;
+    if (n.st === 'down') {
+      const my = (y1 + y2) / 2;
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', x); c.setAttribute('cy', my); c.setAttribute('r', '8');
+      c.setAttribute('fill', 'var(--bg)'); c.setAttribute('stroke', 'var(--down)'); c.setAttribute('stroke-width', '1.5');
+      c.setAttribute('class', 'edge'); c.dataset.id = n.id;
+      svg.appendChild(c);
+      const t = document.createElementNS(NS, 'path');
+      t.setAttribute('d', `M${x - 3.5} ${my - 3.5} L${x + 3.5} ${my + 3.5} M${x + 3.5} ${my - 3.5} L${x - 3.5} ${my + 3.5}`);
+      t.setAttribute('stroke', 'var(--down)'); t.setAttribute('stroke-width', '1.8');
+      t.setAttribute('class', 'edge'); t.dataset.id = n.id;
+      svg.appendChild(t);
+    }
+  });
+  COLS.forEach(c => {
+    const d = document.createElementNS(NS, 'circle');
+    d.setAttribute('cx', c.x); d.setAttribute('cy', BUS); d.setAttribute('r', '4');
+    d.setAttribute('fill', 'var(--hub)');
+    svg.appendChild(d);
+  });
+}
+
+function drawNodes() {
+  graph.querySelectorAll('.card, .grp').forEach(e => e.remove());
+  COLS.forEach(c => {
+    const g = document.createElement('div');
+    g.className = 'grp'; g.textContent = c.name;
+    g.style.left = c.x + 'px'; g.style.top = (BUS + 18) + 'px';
+    graph.appendChild(g);
+  });
+  NODES.forEach(n => {
+    const s = ST[n.st];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'card ' + n.st + (n.id === selected ? ' sel' : '');
+    b.dataset.id = n.id;
+    b.style.setProperty('--c', s.c);
+    b.style.left = (COLS[n.col].x - W / 2) + 'px';
+    b.style.top = ROWS[n.row] + 'px';
+    b.setAttribute('aria-label', `${n.name}: ${s.label}`);
+    const meta = n.meta === 'progress'
+      ? '<span>62%</span><span class="bar"><i></i></span>'
+      : `<span>${n.meta}</span>`;
+    b.innerHTML = `
+      <div class="head"><span class="mono">${n.mono}</span><span class="name">${n.name}</span><span class="pill">${s.label}</span></div>
+      <div class="txt">${n.txt}</div>
+      <div class="meta">${meta}</div>`;
+    b.addEventListener('click', () => select(n.id));
+    graph.appendChild(b);
+  });
+}
+
+function drawChips() {
+  const box = document.getElementById('chips');
+  box.innerHTML = '';
+  const all = document.createElement('button');
+  all.type = 'button'; all.className = 'chip';
+  all.style.setProperty('--c', 'var(--hub)');
+  all.setAttribute('aria-pressed', filter === null);
+  all.innerHTML = `<span class="dot"></span>Todos <span class="n">${NODES.length}</span>`;
+  all.onclick = () => { filter = null; render(); };
+  box.appendChild(all);
+  Object.entries(ST).forEach(([k, s]) => {
+    const n = NODES.filter(x => x.st === k).length;
+    if (!n) return;
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip';
+    b.style.setProperty('--c', s.c);
+    b.setAttribute('aria-pressed', filter === k);
+    b.innerHTML = `<span class="dot"></span>${s.label} <span class="n">${n}</span>`;
+    b.onclick = () => { filter = filter === k ? null : k; render(); };
+    box.appendChild(b);
+  });
+}
+
+function drawLegend() {
+  const L = document.getElementById('legend');
+  L.innerHTML = Object.values(ST).map(s =>
+    `<span><i style="--c:${s.c}" class="${s.anim ? '' : 'dash'}"></i>${s.label}</span>`).join('') +
+    '<span style="margin-left:auto">Linha em movimento = dados chegando agora</span>';
+}
+
+function drawDetail() {
+  const n = NODES.find(x => x.id === selected);
+  const s = ST[n.st];
+  const el = document.getElementById('detail');
+  el.style.setProperty('--c', s.c);
+  el.innerHTML = `
+    <h3>Detalhes do canal</h3>
+    <div class="dhead"><span class="mono" style="--c:${s.c}">${n.mono}</span><span class="name">${n.name}</span><span class="pill" style="--c:${s.c}">${s.label}</span></div>
+    <p>${n.why}</p>
+    <div class="kv">
+      <div><small>Eventos hoje</small><b>${n.today}</b></div>
+      <div><small>Última leitura</small><b>${n.last}</b></div>
+      <div style="grid-column:1/-1"><small>Disponível no plano</small><b>${n.plan}</b></div>
+    </div>
+    <div class="actions">${n.acts.map((a, i) => `<button type="button" class="btn${i ? ' ghost' : ''}" data-a="${a}">${a}</button>`).join('')}</div>
+    <div class="note" id="note"></div>`;
+  el.querySelectorAll('.btn').forEach(b => b.onclick = () => {
+    document.getElementById('note').textContent = `Protótipo: no produto, "${b.dataset.a}" abriria o fluxo oficial do ${n.name}.`;
+  });
+}
+
+function drawTimeline() {
+  const T = document.getElementById('timeline');
+  let html = '', day = '';
+  EVENTS.forEach(e => {
+    if (e.day !== day) { day = e.day; html += `<li class="day">${day}</li>`; }
+    const n = NODES.find(x => x.id === e.id);
+    html += `<li class="ev" tabindex="0" data-id="${e.id}" style="--c:${ST[e.st].c}">
+      <time>${e.t}</time><span class="d"></span>
+      <div><b>${n.name}</b><span>${e.txt}</span></div></li>`;
+  });
+  T.innerHTML = html;
+  T.querySelectorAll('.ev').forEach(li => {
+    const go = () => select(li.dataset.id);
+    li.onclick = go;
+    li.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); go(); } };
+  });
+}
+
+function applyFilter() {
+  graph.querySelectorAll('.card').forEach(c => {
+    const n = NODES.find(x => x.id === c.dataset.id);
+    c.classList.toggle('dim', filter !== null && n.st !== filter);
+  });
+  svg.querySelectorAll('[data-id]').forEach(e => {
+    const n = NODES.find(x => x.id === e.dataset.id);
+    e.classList.toggle('dim', filter !== null && n.st !== filter);
+  });
+}
+
+function select(id) {
+  selected = id;
+  graph.querySelectorAll('.card').forEach(c => c.classList.toggle('sel', c.dataset.id === id));
+  drawDetail();
+}
+
+function render() {
+  drawChips();
+  applyFilter();
+}
+
+document.getElementById('healthNum').textContent =
+  NODES.filter(n => FUNCIONANDO.includes(n.st)).length + '/' + NODES.length;
+drawEdges();
+drawNodes();
+drawLegend();
+drawDetail();
+drawTimeline();
+render();
+</script>

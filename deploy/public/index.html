@@ -492,6 +492,28 @@
   .ind-card .num { font-size:26px; font-weight:800; line-height:1.1; }
   .ind-card .lbl { font-size:11.5px; color:var(--gray-text); text-transform:uppercase; letter-spacing:.04em; font-weight:700; margin-top:2px; }
   .ind-card .sub { font-size:11.5px; color:var(--gray-text); margin-top:4px; }
+  /* ── Assessor: quadro de E-mails (perfil Pessoal) ── */
+  .email-card { background:var(--white); border:1px solid var(--border-light); border-left:4px solid #3B82F6; border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .email-card.urgente { border-left-color:var(--red); }
+  .email-card.tratado { opacity:.72; border-left-color:var(--border-light); }
+  .email-topo { display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap; }
+  .email-tags { display:flex; gap:6px; flex-wrap:wrap; }
+  .email-tag { font-size:11px; font-weight:700; padding:2px 8px; border-radius:100px; background:var(--light-bg); border:1px solid var(--border-light); }
+  .email-tag.urgente { background:#FEE2E2; color:#991B1B; border-color:#FCA5A5; }
+  .email-tag.vip { background:#FEF3C7; color:#92400E; border-color:#FCD34D; }
+  .email-data { font-size:12px; color:var(--gray-text); }
+  .email-de { font-size:13px; font-weight:700; margin-top:8px; overflow-wrap:anywhere; }
+  .email-de span { font-weight:400; color:var(--gray-text); }
+  .email-assunto { font-size:14.5px; font-weight:800; margin-top:2px; overflow-wrap:anywhere; }
+  .email-resumo { font-size:13.5px; margin-top:6px; white-space:pre-wrap; }
+  .email-sugestao { font-size:12.5px; margin-top:8px; padding:6px 10px; border-radius:8px; background:var(--light-bg); }
+  .email-acoes { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+  .email-status { font-size:12px; font-weight:700; color:var(--gray-text); margin-right:4px; }
+  .email-rem-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border-light); border-radius:8px; margin-top:6px; background:var(--white); }
+  .email-rem-item .grow { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .resumo-emails-box { margin-top:16px; padding:14px 16px; border:1px solid var(--border-light); border-left:4px solid #3B82F6; border-radius:12px; background:var(--light-bg); }
+  .resumo-emails-box h3 { font-size:15px; margin:0 0 6px; }
+  .resumo-emails-linha { font-size:13px; margin-top:4px; overflow-wrap:anywhere; }
   .ind-chart { display:flex; align-items:flex-end; gap:6px; height:200px; padding-top:18px; overflow-x:auto; }
   .ind-col { flex:1; min-width:36px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
   .ind-bars { display:flex; align-items:flex-end; gap:3px; }
@@ -806,6 +828,7 @@
             <button class="btn btn-sm" onclick="withLock(this, baixarResumoPDF)">📄 PDF</button>
           </div>
           <div class="resumo-pre" id="resumo-texto"></div>
+          <div id="resumo-emails"></div>
         </div>
       </section>
 
@@ -899,6 +922,19 @@
             <div class="pizza-explicacao">Quanto o assessor gastou com a IA neste mês e quanto ainda resta do limite. Só aparece no perfil Pessoal.</div>
             <div id="ind-assessor"></div>
           </div>
+        </div>
+      </section>
+
+      <section id="view-emails" style="display:none">
+        <div class="resumo-box">
+          <h2 style="margin-bottom:4px;">📧 E-mails</h2>
+          <div class="resumo-sub" id="emails-sub"></div>
+          <div class="resumo-actions">
+            <button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button>
+            <button class="btn btn-sm" onclick="abrirConfigAssessor()">⚙️ Remetentes</button>
+          </div>
+          <div class="pessoa-filter" id="emails-filtro" style="margin-top:14px;"></div>
+          <div id="emails-lista" style="margin-top:14px;"></div>
         </div>
       </section>
 
@@ -1079,10 +1115,13 @@
         </div>
 
         <div class="resumo-box config-section" id="section-assessor" style="display:none">
-          <div class="config-section-header" onclick="toggleConfigSection('assessor')"><h2>🤖 Assessor no Telegram</h2><span class="config-chevron" id="chevron-assessor">▸</span></div>
+          <div class="config-section-header" onclick="toggleConfigSection('assessor')"><h2>🤖 Assessor (Telegram e E-mail)</h2><span class="config-chevron" id="chevron-assessor">▸</span></div>
           <div class="config-section-body" id="body-assessor" style="display:none">
             <p class="config-hint">Converse com o seu assessor pelo Telegram: com dia e hora ele marca na Agenda, sem hora cria uma tarefa em Atividades, e avisa antes de cada compromisso. Só no perfil Pessoal.</p>
             <div id="assessor-config"></div>
+            <h3 style="margin:20px 0 6px;font-size:15px;">📧 E-mail (Gmail)</h3>
+            <p class="config-hint">O assessor lê <b>só</b> os e-mails dos remetentes que você liberar abaixo, a cada 15 minutos, e guarda apenas um resumo. Nada é enviado, respondido ou apagado. Os urgentes e os de VIPs também avisam no Telegram.</p>
+            <div id="assessor-email-config"></div>
           </div>
         </div>
 
@@ -1355,7 +1394,7 @@ try {
 }
 
 const PERFIL_ABAS = {
-  pessoal: ['atividades', 'agenda', 'resumo', 'indicadores', 'buscar'],
+  pessoal: ['atividades', 'agenda', 'emails', 'resumo', 'indicadores', 'buscar'],
   equipe:  ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'indicadores', 'lamina', 'buscar'],
   projeto: ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'treinamentos', 'indicadores', 'lamina', 'cronograma', 'buscar'],
 };
@@ -1404,8 +1443,8 @@ const PERFIL_DESC = {
   projeto: 'Tudo do modo Equipe, mais treinamentos/onboarding por etapas.',
 };
 const ENTIDADE_LABEL_PADRAO = { pessoal: null, equipe: 'Clientes', projeto: 'Projetos' };
-const NAV_ICON = { entidades: '🏢', agenda: '🗓', pendencias: '⚠️', atividades: '✅', resumo: '📋', treinamentos: '🎓', indicadores: '📊', lamina: '🖼', cronograma: '🗂', buscar: '🔍' };
-const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar' };
+const NAV_ICON = { entidades: '🏢', agenda: '🗓', pendencias: '⚠️', atividades: '✅', resumo: '📋', treinamentos: '🎓', indicadores: '📊', lamina: '🖼', cronograma: '🗂', buscar: '🔍', emails: '📧' };
+const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails' };
 
 const DEFAULT_ETAPAS = [
   { id: 'kickoff', nome: 'Kickoff', cor: '#3B82F6', ordem: 1 },
@@ -1574,6 +1613,7 @@ function ligarAutoRefreshRealtime() {
   autoRefreshCanal = sb.channel('taskfull-ws-' + activeWorkspace.id)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'agendamentos', filter: filtro }, agendarAutoRefresh)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'atividades', filter: filtro }, agendarAutoRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'assessor_emails', filter: filtro }, agendarAutoRefresh)
     .subscribe();
 }
 setInterval(() => { if (activeWorkspace) autoRefresh(); }, 120000);
@@ -1962,7 +2002,7 @@ async function renderUsoAssessor() {
     const [vincRes, usoRes] = await Promise.all([
       sb.from('assessor_vinculos').select('chat_id, telegram_usuario, limite_mensal_usd')
         .eq('user_id', currentUser.id).eq('canal', 'telegram').eq('workspace_id', activeWorkspace.id).maybeSingle(),
-      sb.from('assessor_uso').select('custo_estimado_usd, created_at')
+      sb.from('assessor_uso').select('custo_estimado_usd, created_at, canal')
         .eq('user_id', currentUser.id).eq('workspace_id', activeWorkspace.id),
     ]);
     const vinc = vincRes.data;
@@ -1986,7 +2026,7 @@ async function renderUsoAssessor() {
       : 'Telegram não conectado';
     box.innerHTML = `
       <div class="ind-cards">
-        <div class="ind-card"><div class="num">${doMes.length}</div><div class="lbl">Mensagens este mês</div><div class="sub">${usos.length} desde o início · total ${formatarUsdAssessor(gastoTotal)} (${brl(gastoTotal)})</div></div>
+        <div class="ind-card"><div class="num">${doMes.filter(u => u.canal !== 'email').length}</div><div class="lbl">Mensagens este mês</div><div class="sub">${doMes.filter(u => u.canal === 'email').length} e-mails resumidos · ${usos.length} usos desde o início · total ${formatarUsdAssessor(gastoTotal)} (${brl(gastoTotal)})</div></div>
         <div class="ind-card"><div class="num">${formatarUsdAssessor(gastoMes)}</div><div class="lbl">Gasto do mês</div><div class="sub">${brl(gastoMes)}</div></div>
         <div class="ind-card" style="border-color:${cor};"><div class="num">${formatarUsdAssessor(restante)}</div><div class="lbl">Ainda pode gastar</div><div class="sub">${brl(restante)} até o fim do mês</div></div>
         <div class="ind-card"><div class="num">${brl(gastoMes)}</div><div class="lbl">Gasto do mês em reais</div><div class="sub">ainda tem ${brl(restante)}</div></div>
@@ -2053,6 +2093,265 @@ async function desconectarAssessor() {
   const { error } = await sb.rpc('assessor_desconectar');
   if (error) { alert('Não foi possível desconectar: ' + error.message); return; }
   renderAssessorConfig();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ASSESSOR PESSOAL: E-MAILS (perfil Pessoal) — Gmail conectado + triagem por IA só dos remetentes liberados
+// Backend: tabelas assessor_email_* / assessor_emails + Edge Functions assessor-email-callback e
+// assessor-email-triagem (cron a cada 15 min). E-mail nunca vira agenda sozinho: a pessoa decide pelos botões.
+// ══════════════════════════════════════════════════════════════
+const EMAIL_FN_CALLBACK = SUPABASE_URL + '/functions/v1/assessor-email-callback';
+const EMAIL_CATEGORIA = { acao: '📌 Pede ação', reuniao: '📅 Reunião', financeiro: '💰 Financeiro', informativo: 'ℹ️ Informativo', outros: '✉️ Outros' };
+const EMAIL_STATUS = { novo: 'Novo', tarefa: '📝 Virou tarefa', compromisso: '📅 Virou compromisso', resolvido: '✔ Resolvido', ignorado: 'Ignorado' };
+let emailsLista = [];
+let emailConta = null;
+let emailsFiltro = 'novo';
+let emailParaCompromisso = null;
+// Volta do login do Google (?email=conectado|erro&msg=...): guarda e limpa a URL.
+let retornoEmailOAuth = (() => {
+  try {
+    const p = new URLSearchParams(location.search);
+    const v = p.get('email');
+    if (!v) return null;
+    const r = { status: v, msg: p.get('msg') || '' };
+    p.delete('email'); p.delete('msg');
+    history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p.toString() : '') + location.hash);
+    return r;
+  } catch (e) { return null; }
+})();
+
+function diaLocalDeIso(iso) {
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+async function carregarEmails() {
+  if (!souSolo() || !sb || !currentUser || !activeWorkspace) { emailsLista = []; emailConta = null; updateEmailsCount(); return; }
+  const desde = new Date(Date.now() - 30 * 86400000).toISOString();
+  const [lista, status] = await Promise.all([
+    sb.from('assessor_emails').select('*').eq('workspace_id', activeWorkspace.id).gte('recebido_em', desde)
+      .order('recebido_em', { ascending: false }).limit(200),
+    sb.rpc('assessor_email_status'),
+  ]);
+  emailsLista = lista.error ? [] : (lista.data || []);
+  emailConta = status.error ? null : ((status.data || [])[0] || null);
+  updateEmailsCount();
+}
+function updateEmailsCount() {
+  const el = document.getElementById('emails-count');
+  if (el) el.textContent = emailsLista.filter(e => e.status === 'novo').length;
+}
+function setEmailsFiltro(f) { emailsFiltro = f; renderEmails(); }
+function textoOrigemEmail(e) {
+  return `📧 E-mail de ${e.remetente_nome || e.remetente} <${e.remetente}> (${formatDataHora(e.recebido_em)})\nAssunto: ${e.assunto || '(sem assunto)'}\n\n${e.resumo || ''}`;
+}
+function cardEmail(e) {
+  const s = e.sugestao || {};
+  const reu = s.reuniao;
+  const tags = [
+    e.urgente ? '<span class="email-tag urgente">🚨 Urgente</span>' : '',
+    e.vip ? '<span class="email-tag vip">⭐ VIP</span>' : '',
+    e.categoria ? `<span class="email-tag">${EMAIL_CATEGORIA[e.categoria] || escapeHtml(e.categoria)}</span>` : '',
+  ].join('');
+  const acoes = e.status === 'novo' ? `
+      <button class="btn btn-sm" onclick="withLock(this, () => emailVirarTarefa('${e.id}'))">📝 Virar tarefa</button>
+      <button class="btn btn-sm" onclick="emailVirarCompromisso('${e.id}')">📅 Virar compromisso</button>
+      <button class="btn btn-green btn-sm" onclick="withLock(this, () => marcarEmail('${e.id}', 'resolvido'))">✔ Resolvido</button>
+      <button class="btn btn-sm" onclick="withLock(this, () => marcarEmail('${e.id}', 'ignorado'))">Ignorar</button>` : `
+      <span class="email-status">${EMAIL_STATUS[e.status] || escapeHtml(e.status)}</span>
+      <button class="btn btn-sm" onclick="withLock(this, () => marcarEmail('${e.id}', 'novo'))">↩ Reabrir</button>`;
+  return `
+    <div class="email-card ${e.urgente ? 'urgente' : ''} ${e.status !== 'novo' ? 'tratado' : ''}">
+      <div class="email-topo"><div class="email-tags">${tags}</div><span class="email-data">${formatDataHora(e.recebido_em)}</span></div>
+      <div class="email-de">${escapeHtml(e.remetente_nome || e.remetente)} <span>&lt;${escapeHtml(e.remetente)}&gt;</span></div>
+      <div class="email-assunto">${escapeHtml(e.assunto || '(sem assunto)')}</div>
+      <div class="email-resumo">${escapeHtml(e.resumo || '')}</div>
+      ${reu && reu.data ? `<div class="email-sugestao">📅 Sugestão de compromisso: ${escapeHtml(reu.titulo || e.assunto || '')} em ${formatDate(reu.data)}${reu.hora ? ' às ' + escapeHtml(reu.hora) : ''}</div>` : ''}
+      <div class="email-acoes">${acoes}
+        <a class="btn btn-sm" href="https://mail.google.com/mail/u/0/#all/${encodeURIComponent(e.mensagem_id)}" target="_blank" rel="noopener">Abrir no Gmail</a>
+      </div>
+    </div>`;
+}
+function renderEmails() {
+  const lista = document.getElementById('emails-lista');
+  if (!lista) return;
+  const novos = emailsLista.filter(e => e.status === 'novo');
+  const sub = document.getElementById('emails-sub');
+  if (!emailConta) {
+    sub.textContent = 'Nenhum e-mail conectado.';
+    document.getElementById('emails-filtro').innerHTML = '';
+    lista.innerHTML = `<p class="config-hint">Conecte o Gmail e escolha de quais remetentes o assessor pode ler em <a href="#" onclick="abrirConfigAssessor(); return false;">Configurações → 🤖 Assessor</a>. Ele lê só esses e-mails, a cada 15 minutos, e guarda um resumo aqui. E-mail nunca vira compromisso sozinho: você decide pelos botões.</p>`;
+    return;
+  }
+  sub.textContent = `${emailConta.email} · ${emailConta.ultima_varredura ? 'última verificação ' + formatDataHora(emailConta.ultima_varredura) : 'ainda não verificado'}${emailConta.ultimo_erro ? ' · ⚠️ ' + emailConta.ultimo_erro : ''}`;
+  document.getElementById('emails-filtro').innerHTML = [['novo', `Novos (${novos.length})`], ['tratados', 'Já tratados'], ['todos', 'Todos (30 dias)']]
+    .map(([k, l]) => `<button class="pessoa-filter-btn ${emailsFiltro === k ? 'active' : ''}" onclick="setEmailsFiltro('${k}')">${l}</button>`).join('');
+  const filtrados = emailsFiltro === 'novo' ? novos : (emailsFiltro === 'tratados' ? emailsLista.filter(e => e.status !== 'novo') : emailsLista);
+  // Urgentes primeiro entre os novos; o resto por data.
+  const ordenados = emailsFiltro === 'novo' ? [...filtrados].sort((a, b) => (b.urgente - a.urgente) || (b.vip - a.vip) || (new Date(b.recebido_em) - new Date(a.recebido_em))) : filtrados;
+  lista.innerHTML = ordenados.length ? ordenados.map(cardEmail).join('')
+    : `<p class="config-hint">${emailsFiltro === 'novo' ? 'Nada novo por aqui. 🎉' : 'Nenhum e-mail nessa lista.'}</p>`;
+}
+async function marcarEmail(id, status) {
+  const { error } = await sb.from('assessor_emails').update({ status }).eq('id', id);
+  if (error) { alert('Não foi possível atualizar: ' + error.message); return false; }
+  const e = emailsLista.find(x => x.id === id);
+  if (e) e.status = status;
+  updateEmailsCount();
+  if (activeTab === 'emails') renderEmails();
+  return true;
+}
+async function emailVirarTarefa(id) {
+  const e = emailsLista.find(x => x.id === id);
+  if (!e) return;
+  const sugestao = (e.sugestao && e.sugestao.tarefa) || e.assunto || 'Responder e-mail';
+  const titulo = prompt('Título da tarefa (fica em Atividades):', sugestao);
+  if (titulo === null || !titulo.trim()) return;
+  const payload = {
+    workspace_id: activeWorkspace.id,
+    entidade_nome: '',
+    titulo: titulo.trim(),
+    descricao: textoOrigemEmail(e),
+    criado_por: meuNome(),
+    responsavel: meuNome(),
+    coluna: colunasAtivas()[0] ? colunasAtivas()[0].id : 'concluida',
+    resolucao: '',
+    participantes: [],
+    concluido_em: null,
+    ordem: 0,
+  };
+  const { data, error } = await sb.from('atividades').insert(payload).select().single();
+  if (error) { alert(error.message); return; }
+  atividades.push({ id: data.id, entidadeNome: '', titulo: payload.titulo, descricao: payload.descricao,
+    criadoPor: payload.criado_por, responsavel: payload.responsavel, coluna: payload.coluna, resolucao: '', label: null,
+    participantes: [], concluidoEm: null, criadoEm: data.created_at, ordem: 0, cancelado: false, imagens: [] });
+  await marcarEmail(id, 'tarefa');
+  renderStats();
+  alert('📝 Tarefa criada em Atividades.');
+}
+function emailVirarCompromisso(id) {
+  const e = emailsLista.find(x => x.id === id);
+  if (!e) return;
+  const reu = (e.sugestao && e.sugestao.reuniao) || null;
+  openAgendamentoModal(null);
+  emailParaCompromisso = id;
+  document.getElementById('agendamento-modal-title').textContent = 'Novo Agendamento (a partir de e-mail)';
+  document.getElementById('ag-titulo').value = (reu && reu.titulo) || e.assunto || '';
+  document.getElementById('ag-data').value = (reu && reu.data) || todayStr();
+  document.getElementById('ag-hora').value = (reu && reu.hora) || '';
+  document.getElementById('ag-obs').value = textoOrigemEmail(e);
+}
+function abrirConfigAssessor() {
+  setTab('configuracoes');
+  const body = document.getElementById('body-assessor');
+  if (body && body.style.display === 'none') toggleConfigSection('assessor');
+  document.getElementById('section-assessor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function renderResumoEmails() {
+  const box = document.getElementById('resumo-emails');
+  if (!box) return;
+  if (!souSolo() || !emailConta) { box.innerHTML = ''; return; }
+  const doDia = emailsLista.filter(e => e.recebido_em && diaLocalDeIso(e.recebido_em) === resumoFiltroData);
+  if (!doDia.length) {
+    box.innerHTML = `<div class="resumo-emails-box"><h3>📧 E-mails do dia</h3><div class="resumo-emails-linha">Nenhum e-mail dos remetentes liberados nesse dia.</div></div>`;
+    return;
+  }
+  const urgentes = doDia.filter(e => e.urgente).length;
+  const pendentes = doDia.filter(e => e.status === 'novo').length;
+  const linhas = doDia.slice(0, 8).map(e => `<div class="resumo-emails-linha">${e.urgente ? '🚨 ' : (e.vip ? '⭐ ' : '• ')}<b>${escapeHtml(e.remetente_nome || e.remetente)}</b> — ${escapeHtml(e.assunto || '(sem assunto)')} <span style="color:var(--gray-text)">(${EMAIL_STATUS[e.status] || e.status})</span></div>`).join('');
+  box.innerHTML = `
+    <div class="resumo-emails-box">
+      <h3>📧 E-mails do dia</h3>
+      <div class="resumo-emails-linha">${doDia.length} recebido(s) · ${urgentes} urgente(s) · ${pendentes} aguardando você</div>
+      ${linhas}${doDia.length > 8 ? `<div class="resumo-emails-linha">… e mais ${doDia.length - 8}</div>` : ''}
+      <div style="margin-top:10px;"><button class="btn btn-sm" onclick="setTab('emails')">Abrir E-mails</button></div>
+    </div>`;
+}
+async function renderAssessorEmailConfig() {
+  const box = document.getElementById('assessor-email-config');
+  if (!box || !sb || !currentUser) return;
+  const [st, rems] = await Promise.all([
+    sb.rpc('assessor_email_status'),
+    sb.from('assessor_email_remetentes').select('*').order('created_at'),
+  ]);
+  if (st.error) { box.innerHTML = '<p class="config-hint">Não foi possível carregar o e-mail: ' + escapeHtml(st.error.message) + '</p>'; return; }
+  const conta = (st.data || [])[0];
+  let html = '';
+  if (!conta) {
+    html += `
+      <div class="etapas-add-row"><button class="btn btn-green btn-sm" onclick="withLock(this, conectarGmail)">Conectar Gmail</button></div>
+      <p class="config-hint">Você vai para a tela do Google. Enquanto o app estiver em modo de teste, o Google mostra o aviso "o Google não verificou este app": clique em <b>Continuar</b> e marque a permissão de leitura do Gmail.</p>`;
+  } else {
+    html += `
+      <p><b>${conta.ativo ? '✅ Gmail conectado' : '⚠️ Gmail desligado'}:</b> ${escapeHtml(conta.email)} · ${conta.ultima_varredura ? 'última verificação ' + formatDataHora(conta.ultima_varredura) : 'ainda não verificado'}</p>
+      ${conta.ultimo_erro ? `<p class="config-hint" style="color:var(--red);">${escapeHtml(conta.ultimo_erro)}</p>` : ''}
+      <div class="etapas-add-row">
+        <button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button>
+        ${!conta.ativo ? '<button class="btn btn-green btn-sm" onclick="withLock(this, conectarGmail)">Conectar de novo</button>' : ''}
+        <button class="btn btn-sm" onclick="withLock(this, desconectarGmail)">Desconectar</button>
+      </div>`;
+  }
+  const lista = rems.data || [];
+  html += `
+    <h4 style="margin:16px 0 4px;font-size:13.5px;">Remetentes liberados (${lista.length})</h4>
+    <p class="config-hint">Um e-mail exato (fulano@empresa.com) ou um domínio inteiro (@empresa.com.br). ⭐ VIP também avisa no Telegram.</p>
+    <div class="etapas-add-row" style="flex-wrap:wrap;">
+      <input type="text" id="email-rem-padrao" placeholder="fulano@empresa.com ou @empresa.com.br" style="flex:2;min-width:200px;">
+      <input type="text" id="email-rem-apelido" placeholder="Apelido (opcional)" style="flex:1;min-width:120px;">
+      <label style="white-space:nowrap;"><input type="checkbox" id="email-rem-vip"> ⭐ VIP</label>
+      <button class="btn btn-green btn-sm" onclick="withLock(this, addRemetenteEmail)">+ Adicionar</button>
+    </div>
+    ${lista.length ? lista.map(r => `
+      <div class="email-rem-item">
+        <div class="grow"><b>${escapeHtml(r.padrao)}</b>${r.apelido ? ' · ' + escapeHtml(r.apelido) : ''}</div>
+        <button class="btn btn-sm" title="${r.vip ? 'Tirar VIP' : 'Marcar como VIP'}" onclick="withLock(this, () => toggleVipRemetente('${r.id}', ${!r.vip}))">${r.vip ? '⭐ VIP' : '☆ VIP'}</button>
+        <button class="btn btn-sm" title="Remover" onclick="withLock(this, () => removeRemetenteEmail('${r.id}'))">✕</button>
+      </div>`).join('') : '<p class="config-hint">Nenhum remetente ainda: enquanto a lista estiver vazia, o assessor não lê nenhum e-mail.</p>'}`;
+  box.innerHTML = html;
+}
+async function conectarGmail() {
+  const { data: state, error } = await sb.rpc('assessor_email_iniciar', { p_workspace_id: activeWorkspace.id });
+  if (error) { alert('Não foi possível iniciar a conexão: ' + error.message); return; }
+  location.href = EMAIL_FN_CALLBACK + '?iniciar=' + encodeURIComponent(state);
+}
+async function verificarEmailsAgora() {
+  const { data, error } = await sb.functions.invoke('assessor-email-triagem', { body: {} });
+  if (error || !data || !data.ok) { alert('Não foi possível verificar agora: ' + ((data && data.erro) || (error && error.message) || 'erro desconhecido')); return; }
+  const r = (data.resultados || [])[0];
+  await carregarEmails();
+  renderAssessorEmailConfig();
+  if (activeTab === 'emails') renderEmails();
+  if (!r) alert('Nenhuma conta de e-mail ativa.');
+  else alert(r.erro ? 'Verificado com aviso: ' + r.erro : (r.novos ? `📧 ${r.novos} e-mail(s) novo(s). Veja no quadro E-mails.` : 'Nenhum e-mail novo dos remetentes liberados.'));
+}
+async function desconectarGmail() {
+  if (!confirm('Desconectar o Gmail? O assessor para de ler seus e-mails e a autorização guardada é apagada. Os resumos já salvos continuam no quadro E-mails.\n\nPara revogar também do lado do Google: myaccount.google.com/permissions.')) return;
+  const { error } = await sb.rpc('assessor_email_desconectar');
+  if (error) { alert('Não foi possível desconectar: ' + error.message); return; }
+  await carregarEmails();
+  renderAssessorEmailConfig();
+}
+async function addRemetenteEmail() {
+  const padrao = document.getElementById('email-rem-padrao').value.trim().toLowerCase();
+  const apelido = document.getElementById('email-rem-apelido').value.trim();
+  const vip = document.getElementById('email-rem-vip').checked;
+  if (!/^(@?[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}|[^@\s]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,})$/.test(padrao)) {
+    alert('Digite um e-mail (fulano@empresa.com) ou um domínio (@empresa.com.br).');
+    return;
+  }
+  const { error } = await sb.from('assessor_email_remetentes').insert({ padrao, apelido: apelido || null, vip });
+  if (error) { alert(error.code === '23505' ? 'Esse remetente já está na lista.' : error.message); return; }
+  renderAssessorEmailConfig();
+}
+async function toggleVipRemetente(id, vip) {
+  const { error } = await sb.from('assessor_email_remetentes').update({ vip }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  renderAssessorEmailConfig();
+}
+async function removeRemetenteEmail(id) {
+  if (!confirm('Remover este remetente? O assessor para de ler os e-mails dele (os resumos já salvos continuam).')) return;
+  const { error } = await sb.from('assessor_email_remetentes').delete().eq('id', id);
+  if (error) { alert(error.message); return; }
+  renderAssessorEmailConfig();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2960,6 +3259,15 @@ async function selectWorkspace(wsId) {
   buildSidebarNav();
   await loadWorkspaceData();
   const primeiraAba = abasAtivas()[0];
+  if (retornoEmailOAuth) {
+    const r = retornoEmailOAuth;
+    retornoEmailOAuth = null;
+    if (souSolo()) abrirConfigAssessor(); else setTab(primeiraAba || 'configuracoes');
+    setTimeout(() => alert(r.status === 'conectado'
+      ? '✅ Gmail conectado! Agora escolha, em Remetentes liberados, de quem o assessor pode ler e-mails.'
+      : 'Não foi possível conectar o Gmail: ' + (r.msg || 'erro desconhecido')), 300);
+    return;
+  }
   setTab(primeiraAba || 'configuracoes');
 }
 
@@ -2983,7 +3291,8 @@ function buildSidebarNav() {
   const nav = document.getElementById('sidebar-nav');
   nav.innerHTML = abasAtivas().map(aba => {
     const label = aba === 'entidades' ? entidadeLabel() : NAV_NOME_FIXO[aba];
-    const badge = aba === 'agenda' ? ` <span class="badge-count" id="agenda-count">0</span>` : '';
+    const badge = aba === 'agenda' ? ` <span class="badge-count" id="agenda-count">0</span>`
+      : (aba === 'emails' ? ` <span class="badge-count" id="emails-count">0</span>` : '');
     return `<button class="nav-item" id="tab-${aba}" onclick="setTab('${aba}')">${NAV_ICON[aba]} ${label}${badge}</button>`;
   }).join('');
 }
@@ -3063,6 +3372,8 @@ async function loadWorkspaceData() {
     id:t.id, entidadeId:t.entidade_id, titulo:t.titulo, analista:t.analista||'', link:t.link_reuniao||'',
     data:t.data, concluido:t.concluido, ordem:t.ordem,
   }));
+
+  await carregarEmails();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3075,7 +3386,7 @@ function setTab(tab) {
   if (tab !== 'configuracoes' && tab !== 'ajuda' && !temAba(tab)) tab = abasAtivas()[0] || 'configuracoes';
   if (tab === 'agenda' && activeTab !== 'agenda') { const chk = document.getElementById('show-concluidos-agenda'); if (chk) chk.checked = false; }
   activeTab = tab;
-  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','configuracoes','ajuda'].forEach(t => {
+  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
     if (navBtn) navBtn.classList.toggle('active', t===tab);
     const view = document.getElementById('view-'+t);
@@ -3093,6 +3404,7 @@ function render() {
   populateTipoAgendamentoOptions();
   populateEntidadesDatalist();
   updateAgendaCount();
+  updateEmailsCount();
   if (activeTab === 'entidades') renderEntidades();
   else if (activeTab === 'agenda') renderAgenda();
   else if (activeTab === 'pendencias') renderPendenciasOverview();
@@ -3100,6 +3412,7 @@ function render() {
   else if (activeTab === 'resumo') renderResumo();
   else if (activeTab === 'indicadores') renderIndicadores();
   else if (activeTab === 'buscar') renderBuscar();
+  else if (activeTab === 'emails') renderEmails();
   else if (activeTab === 'lamina') renderLamina();
   else if (activeTab === 'cronograma') renderCronograma();
   else if (activeTab === 'treinamentos') renderTreinamentos();
@@ -3615,7 +3928,7 @@ function openAgendamentoModal(id) {
   }
   document.getElementById('agendamento-modal-overlay').classList.add('open');
 }
-function closeAgendamentoModal() { document.getElementById('agendamento-modal-overlay').classList.remove('open'); editingAgendamentoId = null; }
+function closeAgendamentoModal() { document.getElementById('agendamento-modal-overlay').classList.remove('open'); editingAgendamentoId = null; emailParaCompromisso = null; }
 async function persistAgendamento() {
   const nome = document.getElementById('ag-entidade-nome').value.trim();
   const entidade = state.entidades.find(e => e.nome.toLowerCase()===nome.toLowerCase());
@@ -3655,12 +3968,14 @@ async function persistAgendamento() {
 async function saveAgendamento() {
   const id = await persistAgendamento();
   if (!id) return;
+  if (emailParaCompromisso) await marcarEmail(emailParaCompromisso, 'compromisso');
   closeAgendamentoModal();
   renderAgenda(); updateAgendaCount();
 }
 async function criarAtividadeDoAgendamento() {
   const id = await persistAgendamento();
   if (!id) return;
+  if (emailParaCompromisso) await marcarEmail(emailParaCompromisso, 'compromisso');
   const ag = agendamentos.find(a=>a.id===id);
   if (ag.atividadeId) { alert('Já existe uma atividade criada a partir deste agendamento.'); return; }
   const payload = {
@@ -3926,6 +4241,7 @@ async function deleteAtividadeCard(id, fecharModal) {
 let resumoFiltroData = todayStr();
 function setResumoFiltroData(v) { resumoFiltroData = v || todayStr(); renderResumo(); }
 function renderResumo() {
+  renderResumoEmails();
   resumoFiltroEntidade = popularFiltroEntidade('resumo-filtro-entidade', resumoFiltroData, resumoFiltroEntidade);
   document.getElementById('resumo-data').textContent = 'Referente a ' + formatDate(resumoFiltroData) + (resumoFiltroEntidade ? ' — ' + resumoFiltroEntidade : '');
   document.getElementById('resumo-filtro-data').value = resumoFiltroData;
@@ -4238,7 +4554,7 @@ function renderConfiguracoes() {
   document.getElementById('section-feriados-datas').style.display = temAba('agenda') ? '' : 'none';
   document.getElementById('section-treinamentos-padrao').style.display = temAba('treinamentos') ? '' : 'none';
   document.getElementById('section-assessor').style.display = souSolo() ? '' : 'none';
-  if (souSolo()) renderAssessorConfig();
+  if (souSolo()) { renderAssessorConfig(); renderAssessorEmailConfig(); }
   renderMembrosList();
   renderKanbanColunasList();
   renderEtapasList();
