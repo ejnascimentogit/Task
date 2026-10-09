@@ -1032,7 +1032,7 @@ begin
     where w.id = p_workspace_id and w.perfil_tipo = 'pessoal' and m.user_id = v_uid and m.status = 'ativo'
   ) then raise exception 'O assessor só está disponível no seu perfil Pessoal'; end if;
   delete from assessor_email_estados where expira_em < now() or user_id = v_uid;
-  v_state := encode(gen_random_bytes(24), 'hex');
+  v_state := encode(extensions.gen_random_bytes(24), 'hex');
   insert into assessor_email_estados (state, user_id, workspace_id) values (v_state, v_uid, p_workspace_id);
   return v_state;
 end $$;
