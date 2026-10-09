@@ -1534,6 +1534,53 @@ async function refreshDados() {
   render();
 }
 
+// ── Atualização automática (2026-10-09) ──
+// Quando o assessor (Telegram) ou outra pessoa grava algo, a tela se atualiza sozinha: o Supabase Realtime avisa na hora
+// de mudanças em agendamentos/atividades do workspace aberto, e a cada 2 minutos há uma recarga de segurança.
+// Nunca atualiza com um modal aberto ou alguém digitando: marca como pendente e aplica quando a pessoa terminar.
+let autoRefreshCanal = null;
+let autoRefreshWorkspace = null;
+let autoRefreshPendente = false;
+let autoRefreshTimer = null;
+let autoRefreshEmCurso = false;
+function telaOcupada() {
+  if (document.querySelector('.modal-overlay.open')) return true;
+  const el = document.activeElement;
+  return !!el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+}
+async function autoRefresh() {
+  if (!sb || !currentUser || !activeWorkspace) return;
+  if (document.hidden || telaOcupada()) { autoRefreshPendente = true; return; }
+  if (autoRefreshEmCurso) return;
+  autoRefreshEmCurso = true;
+  try {
+    await refreshDados();
+    autoRefreshPendente = false;
+  } catch (e) {
+    console.warn('Atualização automática falhou:', e);
+  } finally {
+    autoRefreshEmCurso = false;
+  }
+}
+function agendarAutoRefresh() {
+  clearTimeout(autoRefreshTimer);
+  autoRefreshTimer = setTimeout(autoRefresh, 1500);
+}
+function ligarAutoRefreshRealtime() {
+  if (!sb || !activeWorkspace || autoRefreshWorkspace === activeWorkspace.id) return;
+  if (autoRefreshCanal) { sb.removeChannel(autoRefreshCanal); autoRefreshCanal = null; }
+  autoRefreshWorkspace = activeWorkspace.id;
+  const filtro = 'workspace_id=eq.' + activeWorkspace.id;
+  autoRefreshCanal = sb.channel('taskfull-ws-' + activeWorkspace.id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'agendamentos', filter: filtro }, agendarAutoRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'atividades', filter: filtro }, agendarAutoRefresh)
+    .subscribe();
+}
+setInterval(() => { if (activeWorkspace) autoRefresh(); }, 120000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) autoRefresh(); });
+document.addEventListener('focusout', () => setTimeout(() => { if (autoRefreshPendente && !telaOcupada()) autoRefresh(); }, 400));
+document.addEventListener('click', () => setTimeout(() => { if (autoRefreshPendente && !telaOcupada()) autoRefresh(); }, 400));
+
 // ── Corretor ortográfico PT-BR embutido (Typo.js + dicionário Hunspell), igual em qualquer navegador ──
 // O dicionário (~5 MB) é processado num Web Worker, fora da thread da tela, e só começa a carregar quando a pessoa
 // digita num campo com corretor. Antes ele era montado ao abrir a página e travava o carregamento por vários segundos.
@@ -3038,6 +3085,7 @@ function setTab(tab) {
 }
 
 function render() {
+  ligarAutoRefreshRealtime();
   sincronizarFiltrosDeHoje();
   document.getElementById('header-date').textContent = 'Hoje é ' + formatDate(todayStr());
   renderStats();
