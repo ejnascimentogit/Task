@@ -2146,7 +2146,7 @@ function setEmailsFiltro(f) { emailsFiltro = f; renderEmails(); }
 function origemEmail(e) {
   const c = emailContas.find(x => x.id === e.conta_id);
   if (!c) return '';
-  return `📥 ${c.provedor === 'outlook' ? 'Outlook' : 'Gmail'} (${escapeHtml(c.email)}) · `;
+  return `📥 ${EMAIL_PROVEDOR_NOME[c.provedor] || c.provedor} (${escapeHtml(c.email)}) · `;
 }
 function textoOrigemEmail(e) {
   return `📧 E-mail de ${e.remetente_nome || e.remetente} <${e.remetente}> (${formatDataHora(e.recebido_em)})\nAssunto: ${e.assunto || '(sem assunto)'}\n\n${e.resumo || ''}`;
@@ -2189,7 +2189,7 @@ function renderEmails() {
     lista.innerHTML = `<p class="config-hint">Conecte o Gmail ou o Outlook e escolha de quais remetentes o assessor pode ler em <a href="#" onclick="abrirConfigAssessor(); return false;">Configurações → 🤖 Assessor</a>. Ele lê só esses e-mails, a cada 15 minutos, e guarda um resumo aqui. E-mail nunca vira compromisso sozinho: você decide pelos botões.</p>`;
     return;
   }
-  sub.textContent = emailContas.map(c => `${c.provedor === 'outlook' ? 'Outlook' : 'Gmail'}: ${c.email} · ${c.ultima_varredura ? 'última verificação ' + formatDataHora(c.ultima_varredura) : 'ainda não verificado'}${c.ultimo_erro ? ' · ⚠️ ' + c.ultimo_erro : ''}`).join('   |   ');
+  sub.textContent = emailContas.map(c => `${EMAIL_PROVEDOR_NOME[c.provedor] || c.provedor}: ${c.email} · ${c.ultima_varredura ? 'última verificação ' + formatDataHora(c.ultima_varredura) : 'ainda não verificado'}${c.ultimo_erro ? ' · ⚠️ ' + c.ultimo_erro : ''}`).join('   |   ');
   document.getElementById('emails-filtro').innerHTML = [['novo', `Novos (${novos.length})`], ['tratados', 'Já tratados'], ['todos', 'Todos (30 dias)']]
     .map(([k, l]) => `<button class="pessoa-filter-btn ${emailsFiltro === k ? 'active' : ''}" onclick="setEmailsFiltro('${k}')">${l}</button>`).join('');
   const filtrados = emailsFiltro === 'novo' ? novos : (emailsFiltro === 'tratados' ? emailsLista.filter(e => e.status !== 'novo') : emailsLista);
@@ -2282,7 +2282,7 @@ async function renderAssessorEmailConfig() {
   ]);
   if (st.error) { box.innerHTML = '<p class="config-hint">Não foi possível carregar o e-mail: ' + escapeHtml(st.error.message) + '</p>'; return; }
   const contas = st.data || [];
-  const PROVEDORES = [['gmail', 'Gmail'], ['outlook', 'Outlook / Hotmail']];
+  const PROVEDORES = [['gmail', 'Gmail'], ['outlook', 'Outlook / Hotmail'], ['yahoo', 'Yahoo']];
   let html = PROVEDORES.map(([p, nome]) => {
     const conta = contas.find(c => c.provedor === p);
     if (!conta) return `
@@ -2293,6 +2293,7 @@ async function renderAssessorEmailConfig() {
         ${!conta.ativo ? `<button class="btn btn-green btn-sm" onclick="withLock(this, () => conectarEmail('${p}'))">Conectar de novo</button>` : ''}
         <button class="btn btn-sm" onclick="withLock(this, () => desconectarEmail('${p}', '${nome}'))">Desconectar</button></div>`;
   }).join('');
+  html += '<div id="form-imap"></div>';
   html += `<p class="config-hint">Ao conectar, o Google ou a Microsoft podem avisar que o app ainda não foi verificado (estamos em teste): clique em <b>Continuar</b> e aceite só a leitura de e-mail.</p>`;
   if (contas.length) html += `<div class="etapas-add-row"><button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button></div>`;
   const lista = rems.data || [];
@@ -2313,7 +2314,41 @@ async function renderAssessorEmailConfig() {
       </div>`).join('') : '<p class="config-hint">Nenhum remetente ainda: enquanto a lista estiver vazia, o assessor não lê nenhum e-mail.</p>'}`;
   box.innerHTML = html;
 }
+// Provedores sem login OAuth aberto para apps: conexão por IMAP com "senha de app" criada pela pessoa no provedor.
+const EMAIL_IMAP = {
+  yahoo: { nome: 'Yahoo', ajuda: 'https://login.yahoo.com/account/security', passos: 'No Yahoo: <b>Segurança da conta → Gerar senha de app</b>, dê o nome "Assessor" e copie a senha de 16 letras.' },
+};
+const EMAIL_PROVEDOR_NOME = { gmail: 'Gmail', outlook: 'Outlook', yahoo: 'Yahoo' };
+function abrirFormImap(provedor) {
+  const cfg = EMAIL_IMAP[provedor];
+  const box = document.getElementById('form-imap');
+  if (!box || !cfg) return;
+  box.innerHTML = `
+    <div class="email-rem-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+      <b>Conectar ${cfg.nome}</b>
+      <p class="config-hint" style="margin:0;">O ${cfg.nome} não tem login "com um clique" para apps: ele usa uma <b>senha de app</b>, criada só para o assessor. Não é a sua senha normal, e você pode apagá-la no ${cfg.nome} quando quiser. ${cfg.passos} <a href="${cfg.ajuda}" target="_blank" rel="noopener">Abrir a segurança da conta</a>.</p>
+      <input type="email" id="imap-email" placeholder="seu-email@yahoo.com" autocomplete="off">
+      <input type="password" id="imap-senha" placeholder="Senha de app (16 letras)" autocomplete="new-password">
+      <div class="etapas-add-row">
+        <button class="btn btn-green btn-sm" onclick="withLock(this, () => salvarConexaoImap('${provedor}'))">Conectar</button>
+        <button class="btn btn-sm" onclick="document.getElementById('form-imap').innerHTML=''">Cancelar</button>
+      </div>
+    </div>`;
+  document.getElementById('imap-email').focus();
+}
+async function salvarConexaoImap(provedor) {
+  const email = document.getElementById('imap-email').value.trim();
+  const senha = document.getElementById('imap-senha').value;
+  if (!email || !senha) { alert('Informe o e-mail e a senha de app.'); return; }
+  const { data, error } = await sb.functions.invoke('assessor-imap-conectar', { body: { workspace_id: activeWorkspace.id, provedor, email, senha } });
+  document.getElementById('imap-senha').value = '';
+  if (error || !data || !data.ok) { alert('Não foi possível conectar: ' + ((data && data.erro) || (error && error.message) || 'erro desconhecido')); return; }
+  await carregarEmails();
+  renderAssessorEmailConfig();
+  alert(`✅ ${EMAIL_IMAP[provedor].nome} conectado (${data.email})! Confira os remetentes liberados e clique em Verificar agora.`);
+}
 async function conectarEmail(provedor) {
+  if (EMAIL_IMAP[provedor]) { abrirFormImap(provedor); return; }
   const { data: state, error } = await sb.rpc('assessor_email_iniciar', { p_workspace_id: activeWorkspace.id, p_provedor: provedor });
   if (error) { alert('Não foi possível iniciar a conexão: ' + error.message); return; }
   const fn = provedor === 'outlook' ? 'assessor-outlook-callback' : 'assessor-email-callback';

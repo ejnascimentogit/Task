@@ -1203,3 +1203,26 @@ language sql security definer set search_path = public as $$
 $$;
 revoke all on function public.assessor_email_status() from public, anon;
 grant execute on function public.assessor_email_status() to authenticated;
+
+-- Contas por IMAP (Yahoo e outros), 2026-10-09: a "senha de app" fica no Vault, igual aos refresh tokens.
+create or replace function public.assessor_email_salvar_conta_imap(p_user uuid, p_workspace uuid, p_provedor text, p_email text, p_senha text)
+returns uuid language plpgsql security definer set search_path = public, vault as $$
+declare v_conta record; v_seg uuid; v_id uuid;
+begin
+  select * into v_conta from assessor_email_contas where user_id = p_user and provedor = p_provedor;
+  if v_conta.segredo_id is not null then
+    perform vault.update_secret(v_conta.segredo_id, p_senha);
+    v_seg := v_conta.segredo_id;
+  else
+    v_seg := vault.create_secret(p_senha, 'assessor_' || p_provedor || '_' || p_user::text || '_' || extract(epoch from now())::bigint);
+  end if;
+  insert into assessor_email_contas (user_id, workspace_id, provedor, email, segredo_id, ativo, conectado_em, ultimo_erro)
+  values (p_user, p_workspace, p_provedor, p_email, v_seg, true, now(), null)
+  on conflict (user_id, provedor) do update set workspace_id = excluded.workspace_id, email = excluded.email,
+    segredo_id = excluded.segredo_id, ativo = true, conectado_em = now(), ultimo_erro = null, ultima_varredura = null
+  returning id into v_id;
+  return v_id;
+end $$;
+revoke all on function public.assessor_email_salvar_conta_imap(uuid, uuid, text, text, text) from public, anon, authenticated;
+grant execute on function public.assessor_email_salvar_conta_imap(uuid, uuid, text, text, text) to service_role;
+

@@ -1,10 +1,11 @@
-// Triagem de e-mails do Assessor Pessoal (Gmail e Outlook/Hotmail/Microsoft 365).
+// Triagem de e-mails do Assessor Pessoal (Gmail, Outlook/Hotmail/Microsoft 365 e IMAP: Yahoo).
 // - Chamada pelo cron (a cada 15 min, JWT anon): varre todas as contas ativas.
 // - Chamada pelo Taskfull com o JWT do usuário ("Verificar agora"): varre só as contas dele.
 // Privacidade: só processa e-mails dos remetentes que o usuário liberou (assessor_email_remetentes).
-// Só e-mails RECEBIDOS: Gmail exclui a pasta Enviados; Outlook lê só a Caixa de Entrada.
+// Só e-mails RECEBIDOS: Gmail exclui a pasta Enviados; Outlook e IMAP leem só a Caixa de Entrada.
 // Guarda só resumo/classificação — nunca o corpo do e-mail.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { erroDeLogin, listarImap } from "./imap.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -32,6 +33,7 @@ const cors = {
 type Conta = { id: string; user_id: string; workspace_id: string; provedor: string; email: string; refresh_token: string; ultima_varredura: string | null };
 type Mensagem = { id: string; nome: string; email: string; assunto: string; recebido: string; dataTexto: string; texto: string; link: string };
 type Regra = { padrao: string; vip: boolean };
+type Lista = { msgs: Mensagem[]; erro?: string; desativar?: boolean };
 
 function hojeSP() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit", weekday: "long" })
@@ -85,7 +87,7 @@ function desdeIso(conta: Conta) {
 }
 
 // ── Gmail ──
-async function listarGmail(conta: Conta, rems: Regra[]): Promise<{ msgs: Mensagem[]; erro?: string; desativar?: boolean }> {
+async function listarGmail(conta: Conta, rems: Regra[]): Promise<Lista> {
   const tok = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -122,7 +124,7 @@ async function listarGmail(conta: Conta, rems: Regra[]): Promise<{ msgs: Mensage
 }
 
 // ── Outlook / Hotmail / Microsoft 365 (Microsoft Graph) ──
-async function listarOutlook(conta: Conta, rems: Regra[]): Promise<{ msgs: Mensagem[]; erro?: string; desativar?: boolean }> {
+async function listarOutlook(conta: Conta, rems: Regra[]): Promise<Lista> {
   const tok = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -170,6 +172,22 @@ async function listarOutlook(conta: Conta, rems: Regra[]): Promise<{ msgs: Mensa
     texto: limparTexto(m.body?.content || m.bodyPreview || ""),
     link: m.webLink ?? "https://outlook.live.com/mail/",
   })) };
+}
+
+// ── IMAP (Yahoo e outros): a "senha de app" fica no mesmo campo do Vault que os refresh tokens ──
+async function listarImapConta(conta: Conta, rems: Regra[]): Promise<Lista> {
+  try {
+    const msgs = await listarImap(
+      conta.provedor, conta.email, conta.refresh_token, desdeIso(conta),
+      (email) => rems.some((r) => bate(email, r.padrao)),
+      (ids) => filtrarJaVistos(conta.id, ids),
+      MAX_POR_CONTA,
+    );
+    return { msgs: msgs.map((m) => ({ ...m, texto: limparTexto(m.texto) })) };
+  } catch (e) {
+    if (erroDeLogin(e)) return { msgs: [], desativar: true, erro: "A senha de app foi apagada ou mudou. Gere uma nova e conecte de novo." };
+    return { msgs: [], erro: `IMAP: ${String((e as Error).message).slice(0, 200)}` };
+  }
 }
 
 async function filtrarJaVistos(contaId: string, ids: string[]) {
@@ -257,7 +275,9 @@ async function processarConta(conta: Conta) {
     return res;
   }
 
-  const r = conta.provedor === "outlook" ? await listarOutlook(conta, rems) : await listarGmail(conta, rems);
+  const r = conta.provedor === "outlook" ? await listarOutlook(conta, rems)
+    : conta.provedor === "gmail" ? await listarGmail(conta, rems)
+    : await listarImapConta(conta, rems);
   if (r.erro && !r.msgs.length) {
     await sb.from("assessor_email_contas").update({ ultimo_erro: r.erro, ativo: !r.desativar }).eq("id", conta.id);
     res.erro = r.erro;
