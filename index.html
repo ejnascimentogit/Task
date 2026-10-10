@@ -2113,8 +2113,8 @@ let retornoEmailOAuth = (() => {
     const p = new URLSearchParams(location.search);
     const v = p.get('email');
     if (!v) return null;
-    const r = { status: v, msg: p.get('msg') || '', provedor: p.get('provedor') || 'gmail' };
-    p.delete('email'); p.delete('msg'); p.delete('provedor');
+    const r = { status: v, msg: p.get('msg') || '', provedor: p.get('provedor') || 'gmail', conta: p.get('conta') || '' };
+    p.delete('email'); p.delete('msg'); p.delete('provedor'); p.delete('conta');
     history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p.toString() : '') + location.hash);
     return r;
   } catch (e) { return null; }
@@ -2282,19 +2282,21 @@ async function renderAssessorEmailConfig() {
   ]);
   if (st.error) { box.innerHTML = '<p class="config-hint">Não foi possível carregar o e-mail: ' + escapeHtml(st.error.message) + '</p>'; return; }
   const contas = st.data || [];
-  const PROVEDORES = [['gmail', 'Gmail'], ['outlook', 'Outlook / Hotmail'], ['yahoo', 'Yahoo']];
-  let html = PROVEDORES.map(([p, nome]) => {
-    const conta = contas.find(c => c.provedor === p);
-    if (!conta) return `
-      <div class="email-rem-item"><div class="grow"><b>${nome}</b> · não conectado</div>
-        <button class="btn btn-green btn-sm" onclick="withLock(this, () => conectarEmail('${p}'))">Conectar ${nome}</button></div>`;
+  const NOMES = { gmail: 'Gmail', outlook: 'Outlook / Hotmail', yahoo: 'Yahoo' };
+  let html = `
+    <div class="etapas-add-row" style="flex-wrap:wrap;">
+      <input type="email" id="email-conta-novo" placeholder="Seu e-mail (Gmail, Hotmail/Outlook ou Yahoo)" style="flex:2;min-width:220px;" autocomplete="email" onkeydown="if(event.key==='Enter') adicionarContaEmail()">
+      <button class="btn btn-green btn-sm" onclick="withLock(this, adicionarContaEmail)">+ Conectar e-mail</button>
+    </div>
+    <div id="form-imap"></div>`;
+  html += contas.length ? contas.map(conta => {
+    const nome = NOMES[conta.provedor] || conta.provedor;
     return `
       <div class="email-rem-item"><div class="grow"><b>${conta.ativo ? '✅' : '⚠️'} ${nome}:</b> ${escapeHtml(conta.email)} · ${conta.ultima_varredura ? 'última verificação ' + formatDataHora(conta.ultima_varredura) : 'ainda não verificado'}${conta.ultimo_erro ? `<div class="config-hint" style="color:var(--red);">${escapeHtml(conta.ultimo_erro)}</div>` : ''}</div>
-        ${!conta.ativo ? `<button class="btn btn-green btn-sm" onclick="withLock(this, () => conectarEmail('${p}'))">Conectar de novo</button>` : ''}
-        <button class="btn btn-sm" onclick="withLock(this, () => desconectarEmail('${p}', '${nome}'))">Desconectar</button></div>`;
-  }).join('');
-  html += '<div id="form-imap"></div>';
-  html += `<p class="config-hint">Ao conectar, o Google ou a Microsoft podem avisar que o app ainda não foi verificado (estamos em teste): clique em <b>Continuar</b> e aceite só a leitura de e-mail.</p>`;
+        ${!conta.ativo ? `<button class="btn btn-green btn-sm" onclick="withLock(this, () => conectarEmail('${conta.provedor}', '${escapeHtml(conta.email)}'))">Conectar de novo</button>` : ''}
+        <button class="btn btn-sm" onclick="withLock(this, () => desconectarEmail('${conta.provedor}', '${nome}'))">Desconectar</button></div>`;
+  }).join('') : '<p class="config-hint">Nenhum e-mail conectado ainda.</p>';
+  html += `<p class="config-hint">Digite o seu e-mail e clique em Conectar: o Taskfull descobre o provedor. Gmail e Hotmail/Outlook abrem o login do Google ou da Microsoft já com o seu e-mail (enquanto estamos em teste pode aparecer o aviso de app não verificado: clique em <b>Continuar</b>). Yahoo usa uma senha de app. Por enquanto é uma conta por provedor.</p>`;
   if (contas.length) html += `<div class="etapas-add-row"><button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button></div>`;
   const lista = rems.data || [];
   html += `
@@ -2319,7 +2321,7 @@ const EMAIL_IMAP = {
   yahoo: { nome: 'Yahoo', ajuda: 'https://login.yahoo.com/account/security', passos: 'No Yahoo: <b>Segurança da conta → Gerar senha de app</b>, dê o nome "Assessor" e copie a senha de 16 letras.' },
 };
 const EMAIL_PROVEDOR_NOME = { gmail: 'Gmail', outlook: 'Outlook', yahoo: 'Yahoo' };
-function abrirFormImap(provedor) {
+function abrirFormImap(provedor, email) {
   const cfg = EMAIL_IMAP[provedor];
   const box = document.getElementById('form-imap');
   if (!box || !cfg) return;
@@ -2327,14 +2329,14 @@ function abrirFormImap(provedor) {
     <div class="email-rem-item" style="flex-direction:column;align-items:stretch;gap:8px;">
       <b>Conectar ${cfg.nome}</b>
       <p class="config-hint" style="margin:0;">O ${cfg.nome} não tem login "com um clique" para apps: ele usa uma <b>senha de app</b>, criada só para o assessor. Não é a sua senha normal, e você pode apagá-la no ${cfg.nome} quando quiser. ${cfg.passos} <a href="${cfg.ajuda}" target="_blank" rel="noopener">Abrir a segurança da conta</a>.</p>
-      <input type="email" id="imap-email" placeholder="seu-email@yahoo.com" autocomplete="off">
+      <input type="email" id="imap-email" placeholder="seu-email@yahoo.com" autocomplete="off" value="${escapeHtml(email || '')}">
       <input type="password" id="imap-senha" placeholder="Senha de app (16 letras)" autocomplete="new-password">
       <div class="etapas-add-row">
         <button class="btn btn-green btn-sm" onclick="withLock(this, () => salvarConexaoImap('${provedor}'))">Conectar</button>
         <button class="btn btn-sm" onclick="document.getElementById('form-imap').innerHTML=''">Cancelar</button>
       </div>
     </div>`;
-  document.getElementById('imap-email').focus();
+  document.getElementById(email ? 'imap-senha' : 'imap-email').focus();
 }
 async function salvarConexaoImap(provedor) {
   const email = document.getElementById('imap-email').value.trim();
@@ -2347,9 +2349,40 @@ async function salvarConexaoImap(provedor) {
   renderAssessorEmailConfig();
   alert(`✅ ${EMAIL_IMAP[provedor].nome} conectado (${data.email})! Confira os remetentes liberados e clique em Verificar agora.`);
 }
-async function conectarEmail(provedor) {
-  if (EMAIL_IMAP[provedor]) { abrirFormImap(provedor); return; }
-  const { data: state, error } = await sb.rpc('assessor_email_iniciar', { p_workspace_id: activeWorkspace.id, p_provedor: provedor });
+// Descobre o provedor pelo domínio do e-mail digitado.
+function detectarProvedorEmail(email) {
+  const d = (email.split('@')[1] || '').toLowerCase();
+  if (/^(gmail|googlemail)\.com$/.test(d)) return 'gmail';
+  if (/^(hotmail|outlook|live|msn)\.(com|com\.br|co\.[a-z]{2}|[a-z]{2})$/.test(d)) return 'outlook';
+  if (/^(yahoo|ymail|rocketmail)\.(com|com\.br|co\.[a-z]{2}|[a-z]{2})$/.test(d)) return 'yahoo';
+  return null;
+}
+async function adicionarContaEmail() {
+  const campo = document.getElementById('email-conta-novo');
+  const email = (campo ? campo.value : '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { alert('Digite um e-mail válido.'); return; }
+  const provedor = detectarProvedorEmail(email);
+  if (!provedor) {
+    // Domínio próprio (empresa): costuma estar no Google Workspace ou no Microsoft 365.
+    document.getElementById('form-imap').innerHTML = `
+      <div class="email-rem-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <b>Onde fica o e-mail ${escapeHtml(email)}?</b>
+        <p class="config-hint" style="margin:0;">E-mail com domínio próprio costuma estar no Google Workspace ou no Microsoft 365. Outros provedores (UOL, BOL, iCloud, Terra) chegam em breve.</p>
+        <div class="etapas-add-row">
+          <button class="btn btn-sm" onclick="withLock(this, () => conectarEmail('gmail', '${escapeHtml(email)}'))">Google Workspace</button>
+          <button class="btn btn-sm" onclick="withLock(this, () => conectarEmail('outlook', '${escapeHtml(email)}'))">Microsoft 365</button>
+          <button class="btn btn-sm" onclick="document.getElementById('form-imap').innerHTML=''">Cancelar</button>
+        </div>
+      </div>`;
+    return;
+  }
+  const ja = emailContas.find(c => c.provedor === provedor);
+  if (ja && ja.email !== email && !confirm(`Já existe uma conta ${EMAIL_PROVEDOR_NOME[provedor]} conectada (${ja.email}). Por enquanto é uma por provedor: trocar por ${email}?`)) return;
+  await conectarEmail(provedor, email);
+}
+async function conectarEmail(provedor, email) {
+  if (EMAIL_IMAP[provedor]) { abrirFormImap(provedor, email); return; }
+  const { data: state, error } = await sb.rpc('assessor_email_iniciar', { p_workspace_id: activeWorkspace.id, p_provedor: provedor, p_email: email || null });
   if (error) { alert('Não foi possível iniciar a conexão: ' + error.message); return; }
   const fn = provedor === 'outlook' ? 'assessor-outlook-callback' : 'assessor-email-callback';
   location.href = SUPABASE_URL + '/functions/v1/' + fn + '?iniciar=' + encodeURIComponent(state);
@@ -3308,7 +3341,7 @@ async function selectWorkspace(wsId) {
     retornoEmailOAuth = null;
     if (souSolo()) abrirConfigAssessor(); else setTab(primeiraAba || 'configuracoes');
     setTimeout(() => alert(r.status === 'conectado'
-      ? '✅ ' + (r.provedor === 'outlook' ? 'Outlook' : 'Gmail') + ' conectado! Agora confira, em Remetentes liberados, de quem o assessor pode ler e-mails.'
+      ? '✅ ' + (r.provedor === 'outlook' ? 'Outlook' : 'Gmail') + ' conectado' + (r.conta ? ' (' + r.conta + ')' : '') + '! Agora confira, em Remetentes liberados, de quem o assessor pode ler e-mails.'
       : 'Não foi possível conectar o e-mail: ' + (r.msg || 'erro desconhecido')), 300);
     return;
   }

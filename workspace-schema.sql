@@ -1226,3 +1226,25 @@ end $$;
 revoke all on function public.assessor_email_salvar_conta_imap(uuid, uuid, text, text, text) from public, anon, authenticated;
 grant execute on function public.assessor_email_salvar_conta_imap(uuid, uuid, text, text, text) to service_role;
 
+-- A pessoa digita o próprio e-mail; o login do Google/Microsoft já abre com ele (login_hint), 2026-10-09
+alter table public.assessor_email_estados add column if not exists email_esperado text;
+drop function if exists public.assessor_email_iniciar(uuid, text);
+create or replace function public.assessor_email_iniciar(p_workspace_id uuid, p_provedor text default 'gmail', p_email text default null)
+returns text language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := auth.uid(); v_state text;
+begin
+  if v_uid is null then raise exception 'Não autenticado'; end if;
+  if p_provedor not in ('gmail', 'outlook') then raise exception 'Provedor inválido'; end if;
+  if not exists (
+    select 1 from workspaces w join workspace_membros m on m.workspace_id = w.id
+    where w.id = p_workspace_id and w.perfil_tipo = 'pessoal' and m.user_id = v_uid and m.status = 'ativo'
+  ) then raise exception 'O assessor só está disponível no seu perfil Pessoal'; end if;
+  delete from assessor_email_estados where expira_em < now() or user_id = v_uid;
+  v_state := encode(extensions.gen_random_bytes(24), 'hex');
+  insert into assessor_email_estados (state, user_id, workspace_id, provedor, email_esperado)
+  values (v_state, v_uid, p_workspace_id, p_provedor, nullif(lower(trim(p_email)), ''));
+  return v_state;
+end $$;
+revoke all on function public.assessor_email_iniciar(uuid, text, text) from public, anon;
+grant execute on function public.assessor_email_iniciar(uuid, text, text) to authenticated;
+

@@ -1,5 +1,5 @@
 // Conexão do Outlook / Hotmail / Microsoft 365 (OAuth da Microsoft) para o Assessor Pessoal.
-// GET ?iniciar=<state>        -> redireciona para o login da Microsoft
+// GET ?iniciar=<state>        -> redireciona para o login da Microsoft (com o e-mail digitado como login_hint)
 // GET ?code=...&state=...      -> troca o código, guarda o refresh token no Vault e volta pro Taskfull
 // GET ?acao=diagnostico        -> só o FORMATO da chave (tamanho, se parece um ID), nunca o conteúdo
 // Sem JWT de propósito: quem chega aqui é o navegador vindo da Microsoft. A segurança é o
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
 
     const iniciar = url.searchParams.get("iniciar");
     if (iniciar) {
-      const { data } = await sb.from("assessor_email_estados").select("state")
+      const { data } = await sb.from("assessor_email_estados").select("state, email_esperado")
         .eq("state", iniciar).eq("provedor", "outlook").gte("expira_em", new Date().toISOString()).maybeSingle();
       if (!data) return voltar({ email: "erro", msg: "Link de conexão expirado. Tente de novo." });
       const m = new URL(`${AUTH}/authorize`);
@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
       m.searchParams.set("response_mode", "query");
       m.searchParams.set("scope", ESCOPO);
       m.searchParams.set("state", iniciar);
-      m.searchParams.set("prompt", "select_account");
+      if (data.email_esperado) m.searchParams.set("login_hint", data.email_esperado);
+      else m.searchParams.set("prompt", "select_account");
       return Response.redirect(m.toString(), 302);
     }
 
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
     });
     if (error) return voltar({ email: "erro", msg: error.message });
 
-    return voltar({ email: "conectado", provedor: "outlook" });
+    return voltar({ email: "conectado", provedor: "outlook", conta: email });
   } catch (e) {
     return voltar({ email: "erro", msg: `Erro inesperado: ${(e as Error).message}` });
   }

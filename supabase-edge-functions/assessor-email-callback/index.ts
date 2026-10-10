@@ -1,5 +1,5 @@
 // Conexão do Gmail (OAuth do Google) para o Assessor Pessoal.
-// GET ?iniciar=<state>        -> redireciona para a tela de consentimento do Google
+// GET ?iniciar=<state>        -> redireciona para a tela de consentimento do Google (com o e-mail digitado como login_hint)
 // GET ?code=...&state=...      -> troca o código, guarda o refresh token no Vault e volta pro Taskfull
 // Sem JWT de propósito: quem chega aqui é o navegador vindo do Google. A segurança é o
 // `state` aleatório, de uso único e com validade de 10 min, gerado por assessor_email_iniciar().
@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     const iniciar = url.searchParams.get("iniciar");
     if (iniciar) {
-      const { data } = await sb.from("assessor_email_estados").select("state")
+      const { data } = await sb.from("assessor_email_estados").select("state, email_esperado")
         .eq("state", iniciar).gte("expira_em", new Date().toISOString()).maybeSingle();
       if (!data) return voltar({ email: "erro", msg: "Link de conexão expirado. Tente de novo." });
       const g = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
       g.searchParams.set("access_type", "offline");
       g.searchParams.set("prompt", "consent");
       g.searchParams.set("state", iniciar);
+      if (data.email_esperado) g.searchParams.set("login_hint", data.email_esperado);
       return Response.redirect(g.toString(), 302);
     }
 
@@ -71,14 +72,14 @@ Deno.serve(async (req) => {
     const perfil = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
       headers: { Authorization: `Bearer ${tok.access_token}` },
     }).then((r) => r.json());
-    const email = perfil.emailAddress ?? "(desconhecido)";
+    const email = String(perfil.emailAddress ?? "(desconhecido)").toLowerCase();
 
     const { error } = await sb.rpc("assessor_email_salvar_conta", {
       p_state: state, p_email: email, p_refresh: tok.refresh_token ?? null,
     });
     if (error) return voltar({ email: "erro", msg: error.message });
 
-    return voltar({ email: "conectado" });
+    return voltar({ email: "conectado", provedor: "gmail", conta: email });
   } catch (e) {
     return voltar({ email: "erro", msg: `Erro inesperado: ${(e as Error).message}` });
   }
