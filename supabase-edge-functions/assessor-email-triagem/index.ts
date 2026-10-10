@@ -2,6 +2,7 @@
 // - Chamada pelo cron (a cada 15 min, JWT anon): varre todas as contas ativas.
 // - Chamada pelo Taskfull com o JWT do usuário ("Verificar agora"): varre só as contas dele.
 // Privacidade: só processa e-mails dos remetentes que o usuário liberou (assessor_email_remetentes).
+// Só e-mails RECEBIDOS: Gmail exclui a pasta Enviados; Outlook lê só a Caixa de Entrada.
 // Guarda só resumo/classificação — nunca o corpo do e-mail.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -98,7 +99,8 @@ async function listarGmail(conta: Conta, rems: Regra[]): Promise<{ msgs: Mensage
   }
   const auth = { Authorization: `Bearer ${tok.access_token}` };
   const filtroFrom = rems.map((r) => normalizarPadrao(r.padrao)).join(" OR ");
-  const q = `from:(${filtroFrom}) after:${Math.floor(desdeIso(conta).getTime() / 1000)}`;
+  // -in:sent: só e-mails recebidos (arquivados continuam valendo).
+  const q = `from:(${filtroFrom}) -in:sent after:${Math.floor(desdeIso(conta).getTime() / 1000)}`;
   const lista = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${MAX_POR_CONTA}&q=${encodeURIComponent(q)}`, { headers: auth }).then((r) => r.json());
   if (lista.error) return { msgs: [], erro: `Gmail: ${lista.error.message}` };
   const ids: string[] = (lista.messages ?? []).map((m: { id: string }) => m.id);
@@ -140,7 +142,8 @@ async function listarOutlook(conta: Conta, rems: Regra[]): Promise<{ msgs: Mensa
     await sb.rpc("assessor_email_atualizar_refresh", { p_conta_id: conta.id, p_refresh: tok.refresh_token });
   }
   const desde = desdeIso(conta).toISOString().replace(/\.\d{3}Z$/, "Z");
-  const url = "https://graph.microsoft.com/v1.0/me/messages"
+  // Só a Caixa de Entrada: /me/messages incluiria Itens Enviados, Rascunhos etc.
+  const url = "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages"
     + `?$filter=${encodeURIComponent(`receivedDateTime ge ${desde}`)}`
     + "&$orderby=receivedDateTime%20desc&$top=50"
     + "&$select=id,subject,from,receivedDateTime,bodyPreview,body,webLink";

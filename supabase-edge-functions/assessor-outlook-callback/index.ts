@@ -1,6 +1,7 @@
 // Conexão do Outlook / Hotmail / Microsoft 365 (OAuth da Microsoft) para o Assessor Pessoal.
 // GET ?iniciar=<state>        -> redireciona para o login da Microsoft
 // GET ?code=...&state=...      -> troca o código, guarda o refresh token no Vault e volta pro Taskfull
+// GET ?acao=diagnostico        -> só o FORMATO da chave (tamanho, se parece um ID), nunca o conteúdo
 // Sem JWT de propósito: quem chega aqui é o navegador vindo da Microsoft. A segurança é o
 // `state` aleatório, de uso único e com validade de 10 min, gerado por assessor_email_iniciar(..., 'outlook').
 // App registrado no diretório pessoal do Edimilson (ejnascimentohotmail.onmicrosoft.com), contas pessoais + qualquer organização.
@@ -27,6 +28,15 @@ function voltar(params: Record<string, string>) {
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   try {
+    if (url.searchParams.get("acao") === "diagnostico") {
+      return Response.json({
+        client_id: CLIENT_ID,
+        secret_presente: CLIENT_SECRET.length > 0,
+        secret_tamanho: CLIENT_SECRET.length,
+        secret_parece_id_guid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(CLIENT_SECRET),
+        secret_tem_til: CLIENT_SECRET.includes("~"),
+      });
+    }
     if (!CLIENT_SECRET) {
       return voltar({ email: "erro", msg: "Integração com o Outlook ainda não configurada no servidor." });
     }
@@ -66,7 +76,10 @@ Deno.serve(async (req) => {
       }),
     }).then((r) => r.json());
     if (!tok.access_token) {
-      return voltar({ email: "erro", msg: `Falha ao autorizar na Microsoft (${tok.error ?? "sem token"}).` });
+      // A descrição da Microsoft traz o código AADSTS (ex.: chave inválida ou vencida); nunca contém a chave.
+      const desc = String(tok.error_description ?? "").split("\r\n")[0].slice(0, 220);
+      console.error("outlook token:", tok.error, desc);
+      return voltar({ email: "erro", msg: `Falha ao autorizar na Microsoft (${tok.error ?? "sem token"}). ${desc}` });
     }
     if (!/mail\.read/i.test(String(tok.scope ?? ""))) {
       return voltar({ email: "erro", msg: "A permissão de leitura de e-mail não foi concedida. Conecte de novo e aceite." });

@@ -126,3 +126,8 @@ Decisão do Edimilson: **e-mail não cria agenda sozinho**. O assessor lê, resu
 - **Tela**: Configurações → Assessor mostra uma linha por provedor (Gmail e Outlook / Hotmail), cada uma com Conectar / Conectar de novo / Desconectar (`assessor_email_desconectar(provedor)`). A lista de remetentes liberados vale para os dois.
 - **Para lançar para clientes**: a Microsoft mostra "editor não verificado" no consentimento. Para tirar, fazer a Verificação do Editor (gratuita, exige cadastro no Microsoft AI Cloud Partner Program/MPN e um domínio). Contas corporativas de outras empresas podem exigir consentimento do administrador delas.
 - **Plano B (ainda não feito, aguardando decisão do Edimilson)**: para provedores sem OAuth (Yahoo, UOL etc.), a pessoa cria uma regra de encaminhamento dos remetentes escolhidos para um endereço exclusivo do assessor. Opções: Gmail dedicado com `+código` (grátis) ou domínio próprio com Cloudflare Email Routing (cerca de US$ 10 a 15 por ano).
+
+### Lições do teste do Outlook (2026-10-09)
+- **`invalid_client` = chave errada.** No Azure, "Certificados e segredos" mostra duas colunas: **Valor** (≈40 caracteres, quase sempre com `~`) e **ID secreto** (formato GUID com tracinhos). O `MS_CLIENT_SECRET` é o **Valor**, que só aparece uma vez; o ID não serve para nada aqui. Para conferir sem expor a chave: `GET https://dubbmmjtbunzmdmfbbja.supabase.co/functions/v1/assessor-outlook-callback?acao=diagnostico` devolve só tamanho, se parece GUID e se tem `~`.
+- **Ler só o que foi recebido.** `/me/messages` do Graph inclui Itens Enviados e Rascunhos: a triagem usa `/me/mailFolders/inbox/messages`. No Gmail a busca exclui `in:sent`. Sem isso, um remetente liberado que é o próprio usuário puxava os e-mails que ele mesmo enviou.
+
