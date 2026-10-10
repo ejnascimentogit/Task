@@ -1192,3 +1192,14 @@ language sql security definer set search_path = public, vault as $$
 $$;
 revoke all on function public.assessor_email_contas_para_triagem() from public, anon, authenticated;
 grant execute on function public.assessor_email_contas_para_triagem() to service_role;
+
+-- assessor_email_status passa a devolver o id da conta (a tela mostra em qual caixa cada e-mail chegou), 2026-10-09
+drop function if exists public.assessor_email_status();
+create or replace function public.assessor_email_status()
+returns table (id uuid, email text, provedor text, ativo boolean, conectado_em timestamptz, ultima_varredura timestamptz, ultimo_erro text)
+language sql security definer set search_path = public as $$
+  select id, email, provedor, ativo, conectado_em, ultima_varredura, ultimo_erro
+  from assessor_email_contas where user_id = auth.uid() order by provedor;
+$$;
+revoke all on function public.assessor_email_status() from public, anon;
+grant execute on function public.assessor_email_status() to authenticated;

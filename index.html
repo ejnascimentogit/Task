@@ -2142,6 +2142,12 @@ function updateEmailsCount() {
   if (el) el.textContent = emailsLista.filter(e => e.status === 'novo').length;
 }
 function setEmailsFiltro(f) { emailsFiltro = f; renderEmails(); }
+// Em qual caixa o e-mail chegou (Gmail ou Outlook, com o endereço), para quem conecta mais de uma conta.
+function origemEmail(e) {
+  const c = emailContas.find(x => x.id === e.conta_id);
+  if (!c) return '';
+  return `📥 ${c.provedor === 'outlook' ? 'Outlook' : 'Gmail'} (${escapeHtml(c.email)}) · `;
+}
 function textoOrigemEmail(e) {
   return `📧 E-mail de ${e.remetente_nome || e.remetente} <${e.remetente}> (${formatDataHora(e.recebido_em)})\nAssunto: ${e.assunto || '(sem assunto)'}\n\n${e.resumo || ''}`;
 }
@@ -2162,7 +2168,7 @@ function cardEmail(e) {
       <button class="btn btn-sm" onclick="withLock(this, () => marcarEmail('${e.id}', 'novo'))">↩ Reabrir</button>`;
   return `
     <div class="email-card ${e.urgente ? 'urgente' : ''} ${e.status !== 'novo' ? 'tratado' : ''}">
-      <div class="email-topo"><div class="email-tags">${tags}</div><span class="email-data">${formatDataHora(e.recebido_em)}</span></div>
+      <div class="email-topo"><div class="email-tags">${tags}</div><span class="email-data">${origemEmail(e)}${formatDataHora(e.recebido_em)}</span></div>
       <div class="email-de">${escapeHtml(e.remetente_nome || e.remetente)} <span>&lt;${escapeHtml(e.remetente)}&gt;</span></div>
       <div class="email-assunto">${escapeHtml(e.assunto || '(sem assunto)')}</div>
       <div class="email-resumo">${escapeHtml(e.resumo || '')}</div>
