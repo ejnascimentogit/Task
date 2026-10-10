@@ -351,9 +351,9 @@ async function executarFerramenta(
     if (entrada.apenas_pendentes !== false) q = q.eq("status", "novo");
     const { data, error } = await q;
     if (error) return { erro: error.message };
-    const { data: conta } = await sb.from("assessor_email_contas").select("email, ativo").eq("user_id", v.user_id).maybeSingle();
-    if (!conta) return { aviso: "Nenhum e-mail conectado. A pessoa conecta o Gmail no Taskfull: Configurações, Assessor." };
-    return { conta: conta.email, emails: data };
+    const { data: contas } = await sb.from("assessor_email_contas").select("email, provedor").eq("user_id", v.user_id);
+    if (!contas?.length) return { aviso: "Nenhum e-mail conectado. A pessoa conecta o Gmail ou o Outlook no Taskfull: Configurações, Assessor." };
+    return { contas: contas.map((c) => `${c.provedor}: ${c.email}`), emails: data };
   }
   if (nome === "aprender_termo") {
     const termo = String(entrada.termo ?? "").trim().slice(0, 120);

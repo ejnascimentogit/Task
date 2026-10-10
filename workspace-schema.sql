@@ -1105,3 +1105,90 @@ grant execute on function public.assessor_email_desconectar() to authenticated;
 --   url := 'https://dubbmmjtbunzmdmfbbja.supabase.co/functions/v1/assessor-email-triagem',
 --   headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <anon key>'),
 --   body := '{}'::jsonb, timeout_milliseconds := 120000); $c$);
+
+-- ══════════════════════════════════════════════════════════════
+-- Assessor: e-mail com vários provedores (Gmail + Outlook/Hotmail/Microsoft 365), 2026-10-09
+-- ══════════════════════════════════════════════════════════════
+alter table public.assessor_email_estados add column if not exists provedor text not null default 'gmail';
+alter table public.assessor_emails add column if not exists link text;   -- link para abrir o e-mail no provedor
+
+drop function if exists public.assessor_email_iniciar(uuid);
+create or replace function public.assessor_email_iniciar(p_workspace_id uuid, p_provedor text default 'gmail')
+returns text language plpgsql security definer set search_path = public as $$
+declare v_uid uuid := auth.uid(); v_state text;
+begin
+  if v_uid is null then raise exception 'Não autenticado'; end if;
+  if p_provedor not in ('gmail', 'outlook') then raise exception 'Provedor inválido'; end if;
+  if not exists (
+    select 1 from workspaces w join workspace_membros m on m.workspace_id = w.id
+    where w.id = p_workspace_id and w.perfil_tipo = 'pessoal' and m.user_id = v_uid and m.status = 'ativo'
+  ) then raise exception 'O assessor só está disponível no seu perfil Pessoal'; end if;
+  delete from assessor_email_estados where expira_em < now() or user_id = v_uid;
+  v_state := encode(extensions.gen_random_bytes(24), 'hex');
+  insert into assessor_email_estados (state, user_id, workspace_id, provedor) values (v_state, v_uid, p_workspace_id, p_provedor);
+  return v_state;
+end $$;
+revoke all on function public.assessor_email_iniciar(uuid, text) from public, anon;
+grant execute on function public.assessor_email_iniciar(uuid, text) to authenticated;
+
+drop function if exists public.assessor_email_desconectar();
+create or replace function public.assessor_email_desconectar(p_provedor text default null)
+returns void language plpgsql security definer set search_path = public, vault as $$
+declare r record;
+begin
+  if auth.uid() is null then raise exception 'Não autenticado'; end if;
+  for r in select id, segredo_id from assessor_email_contas
+           where user_id = auth.uid() and (p_provedor is null or provedor = p_provedor) loop
+    if r.segredo_id is not null then delete from vault.secrets where id = r.segredo_id; end if;
+    delete from assessor_email_contas where id = r.id;
+  end loop;
+end $$;
+revoke all on function public.assessor_email_desconectar(text) from public, anon;
+grant execute on function public.assessor_email_desconectar(text) to authenticated;
+
+create or replace function public.assessor_email_salvar_conta(p_state text, p_email text, p_refresh text)
+returns uuid language plpgsql security definer set search_path = public, vault as $$
+declare v_est record; v_conta record; v_segredo uuid; v_id uuid;
+begin
+  delete from assessor_email_estados where state = p_state and expira_em >= now()
+    returning * into v_est;
+  if v_est is null then raise exception 'Link de conexão expirado. Gere de novo no Taskfull.'; end if;
+  select * into v_conta from assessor_email_contas where user_id = v_est.user_id and provedor = v_est.provedor;
+  if v_conta.segredo_id is not null and p_refresh is not null then
+    perform vault.update_secret(v_conta.segredo_id, p_refresh);
+    v_segredo := v_conta.segredo_id;
+  elsif p_refresh is not null then
+    v_segredo := vault.create_secret(p_refresh, 'assessor_' || v_est.provedor || '_' || v_est.user_id::text);
+  else
+    v_segredo := v_conta.segredo_id;
+  end if;
+  if v_segredo is null then raise exception 'O provedor não devolveu a autorização permanente. Tente conectar de novo.'; end if;
+  insert into assessor_email_contas (user_id, workspace_id, provedor, email, segredo_id, ativo, conectado_em, ultimo_erro)
+  values (v_est.user_id, v_est.workspace_id, v_est.provedor, p_email, v_segredo, true, now(), null)
+  on conflict (user_id, provedor) do update set workspace_id = excluded.workspace_id, email = excluded.email,
+    segredo_id = excluded.segredo_id, ativo = true, conectado_em = now(), ultimo_erro = null
+  returning id into v_id;
+  return v_id;
+end $$;
+
+-- A Microsoft devolve um refresh token novo a cada renovação: o servidor grava o novo no Vault.
+create or replace function public.assessor_email_atualizar_refresh(p_conta_id uuid, p_refresh text)
+returns void language plpgsql security definer set search_path = public, vault as $$
+declare v_seg uuid;
+begin
+  select segredo_id into v_seg from assessor_email_contas where id = p_conta_id;
+  if v_seg is not null and p_refresh is not null then perform vault.update_secret(v_seg, p_refresh); end if;
+end $$;
+revoke all on function public.assessor_email_atualizar_refresh(uuid, text) from public, anon, authenticated;
+grant execute on function public.assessor_email_atualizar_refresh(uuid, text) to service_role;
+
+drop function if exists public.assessor_email_contas_para_triagem();
+create or replace function public.assessor_email_contas_para_triagem()
+returns table (id uuid, user_id uuid, workspace_id uuid, provedor text, email text, refresh_token text, ultima_varredura timestamptz)
+language sql security definer set search_path = public, vault as $$
+  select c.id, c.user_id, c.workspace_id, c.provedor, c.email, s.decrypted_secret, c.ultima_varredura
+  from assessor_email_contas c join vault.decrypted_secrets s on s.id = c.segredo_id
+  where c.ativo;
+$$;
+revoke all on function public.assessor_email_contas_para_triagem() from public, anon, authenticated;
+grant execute on function public.assessor_email_contas_para_triagem() to service_role;

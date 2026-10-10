@@ -1119,7 +1119,7 @@
           <div class="config-section-body" id="body-assessor" style="display:none">
             <p class="config-hint">Converse com o seu assessor pelo Telegram: com dia e hora ele marca na Agenda, sem hora cria uma tarefa em Atividades, e avisa antes de cada compromisso. Só no perfil Pessoal.</p>
             <div id="assessor-config"></div>
-            <h3 style="margin:20px 0 6px;font-size:15px;">📧 E-mail (Gmail)</h3>
+            <h3 style="margin:20px 0 6px;font-size:15px;">📧 E-mail (Gmail e Outlook)</h3>
             <p class="config-hint">O assessor lê <b>só</b> os e-mails dos remetentes que você liberar abaixo, a cada 15 minutos, e guarda apenas um resumo. Nada é enviado, respondido ou apagado. Os urgentes e os de VIPs também avisam no Telegram.</p>
             <div id="assessor-email-config"></div>
           </div>
@@ -2100,11 +2100,11 @@ async function desconectarAssessor() {
 // Backend: tabelas assessor_email_* / assessor_emails + Edge Functions assessor-email-callback e
 // assessor-email-triagem (cron a cada 15 min). E-mail nunca vira agenda sozinho: a pessoa decide pelos botões.
 // ══════════════════════════════════════════════════════════════
-const EMAIL_FN_CALLBACK = SUPABASE_URL + '/functions/v1/assessor-email-callback';
 const EMAIL_CATEGORIA = { acao: '📌 Pede ação', reuniao: '📅 Reunião', financeiro: '💰 Financeiro', informativo: 'ℹ️ Informativo', outros: '✉️ Outros' };
 const EMAIL_STATUS = { novo: 'Novo', tarefa: '📝 Virou tarefa', compromisso: '📅 Virou compromisso', resolvido: '✔ Resolvido', ignorado: 'Ignorado' };
 let emailsLista = [];
 let emailConta = null;
+let emailContas = [];
 let emailsFiltro = 'novo';
 let emailParaCompromisso = null;
 // Volta do login do Google (?email=conectado|erro&msg=...): guarda e limpa a URL.
@@ -2113,8 +2113,8 @@ let retornoEmailOAuth = (() => {
     const p = new URLSearchParams(location.search);
     const v = p.get('email');
     if (!v) return null;
-    const r = { status: v, msg: p.get('msg') || '' };
-    p.delete('email'); p.delete('msg');
+    const r = { status: v, msg: p.get('msg') || '', provedor: p.get('provedor') || 'gmail' };
+    p.delete('email'); p.delete('msg'); p.delete('provedor');
     history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p.toString() : '') + location.hash);
     return r;
   } catch (e) { return null; }
@@ -2133,7 +2133,8 @@ async function carregarEmails() {
     sb.rpc('assessor_email_status'),
   ]);
   emailsLista = lista.error ? [] : (lista.data || []);
-  emailConta = status.error ? null : ((status.data || [])[0] || null);
+  emailContas = status.error ? [] : (status.data || []);
+  emailConta = emailContas[0] || null;
   updateEmailsCount();
 }
 function updateEmailsCount() {
@@ -2167,7 +2168,7 @@ function cardEmail(e) {
       <div class="email-resumo">${escapeHtml(e.resumo || '')}</div>
       ${reu && reu.data ? `<div class="email-sugestao">📅 Sugestão de compromisso: ${escapeHtml(reu.titulo || e.assunto || '')} em ${formatDate(reu.data)}${reu.hora ? ' às ' + escapeHtml(reu.hora) : ''}</div>` : ''}
       <div class="email-acoes">${acoes}
-        <a class="btn btn-sm" href="https://mail.google.com/mail/u/0/#all/${encodeURIComponent(e.mensagem_id)}" target="_blank" rel="noopener">Abrir no Gmail</a>
+        <a class="btn btn-sm" href="${escapeHtml(e.link || ('https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(e.mensagem_id)))}" target="_blank" rel="noopener">Abrir no e-mail</a>
       </div>
     </div>`;
 }
@@ -2179,10 +2180,10 @@ function renderEmails() {
   if (!emailConta) {
     sub.textContent = 'Nenhum e-mail conectado.';
     document.getElementById('emails-filtro').innerHTML = '';
-    lista.innerHTML = `<p class="config-hint">Conecte o Gmail e escolha de quais remetentes o assessor pode ler em <a href="#" onclick="abrirConfigAssessor(); return false;">Configurações → 🤖 Assessor</a>. Ele lê só esses e-mails, a cada 15 minutos, e guarda um resumo aqui. E-mail nunca vira compromisso sozinho: você decide pelos botões.</p>`;
+    lista.innerHTML = `<p class="config-hint">Conecte o Gmail ou o Outlook e escolha de quais remetentes o assessor pode ler em <a href="#" onclick="abrirConfigAssessor(); return false;">Configurações → 🤖 Assessor</a>. Ele lê só esses e-mails, a cada 15 minutos, e guarda um resumo aqui. E-mail nunca vira compromisso sozinho: você decide pelos botões.</p>`;
     return;
   }
-  sub.textContent = `${emailConta.email} · ${emailConta.ultima_varredura ? 'última verificação ' + formatDataHora(emailConta.ultima_varredura) : 'ainda não verificado'}${emailConta.ultimo_erro ? ' · ⚠️ ' + emailConta.ultimo_erro : ''}`;
+  sub.textContent = emailContas.map(c => `${c.provedor === 'outlook' ? 'Outlook' : 'Gmail'}: ${c.email} · ${c.ultima_varredura ? 'última verificação ' + formatDataHora(c.ultima_varredura) : 'ainda não verificado'}${c.ultimo_erro ? ' · ⚠️ ' + c.ultimo_erro : ''}`).join('   |   ');
   document.getElementById('emails-filtro').innerHTML = [['novo', `Novos (${novos.length})`], ['tratados', 'Já tratados'], ['todos', 'Todos (30 dias)']]
     .map(([k, l]) => `<button class="pessoa-filter-btn ${emailsFiltro === k ? 'active' : ''}" onclick="setEmailsFiltro('${k}')">${l}</button>`).join('');
   const filtrados = emailsFiltro === 'novo' ? novos : (emailsFiltro === 'tratados' ? emailsLista.filter(e => e.status !== 'novo') : emailsLista);
@@ -2274,22 +2275,20 @@ async function renderAssessorEmailConfig() {
     sb.from('assessor_email_remetentes').select('*').order('created_at'),
   ]);
   if (st.error) { box.innerHTML = '<p class="config-hint">Não foi possível carregar o e-mail: ' + escapeHtml(st.error.message) + '</p>'; return; }
-  const conta = (st.data || [])[0];
-  let html = '';
-  if (!conta) {
-    html += `
-      <div class="etapas-add-row"><button class="btn btn-green btn-sm" onclick="withLock(this, conectarGmail)">Conectar Gmail</button></div>
-      <p class="config-hint">Você vai para a tela do Google. Enquanto o app estiver em modo de teste, o Google mostra o aviso "o Google não verificou este app": clique em <b>Continuar</b> e marque a permissão de leitura do Gmail.</p>`;
-  } else {
-    html += `
-      <p><b>${conta.ativo ? '✅ Gmail conectado' : '⚠️ Gmail desligado'}:</b> ${escapeHtml(conta.email)} · ${conta.ultima_varredura ? 'última verificação ' + formatDataHora(conta.ultima_varredura) : 'ainda não verificado'}</p>
-      ${conta.ultimo_erro ? `<p class="config-hint" style="color:var(--red);">${escapeHtml(conta.ultimo_erro)}</p>` : ''}
-      <div class="etapas-add-row">
-        <button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button>
-        ${!conta.ativo ? '<button class="btn btn-green btn-sm" onclick="withLock(this, conectarGmail)">Conectar de novo</button>' : ''}
-        <button class="btn btn-sm" onclick="withLock(this, desconectarGmail)">Desconectar</button>
-      </div>`;
-  }
+  const contas = st.data || [];
+  const PROVEDORES = [['gmail', 'Gmail'], ['outlook', 'Outlook / Hotmail']];
+  let html = PROVEDORES.map(([p, nome]) => {
+    const conta = contas.find(c => c.provedor === p);
+    if (!conta) return `
+      <div class="email-rem-item"><div class="grow"><b>${nome}</b> · não conectado</div>
+        <button class="btn btn-green btn-sm" onclick="withLock(this, () => conectarEmail('${p}'))">Conectar ${nome}</button></div>`;
+    return `
+      <div class="email-rem-item"><div class="grow"><b>${conta.ativo ? '✅' : '⚠️'} ${nome}:</b> ${escapeHtml(conta.email)} · ${conta.ultima_varredura ? 'última verificação ' + formatDataHora(conta.ultima_varredura) : 'ainda não verificado'}${conta.ultimo_erro ? `<div class="config-hint" style="color:var(--red);">${escapeHtml(conta.ultimo_erro)}</div>` : ''}</div>
+        ${!conta.ativo ? `<button class="btn btn-green btn-sm" onclick="withLock(this, () => conectarEmail('${p}'))">Conectar de novo</button>` : ''}
+        <button class="btn btn-sm" onclick="withLock(this, () => desconectarEmail('${p}', '${nome}'))">Desconectar</button></div>`;
+  }).join('');
+  html += `<p class="config-hint">Ao conectar, o Google ou a Microsoft podem avisar que o app ainda não foi verificado (estamos em teste): clique em <b>Continuar</b> e aceite só a leitura de e-mail.</p>`;
+  if (contas.length) html += `<div class="etapas-add-row"><button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button></div>`;
   const lista = rems.data || [];
   html += `
     <h4 style="margin:16px 0 4px;font-size:13.5px;">Remetentes liberados (${lista.length})</h4>
@@ -2308,24 +2307,28 @@ async function renderAssessorEmailConfig() {
       </div>`).join('') : '<p class="config-hint">Nenhum remetente ainda: enquanto a lista estiver vazia, o assessor não lê nenhum e-mail.</p>'}`;
   box.innerHTML = html;
 }
-async function conectarGmail() {
-  const { data: state, error } = await sb.rpc('assessor_email_iniciar', { p_workspace_id: activeWorkspace.id });
+async function conectarEmail(provedor) {
+  const { data: state, error } = await sb.rpc('assessor_email_iniciar', { p_workspace_id: activeWorkspace.id, p_provedor: provedor });
   if (error) { alert('Não foi possível iniciar a conexão: ' + error.message); return; }
-  location.href = EMAIL_FN_CALLBACK + '?iniciar=' + encodeURIComponent(state);
+  const fn = provedor === 'outlook' ? 'assessor-outlook-callback' : 'assessor-email-callback';
+  location.href = SUPABASE_URL + '/functions/v1/' + fn + '?iniciar=' + encodeURIComponent(state);
 }
 async function verificarEmailsAgora() {
   const { data, error } = await sb.functions.invoke('assessor-email-triagem', { body: {} });
   if (error || !data || !data.ok) { alert('Não foi possível verificar agora: ' + ((data && data.erro) || (error && error.message) || 'erro desconhecido')); return; }
-  const r = (data.resultados || [])[0];
+  const rs = data.resultados || [];
   await carregarEmails();
   renderAssessorEmailConfig();
   if (activeTab === 'emails') renderEmails();
-  if (!r) alert('Nenhuma conta de e-mail ativa.');
-  else alert(r.erro ? 'Verificado com aviso: ' + r.erro : (r.novos ? `📧 ${r.novos} e-mail(s) novo(s). Veja no quadro E-mails.` : 'Nenhum e-mail novo dos remetentes liberados.'));
+  if (!rs.length) { alert('Nenhuma conta de e-mail ativa.'); return; }
+  const novos = rs.reduce((s, r) => s + (r.novos || 0), 0);
+  const avisos = rs.filter(r => r.erro).map(r => `${r.conta}: ${r.erro}`);
+  alert((novos ? `📧 ${novos} e-mail(s) novo(s). Veja no quadro E-mails.` : 'Nenhum e-mail novo dos remetentes liberados.') + (avisos.length ? '\n\nAvisos:\n' + avisos.join('\n') : ''));
 }
-async function desconectarGmail() {
-  if (!confirm('Desconectar o Gmail? O assessor para de ler seus e-mails e a autorização guardada é apagada. Os resumos já salvos continuam no quadro E-mails.\n\nPara revogar também do lado do Google: myaccount.google.com/permissions.')) return;
-  const { error } = await sb.rpc('assessor_email_desconectar');
+async function desconectarEmail(provedor, nome) {
+  const onde = provedor === 'outlook' ? 'account.live.com/consent/Manage' : 'myaccount.google.com/permissions';
+  if (!confirm(`Desconectar o ${nome}? O assessor para de ler esses e-mails e a autorização guardada é apagada. Os resumos já salvos continuam no quadro E-mails.\n\nPara revogar também do lado do provedor: ${onde}.`)) return;
+  const { error } = await sb.rpc('assessor_email_desconectar', { p_provedor: provedor });
   if (error) { alert('Não foi possível desconectar: ' + error.message); return; }
   await carregarEmails();
   renderAssessorEmailConfig();
@@ -3264,8 +3267,8 @@ async function selectWorkspace(wsId) {
     retornoEmailOAuth = null;
     if (souSolo()) abrirConfigAssessor(); else setTab(primeiraAba || 'configuracoes');
     setTimeout(() => alert(r.status === 'conectado'
-      ? '✅ Gmail conectado! Agora escolha, em Remetentes liberados, de quem o assessor pode ler e-mails.'
-      : 'Não foi possível conectar o Gmail: ' + (r.msg || 'erro desconhecido')), 300);
+      ? '✅ ' + (r.provedor === 'outlook' ? 'Outlook' : 'Gmail') + ' conectado! Agora confira, em Remetentes liberados, de quem o assessor pode ler e-mails.'
+      : 'Não foi possível conectar o e-mail: ' + (r.msg || 'erro desconhecido')), 300);
     return;
   }
   setTab(primeiraAba || 'configuracoes');
