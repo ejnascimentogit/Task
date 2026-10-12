@@ -295,6 +295,13 @@
       <li><strong>Agenda, visão Calendário</strong>: mostra o mês completo em semanas, com o que está agendado em cada dia. Clicar num compromisso abre a edição; clicar num dia vazio abre um novo agendamento naquela data.</li>
       <li>Só marcação e estilo: os dados e as ações são os mesmos, nos três perfis.</li>
     </ul>
+    <h3>9.9 Bom dia: tempo e manchetes (outubro/2026)</h3>
+    <ul>
+      <li>Bloco no topo do Resumo do Dia, só no perfil Pessoal. <strong>Sem IA e sem chave</strong>: não gasta token.</li>
+      <li><strong>Tempo</strong>: Open-Meteo (previsão de 3 dias), direto do navegador. <strong>Manchetes</strong> (mundo, Brasil, estado e cidade): Edge Function <code>bom-dia-noticias</code>, que lê o RSS aberto do Google Notícias e devolve só título, fonte e link.</li>
+      <li>A cidade fica no navegador (<code>ws_bomdia_cidade</code>, padrão São Paulo, SP) e muda em "Trocar cidade". Cache de 30 minutos.</li>
+      <li>Antes de vender: o Open-Meteo gratuito é só para uso não comercial e os termos das fontes de notícias devem ser conferidos.</li>
+    </ul>
 
 
     <hr>
