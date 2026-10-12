@@ -5070,34 +5070,98 @@ function bomDiaLocal() {
 }
 function bomDiaSalvarLocal(l) {
   try { localStorage.setItem('ws_bomdia_local', JSON.stringify(l)); } catch (e) {}
+  bomDiaPainelAberto = false;
   carregarBomDia(true);
   renderBomDiaConfig();
 }
-function renderBomDiaConfig(msg) {
-  const box = document.getElementById('bomdia-config');
-  if (!box) return;
-  const l = bomDiaLocal();
-  box.innerHTML = `<p class="config-hint">Usado no bloco "Bom dia" do Resumo do Dia (tempo e manchetes). Fica só neste navegador.${l.padrao ? ' <b>Ainda não escolhida: usando São Paulo, SP.</b>' : ''}</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px;">
-      <label style="font-size:12px;">País<select id="bd-pais" style="width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);">${Object.entries(BOMDIA_PAISES).map(([k, n]) => `<option value="${k}" ${k === (l.paisCodigo || 'BR') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label style="font-size:12px;">Estado / região<input id="bd-estado" type="text" value="${escapeHtml(l.estado || '')}" list="bd-estados" style="width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);"><datalist id="bd-estados">${Object.values(BOMDIA_UFS).map(n => `<option value="${n}">`).join('')}</datalist></label>
-      <label style="font-size:12px;">Cidade<input id="bd-cidade" type="text" value="${escapeHtml(l.cidade || '')}" style="width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);"></label>
+const BOMDIA_PAISES_EN = { BR:'Brazil', PT:'Portugal', US:'United States', AR:'Argentina', UY:'Uruguay', PY:'Paraguay', CL:'Chile', CO:'Colombia', MX:'Mexico', PE:'Peru', ES:'Spain', FR:'France', IT:'Italy', DE:'Germany', GB:'United Kingdom', CA:'Canada', JP:'Japan', AO:'Angola', MZ:'Mozambique' };
+const bomDiaCacheListas = {};
+let bomDiaPainelAberto = false;
+// País → estados → cidades. Brasil pelo IBGE; outros países pelo CountriesNow (ambos grátis e sem chave). Se a lista não vier, o campo vira texto livre.
+async function bomDiaListaEstados(cod) {
+  const k = 'e|' + cod;
+  if (bomDiaCacheListas[k]) return bomDiaCacheListas[k];
+  let nomes = [];
+  try {
+    if (cod === 'BR') nomes = (await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados').then(r => r.json())).map(e => e.nome).sort((x, y) => x.localeCompare(y, 'pt'));
+    else nomes = ((await fetch('https://countriesnow.space/api/v0.1/countries/states', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: BOMDIA_PAISES_EN[cod] }) }).then(r => r.json())).data || {}).states?.map(e => e.name) || [];
+  } catch (e) {}
+  if (nomes.length) bomDiaCacheListas[k] = nomes;
+  return nomes;
+}
+async function bomDiaListaCidades(cod, estado) {
+  const k = 'c|' + cod + '|' + estado;
+  if (bomDiaCacheListas[k]) return bomDiaCacheListas[k];
+  let nomes = [];
+  try {
+    if (cod === 'BR') {
+      const uf = Object.keys(BOMDIA_UFS).find(u => BOMDIA_UFS[u] === estado);
+      if (uf) nomes = (await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados/' + uf + '/municipios').then(r => r.json())).map(m => m.nome).sort((x, y) => x.localeCompare(y, 'pt'));
+    } else nomes = (await fetch('https://countriesnow.space/api/v0.1/countries/state/cities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: BOMDIA_PAISES_EN[cod], state: estado }) }).then(r => r.json())).data || [];
+  } catch (e) {}
+  if (nomes.length) bomDiaCacheListas[k] = nomes;
+  return nomes;
+}
+const BD_CAMPO = 'width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-card,transparent);color:inherit;';
+function bomDiaFormHtml(p, l) {
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px;">
+      <label style="font-size:12px;">País<select id="${p}-pais" onchange="bomDiaMudouPais('${p}')" style="${BD_CAMPO}">${Object.entries(BOMDIA_PAISES).map(([k, n]) => `<option value="${k}" ${k === (l.paisCodigo || 'BR') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label style="font-size:12px;">Estado / região<span id="${p}-estado-box"></span></label>
+      <label style="font-size:12px;">Cidade<span id="${p}-cidade-box"></span></label>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button class="btn btn-green btn-sm" onclick="bomDiaSalvarDoForm()">Salvar</button>
+      <button class="btn btn-green btn-sm" onclick="bomDiaSalvarDoForm('${p}')">Salvar</button>
       <button class="btn btn-sm" onclick="bomDiaDetectar()">📍 Usar minha localização</button>
-      <span id="bd-msg" class="config-hint" style="margin:0">${msg || ''}</span>
+      <span class="config-hint bd-msg" style="margin:0"></span>
     </div>`;
 }
-function bomDiaSalvarDoForm() {
-  const cod = document.getElementById('bd-pais').value;
-  const cidade = document.getElementById('bd-cidade').value.trim(), estado = document.getElementById('bd-estado').value.trim();
-  if (!cidade) { alert('Escreva o nome da cidade.'); return; }
+// Preenche um campo (select com a lista, ou texto livre se a lista não veio)
+function bomDiaCampo(p, nivel, lista, atual, onchange) {
+  const box = document.getElementById(p + '-' + nivel + '-box');
+  if (!box) return;
+  if (!lista.length) { box.innerHTML = `<input id="${p}-${nivel}" type="text" value="${escapeHtml(atual || '')}" style="${BD_CAMPO}" ${nivel === 'cidade' ? `onchange="bomDiaSalvarDoForm('${p}')"` : `onchange="${onchange}"`}>`; return; }
+  const opts = lista.slice();
+  if (atual && !opts.includes(atual)) opts.unshift(atual);
+  box.innerHTML = `<select id="${p}-${nivel}" onchange="${onchange}" style="${BD_CAMPO}"><option value="">${nivel === 'estado' ? 'Escolha o estado' : 'Escolha a cidade'}</option>${opts.map(n => `<option ${n === atual ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('')}</select>`;
+}
+async function bomDiaCarregarEstados(p, cod, estadoSel, cidadeSel) {
+  const box = document.getElementById(p + '-estado-box'); if (box) box.innerHTML = '<small>carregando…</small>';
+  const est = await bomDiaListaEstados(cod);
+  bomDiaCampo(p, 'estado', est, estadoSel, `bomDiaMudouEstado('${p}')`);
+  await bomDiaCarregarCidades(p, cod, estadoSel, cidadeSel);
+}
+async function bomDiaCarregarCidades(p, cod, estado, cidadeSel) {
+  if (!estado) { const bx = document.getElementById(p + '-cidade-box'); if (bx) bx.innerHTML = `<select id="${p}-cidade" disabled style="${BD_CAMPO}"><option>Escolha o estado primeiro</option></select>`; return; }
+  const box = document.getElementById(p + '-cidade-box'); if (box) box.innerHTML = '<small>carregando…</small>';
+  const cid = await bomDiaListaCidades(cod, estado);
+  bomDiaCampo(p, 'cidade', cid, cidadeSel, `bomDiaSalvarDoForm('${p}')`);
+}
+function bomDiaMudouPais(p) { bomDiaCarregarEstados(p, document.getElementById(p + '-pais').value, '', ''); }
+function bomDiaMudouEstado(p) { bomDiaCarregarCidades(p, document.getElementById(p + '-pais').value, document.getElementById(p + '-estado').value, ''); }
+function bomDiaSalvarDoForm(p) {
+  const cod = document.getElementById(p + '-pais').value;
+  const estado = (document.getElementById(p + '-estado')?.value || '').trim(), cidade = (document.getElementById(p + '-cidade')?.value || '').trim();
+  if (!cidade) { if (p) document.querySelectorAll('.bd-msg').forEach(m => m.textContent = 'Escolha a cidade para salvar.'); return; }
+  bomDiaPainelAberto = false;
   bomDiaSalvarLocal({ pais: BOMDIA_PAISES[cod], paisCodigo: cod, estado, cidade });
+}
+function bomDiaMontarForm(p, boxId, msg) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const l = bomDiaLocal();
+  box.innerHTML = `<p class="config-hint">Escolha o país, depois o estado e a cidade. Usado no bloco "Bom dia" do Resumo do Dia (tempo e manchetes). Fica só neste navegador.${l.padrao ? ' <b>Ainda não escolhida: usando São Paulo, SP.</b>' : ''}</p>` + bomDiaFormHtml(p, l);
+  if (msg) box.querySelector('.bd-msg').textContent = msg;
+  bomDiaCarregarEstados(p, l.paisCodigo || 'BR', l.estado || '', l.cidade || '');
+}
+function renderBomDiaConfig(msg) { bomDiaMontarForm('bdc', 'bomdia-config', msg); }
+function bomDiaAlternarPainel(detectar) {
+  bomDiaPainelAberto = detectar === true ? true : !bomDiaPainelAberto;
+  renderBomDia();
+  if (detectar === true) bomDiaDetectar();
 }
 // Localização automática: pede permissão ao navegador (GPS/Wi-Fi) e descobre a cidade pelas coordenadas (BigDataCloud, grátis e sem chave).
 function bomDiaDetectar() {
-  const msg = t => { const m = document.getElementById('bd-msg'); if (m) m.textContent = t; };
+  const msg = t => document.querySelectorAll('.bd-msg').forEach(m => m.textContent = t);
   if (!navigator.geolocation) { msg('Este navegador não oferece localização.'); return; }
   msg('Aguardando a permissão do navegador…');
   navigator.geolocation.getCurrentPosition(async pos => {
@@ -5108,7 +5172,7 @@ function bomDiaDetectar() {
       if (!cidade) throw new Error('não deu para descobrir a cidade');
       const cod = (r.countryCode || '').toUpperCase();
       bomDiaSalvarLocal({ pais: BOMDIA_PAISES[cod] || r.countryName || cod, paisCodigo: cod, estado: r.principalSubdivision || '', cidade, lat, lon });
-      renderBomDiaConfig('✓ Localização encontrada: ' + cidade);
+      msg('✓ Localização encontrada: ' + cidade);
     } catch (e) { msg('Não consegui identificar a cidade (' + e.message + '). Preencha à mão.'); }
   }, err => msg(err.code === 1 ? 'Permissão negada. Libere a localização no navegador ou preencha à mão.' : 'Não foi possível obter a localização. Preencha à mão.'), { timeout: 12000, maximumAge: 600000 });
 }
@@ -5150,20 +5214,16 @@ async function carregarBomDia(forcar) {
     bomDiaChave = chave; bomDiaQuando = Date.now();
   } finally { bomDiaCarregando = false; renderBomDia(); }
 }
-function abrirConfigLocalizacao() {
-  setTab('configuracoes');
-  const body = document.getElementById('body-bomdia');
-  if (body && body.style.display === 'none') toggleConfigSection('bomdia');
-  renderBomDiaConfig();
-  document.getElementById('section-bomdia')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-function bomDiaDetectar2() { abrirConfigLocalizacao(); setTimeout(bomDiaDetectar, 300); }
 function renderBomDia() {
+  renderBomDiaCorpo();
+  if (bomDiaPainelAberto && document.getElementById('bd-painel')) bomDiaMontarForm('bdp', 'bd-painel');
+}
+function renderBomDiaCorpo() {
   const box = document.getElementById('resumo-bomdia');
   if (!box) return;
   if (!souSolo()) { box.innerHTML = ''; return; }
   const c = bomDiaLocal();
-  const topo = `<div class="bd-topo"><h3>☀️ Bom dia · ${escapeHtml(c.cidade)}${c.estado ? ', ' + escapeHtml(c.estado) : ''}</h3><span>${c.padrao ? '<button type="button" onclick="bomDiaDetectar2()">📍 Detectar onde estou</button> ' : ''}<button type="button" onclick="abrirConfigLocalizacao()">⚙ Localização</button></span></div>`;
+  const topo = `<div class="bd-topo"><h3>☀️ Bom dia · ${escapeHtml(c.cidade)}${c.estado ? ', ' + escapeHtml(c.estado) : ''}</h3><span>${c.padrao ? '<button type="button" onclick="bomDiaAlternarPainel(true)">📍 Detectar onde estou</button> ' : ''}<button type="button" onclick="bomDiaAlternarPainel()">📍 Alterar local</button></span></div><div id="bd-painel" style="${bomDiaPainelAberto ? '' : 'display:none;'}margin-bottom:12px;"></div>`;
   if (!bomDiaDados) { box.innerHTML = `<div class="bd-box">${topo}<div class="bd-vazio">${bomDiaCarregando ? 'Buscando o tempo e as manchetes…' : 'Carregando…'}</div></div>`; return; }
   const { tempo, noticias } = bomDiaDados;
   let clima;
