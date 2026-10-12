@@ -278,6 +278,16 @@
     </ul>
 
 
+    <h3>9.7 Visual novo e paletas de cores (outubro/2026)</h3>
+    <ul>
+      <li><strong>Visual v2</strong>: cantos maiores, sombras suaves, títulos e números em Bricolage Grotesque (texto corrido segue em Inter). Foi feito só em CSS, num bloco "Visual v2" no fim do <code>&lt;style&gt;</code> do <code>index.html</code> e no <code>cronograma.html</code>. Nenhum comportamento mudou e nenhuma tela perdeu função.</li>
+      <li><strong>Paletas</strong>: em Aparência (rodapé do menu) há 7 bolinhas: Clássico (padrão), Névoa (clara e suave), Oceano, Lavanda, Pêssego (clara e quente), Grafite e Alto contraste. É preferência pessoal, guardada no navegador (chave <code>ws_app_paleta</code>) e vale junto com o modo escuro. O portal <code>/cronograma</code> usa a mesma escolha.</li>
+      <li><strong>Precedência</strong>: a Cor de Destaque do workspace (Configurações, só admin) continua valendo por cima da paleta. Sem cor própria, vale a paleta.</li>
+      <li><strong>Contraste conferido</strong>: as 7 paletas passam de 4,5:1 (WCAG) nos pares principais, no modo claro e no escuro. A pesquisa sobre cores indica que azul é a preferida com mais frequência entre culturas, mas não é universal, e que para pessoas mais velhas o que pesa é o contraste, não o tom. Por isso a escolha fica com cada pessoa.</li>
+      <li><strong>Paleta nova</strong>: acrescentar o bloco <code>:root[data-paleta="nome"]</code> no CSS, a entrada em <code>PALETAS</code> no JS e conferir o contraste antes de publicar.</li>
+    </ul>
+
+
     <hr>
     <p class="footnote">Gerado a partir da leitura de <code>index.html</code> e <code>workspace-schema.sql</code> deste repositório. Se o código mudar, atualizar este documento junto — ele descreve decisões e comportamento, não só estrutura. Fonte editável: <a href="https://github.com/ejnascimentogit/Task/blob/master/DOCUMENTACAO-TASKFULL.md">DOCUMENTACAO-TASKFULL.md</a>.</p>
   </div>

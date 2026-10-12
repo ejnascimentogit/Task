@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TaskFull</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
   :root {
     --navy: #021F33;
@@ -632,7 +632,170 @@
   .cron-pill.bloqueada { color:#B91C1C; background:rgba(220,38,38,.12); }
   .cron-pill.cliente { color:#B45309; background:rgba(245,158,11,.14); }
   .cron-pill.equipe { color:#1D4ED8; background:rgba(29,78,216,.12); }
+  /* ══ Visual v2 (out/2026): cantos maiores, sombras suaves, título em Bricolage Grotesque e paletas de cores escolhidas pela pessoa em Aparência.
+        Só acrescenta/ajusta estilo: nenhum comportamento muda. As paletas (data-paleta no <html>) trocam as variáveis abaixo; ──
+        a cor de destaque do workspace (Configurações) continua valendo por cima, porque é gravada em estilo inline. ── */
+  :root {
+    --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+    --radius-md: 14px; --radius-lg: 18px;
+    --shadow-soft: 0 1px 2px rgba(2,31,51,.05), 0 8px 24px rgba(2,31,51,.06);
+    --shadow-up: 0 12px 28px rgba(2,31,51,.16);
+    --gray-text: #5F6673;
+    --accent-ink: #067A45;
+    --accent-soft: color-mix(in srgb, var(--green) 16%, transparent);
+    --sb-bg: var(--navy); --sb-fg: rgba(255,255,255,.68); --sb-fg-strong: #FFFFFF; --sb-muted: rgba(255,255,255,.5);
+    --sb-hover: rgba(255,255,255,.07); --sb-line: rgba(255,255,255,.14); --sb-card: rgba(255,255,255,.05);
+    --sb-active-bg: color-mix(in srgb, var(--green) 14%, transparent); --sb-active-fg: var(--green);
+  }
+  :root[data-theme="dark"] { --accent-ink: var(--green); --shadow-soft: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); --shadow-up: 0 12px 28px rgba(0,0,0,.5); --gray-text: #9AABBD; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent-ink: var(--green); --shadow-soft: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); --shadow-up: 0 12px 28px rgba(0,0,0,.5); --gray-text: #9AABBD; } }
+
+  /* ── Paletas (modo claro). Cada uma define marca (--navy), destaque (--green), texto de destaque sobre fundo claro (--accent-ink), fundo e menu lateral. ── */
+  :root[data-paleta="nevoa"] { --navy:#1E3A4C; --green:#7FD8BE; --green-mid:#5CC4A6; --accent-ink:#0F6B55; --page-bg:#F2F6F5; --light-bg:#F2F6F5; --text-main:#1D2A33; --gray-text:#566873;
+    --sb-bg:#FFFFFF; --sb-fg:#4A5B66; --sb-fg-strong:#1D2A33; --sb-muted:#5A6B76; --sb-hover:rgba(30,58,76,.06); --sb-line:rgba(30,58,76,.16); --sb-card:rgba(30,58,76,.04); --sb-active-bg:rgba(95,196,166,.24); --sb-active-fg:#0B5A47; }
+  :root[data-paleta="oceano"] { --navy:#0E2A47; --green:#5AB0FF; --green-mid:#3C98F0; --accent-ink:#0F55A8; --page-bg:#F0F5FA; --light-bg:#F0F5FA; --text-main:#14202E; --gray-text:#566677; --sb-bg:#0E2A47; --sb-active-fg:#8CC8FF; }
+  :root[data-paleta="lavanda"] { --navy:#2A2150; --green:#BBA9FF; --green-mid:#A18DF5; --accent-ink:#5236B8; --page-bg:#F6F4FB; --light-bg:#F6F4FB; --text-main:#1E1A33; --gray-text:#62597A; --sb-bg:#2A2150; --sb-active-fg:#CFC2FF; }
+  :root[data-paleta="pessego"] { --navy:#4A2B26; --green:#FFA586; --green-mid:#F58C68; --accent-ink:#A8401C; --page-bg:#FBF5F0; --light-bg:#FBF5F0; --text-main:#2E211E; --gray-text:#6B5650;
+    --sb-bg:#FFF9F4; --sb-fg:#6B4A42; --sb-fg-strong:#3B2420; --sb-muted:#8A6A62; --sb-hover:rgba(74,43,38,.06); --sb-line:rgba(74,43,38,.16); --sb-card:rgba(74,43,38,.04); --sb-active-bg:rgba(255,165,134,.28); --sb-active-fg:#9A3A18; }
+  :root[data-paleta="grafite"] { --navy:#22272F; --green:#E8BD4F; --green-mid:#D2A634; --accent-ink:#7A5800; --page-bg:#F3F3F1; --light-bg:#F3F3F1; --text-main:#1C1F24; --gray-text:#5B6068; --sb-bg:#22272F; --sb-active-fg:#F2CE6B; }
+  :root[data-paleta="contraste"] { --navy:#000000; --green:#FFD400; --green-mid:#E6BF00; --accent-ink:#000000; --page-bg:#FFFFFF; --light-bg:#F2F2F2; --white:#FFFFFF; --text-main:#000000; --gray-text:#2F2F2F; --border-light:rgba(0,0,0,.55);
+    --sb-bg:#000000; --sb-fg:#FFFFFF; --sb-muted:#E0E0E0; --sb-active-bg:#FFD400; --sb-active-fg:#000000; --sb-line:rgba(255,255,255,.6); }
+  /* modo escuro: superfícies voltam ao escuro padrão; destaque e menu seguem a paleta */
+  :root[data-paleta][data-theme="dark"] { --page-bg:#0B1622; --light-bg:#0B1622; --white:#14212F; --gray-text:#9AABBD; --border-light:#24374D; --text-main:#E5E7EB; --accent-ink:var(--green);
+    --sb-bg:#0A1B2A; --sb-fg:rgba(255,255,255,.68); --sb-fg-strong:#FFFFFF; --sb-muted:rgba(255,255,255,.5); --sb-hover:rgba(255,255,255,.07); --sb-line:rgba(255,255,255,.14); --sb-card:rgba(255,255,255,.05); --sb-active-bg:color-mix(in srgb, var(--green) 16%, transparent); --sb-active-fg:var(--green); }
+  @media (prefers-color-scheme: dark) { :root[data-paleta]:not([data-theme="light"]) { --page-bg:#0B1622; --light-bg:#0B1622; --white:#14212F; --gray-text:#9AABBD; --border-light:#24374D; --text-main:#E5E7EB; --accent-ink:var(--green);
+    --sb-bg:#0A1B2A; --sb-fg:rgba(255,255,255,.68); --sb-fg-strong:#FFFFFF; --sb-muted:rgba(255,255,255,.5); --sb-hover:rgba(255,255,255,.07); --sb-line:rgba(255,255,255,.14); --sb-card:rgba(255,255,255,.05); --sb-active-bg:color-mix(in srgb, var(--green) 16%, transparent); --sb-active-fg:var(--green); } }
+
+  /* ── Base ── */
+  body { -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+  .sidebar :focus-visible { outline-color: var(--sb-active-fg); }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-ink) !important; box-shadow: 0 0 0 3px var(--accent-soft); }
+  .resumo-box h2, .modal-box h2, .app-title-auth, .entidade-card .cc-name, .kanban-column-header h3, .ind-bloco-titulo, .cron-etapa-nome, .cron-topo h3, .trein-entidade-nome, .pendencia-card-nome, .busca-resultado-nome, .mensal-mes-titulo, .stat-card .num, .ind-card .num, .email-assunto { font-family: var(--font-display); letter-spacing: -.01em; }
+
+  /* ── Menu lateral ── */
+  .sidebar { background: var(--sb-bg); border-right: 1px solid var(--sb-line); padding: 24px 14px; }
+  .app-brand { color: var(--sb-muted); }
+  .ws-switcher-btn { background: var(--sb-card); border-color: var(--sb-line); color: var(--sb-fg-strong); border-radius: var(--radius-md); }
+  .ws-switcher-btn:hover { background: var(--sb-hover); }
+  .ws-perfil-tag { color: var(--sb-active-fg); }
+  .nav-item { color: var(--sb-fg); border-radius: 12px; padding: 10px 14px; transition: background .15s, color .15s; }
+  .nav-item:hover { background: var(--sb-hover); color: var(--sb-fg-strong); }
+  .nav-item.active { background: var(--sb-active-bg); color: var(--sb-active-fg); }
+  .nav-item .badge-count { background: var(--green); color: var(--navy); }
+  .btn-sidebar { border-color: var(--sb-line); background: var(--sb-card); color: var(--sb-fg); border-radius: 12px; }
+  .btn-sidebar:hover { background: var(--sb-hover); color: var(--sb-fg-strong); }
+  .btn-sidebar.active { background: var(--sb-active-bg); color: var(--sb-active-fg); }
+  #auth-user-saudacao { color: var(--sb-fg-strong) !important; }
+  .aparencia-box { background: var(--sb-card); border-color: var(--sb-line); border-radius: var(--radius-md); }
+  .aparencia-label { color: var(--sb-muted); }
+  .aparencia-row { color: var(--sb-fg-strong); }
+  .switch-slider { background: var(--sb-line); }
+  .switch input:checked + .switch-slider { background: var(--green); }
+  .aparencia-slider-row, .aparencia-footer-row { color: var(--sb-muted); }
+  .aparencia-slider-row input[type=range] { accent-color: var(--sb-active-fg); }
+  .aparencia-restaurar:hover { color: var(--sb-fg-strong); }
+  .paleta-titulo { font-size: 10.5px; color: var(--sb-muted); }
+  .paleta-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .paleta-sw { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--sb-line); cursor: pointer; padding: 0; background: linear-gradient(135deg, var(--sw-sb) 0 50%, var(--sw-cor) 50% 100%); transition: transform .12s; }
+  .paleta-sw:hover { transform: scale(1.1); }
+  .paleta-sw[aria-pressed="true"] { border-color: var(--sb-fg-strong); box-shadow: 0 0 0 2px var(--sb-bg), 0 0 0 4px var(--sb-active-fg); }
+  .paleta-nome { font-size: 11px; color: var(--sb-fg); }
+
+  /* ── Botões e controles ── */
+  .btn { border-radius: 11px; transition: border-color .15s, transform .12s, background .15s; }
+  .btn:hover { border-color: var(--accent-ink); }
+  .btn-primary:hover { background: color-mix(in srgb, var(--navy) 88%, #fff); border-color: var(--navy); }
+  .btn-green:hover { transform: translateY(-1px); filter: brightness(.97); border-color: var(--green); }
+  .btn-sm { border-radius: 10px; }
+  .view-toggle, .pessoa-filter { border-radius: 12px; }
+  .view-toggle-btn, .pessoa-filter-btn { border-radius: 9px; }
+  .view-toggle-btn.active { box-shadow: var(--shadow-soft); }
+  .toolbar input[type=text], .toolbar select, .busca-input, .form-field input, .form-field select, .form-field textarea { border-radius: 11px; }
+  .busca-input { font-size: 16px; padding: 14px 18px; box-shadow: var(--shadow-soft); max-width: 760px; }
+
+  /* ── Cartões e caixas ── */
+  .stat-card, .resumo-box, .entidade-card, .pendencia-card, .trein-entidade-card, .busca-resultado-card, .email-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+  .resumo-box { padding: 26px; }
+  .stat-card .num { font-weight: 800; }
+  .entidade-card, .agenda-card, .ag-item, .kanban-card { transition: transform .12s, box-shadow .15s, border-color .15s; }
+  .entidade-card:hover, .agenda-card:hover { border-color: var(--accent-ink); box-shadow: var(--shadow-up); transform: translateY(-2px); }
+  .ag-item:hover { border-color: var(--accent-ink); }
+  .agenda-card { border-radius: var(--radius-md); box-shadow: var(--shadow-soft); }
+  .ag-item { border-radius: var(--radius-md); }
+  .ag-entidade-badge, .contato-item .ci-cargo { color: var(--accent-ink); background: var(--accent-soft); }
+  .calendario-group-label.hoje { color: var(--accent-ink); }
+  .data-table tbody tr { box-shadow: var(--shadow-soft); }
+  .data-table tbody tr:hover { outline: 1px solid var(--accent-ink); }
+  .data-table thead th.sorted { color: var(--accent-ink); }
+  .data-table td:first-child { border-radius: 12px 0 0 12px; } .data-table td:last-child { border-radius: 0 12px 12px 0; }
+
+  /* ── Calendário ── */
+  .cal-dia-cell { border-radius: var(--radius-md); }
+  .cal-dia-cell.hoje { border-color: var(--accent-ink); }
+  .cal-evento-chip { border-radius: 8px; }
+  .cal-evento-entidade { color: var(--accent-ink); }
+  .cal-evento-chip.feriado-nacional { color: #067A45; }
+  :root[data-theme="dark"] .cal-evento-chip.feriado-nacional { color: #34D399; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cal-evento-chip.feriado-nacional { color: #34D399; } }
+
+  /* ── Quadro de atividades ── */
+  .kanban-column { border-radius: 20px; box-shadow: none; }
+  .kanban-column.drop-hover { border-color: var(--accent-ink); box-shadow: 0 0 0 2px var(--accent-soft) inset; background: var(--accent-soft); }
+  .kanban-wip { font-weight: 700; }
+  .kanban-card { border-radius: var(--radius-md); box-shadow: var(--shadow-soft); padding: 13px 14px; }
+  .kanban-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-up); }
+  .kanban-card.dragging { transform: rotate(1.5deg); }
+  .kanban-add { border-radius: 11px; border-width: 1.5px; }
+  .kanban-add:hover { color: var(--accent-ink); border-color: var(--accent-ink); background: var(--accent-soft); }
+  .kc-label { height: 5px; min-width: 36px; }
+  .kc-entidade { color: var(--accent-ink); background: var(--accent-soft); border-radius: 7px; }
+  .kc-idade { padding: 1px 8px; border-radius: 99px; background: var(--light-bg); }
+  .kc-idade.kc-idade-atencao { color: #92400E; background: rgba(245,158,11,.16); }
+  .kc-idade.kc-idade-atrasada { color: #B91C1C; background: rgba(220,38,38,.12); }
+  :root[data-theme="dark"] .kc-idade.kc-idade-atencao { color: #FBBF24; } :root[data-theme="dark"] .kc-idade.kc-idade-atrasada { color: #F87171; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .kc-idade.kc-idade-atencao { color: #FBBF24; } :root:not([data-theme="light"]) .kc-idade.kc-idade-atrasada { color: #F87171; } }
+  .filter-day-btn.active { background: var(--green); color: var(--navy); }
+
+  /* ── Indicadores ── */
+  .ind-bloco { position: relative; border-radius: var(--radius-lg); border-top-width: 1px; box-shadow: var(--shadow-soft); background: var(--white); padding: 20px; }
+  .ind-bloco::before { content: ''; position: absolute; left: 20px; top: -1px; width: 44px; height: 4px; border-radius: 0 0 4px 4px; background: var(--ind-cor, #64748B); }
+  .ind-card { border-radius: var(--radius-md); background: var(--light-bg); border-color: transparent; padding: 14px 16px; }
+  .ind-card .num { font-size: 32px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .ind-bar { border-radius: 6px 6px 2px 2px; width: 16px; }
+  .ind-bar.criadas { background: #3B82F6; opacity: .8; } .ind-bar.concluidas { background: var(--green-mid); }
+  .pizza-donut::after { background: var(--white); }
+  .prazo-barra { height: 10px; }
+
+  /* ── Assessor: e-mails, busca ── */
+  .email-card { border-radius: var(--radius-lg); padding: 18px 20px; }
+  .email-assunto { font-size: 16px; }
+  .email-tag { border-radius: 99px; padding: 2px 10px; }
+  .email-sugestao { background: var(--accent-soft); border-radius: 12px; padding: 8px 12px; }
+  .busca-resultado-card { padding: 16px 18px; }
+
+  /* ── Cronograma ── */
+  .cron-proj { border-radius: var(--radius-md); }
+  .cron-proj.ativo { border-color: var(--accent-ink); box-shadow: 0 0 0 1px var(--accent-ink) inset; background: var(--accent-soft); }
+  .cron-etapa { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+  .cron-etapa-head:hover { background: var(--light-bg); }
+  .cron-topo h3 { font-size: 22px; letter-spacing: -.02em; }
+  .cron-tabela input[type=text], .cron-tabela input[type=date], .cron-tabela input[type=number], .cron-tabela select { border-radius: 9px; padding: 6px 8px; }
+
+  /* ── Janelas e login ── */
+  .modal-box { border-radius: 22px; box-shadow: 0 24px 60px rgba(2,31,51,.35); }
+  .auth-screen { background: var(--sb-bg); }
+  .auth-tab.active { background: var(--green); color: var(--navy); border-color: var(--green); }
+  .perfil-card { border-radius: var(--radius-md); }
+  .perfil-card.selected { background: var(--accent-soft); border-color: var(--accent-ink); }
+  .ajuda-item { border-radius: var(--radius-md); }
+  .ws-dropdown { border-radius: var(--radius-md); }
+  .ws-dropdown-item.active { background: var(--accent-soft); }
+  .ws-dropdown-action { color: var(--accent-ink); }
+  .stage-badge, .saude-badge, .fase-pill { padding: 4px 11px; }
+  @media (prefers-reduced-motion: reduce) { .btn, .entidade-card, .agenda-card, .ag-item, .kanban-card, .paleta-sw { transition: none; } }
 </style>
+<script>try{var _p=localStorage.getItem('ws_app_paleta');if(_p&&/^[a-z]+$/.test(_p)&&_p!=='classico')document.documentElement.setAttribute('data-paleta',_p)}catch(e){}</script>
 </head>
 <body>
 
@@ -737,6 +900,10 @@
           <span class="aparencia-chevron" id="aparencia-chevron">▸</span>
         </div>
         <div id="aparencia-corpo" style="display:none;">
+          <div class="aparencia-paletas">
+            <div class="aparencia-label" style="cursor:default;"><span>Paleta de cores</span><span class="paleta-nome" id="paleta-nome"></span></div>
+            <div class="paleta-grid" id="paleta-grid" role="group" aria-label="Paleta de cores" style="margin-top:8px;"></div>
+          </div>
           <div class="aparencia-row">
             <span>🌙 Modo escuro</span>
             <label class="switch">
@@ -1410,6 +1577,11 @@ function sombrear(hex, fator) {
 function hexValido(v) { return /^#[0-9A-Fa-f]{6}$/.test(v); }
 function aplicarCorDestaque(cor) {
   const c = cor || DEFAULT_COR_DESTAQUE;
+  if (c.toUpperCase() === DEFAULT_COR_DESTAQUE.toUpperCase()) {   // sem cor própria: deixa a paleta escolhida valer
+    document.documentElement.style.removeProperty('--green');
+    document.documentElement.style.removeProperty('--green-mid');
+    return;
+  }
   document.documentElement.style.setProperty('--green', c);
   document.documentElement.style.setProperty('--green-mid', sombrear(c, 0.85));
 }
@@ -1492,6 +1664,39 @@ function toggleTheme() {
   const saved = localStorage.getItem(THEME_KEY);
   if (saved) document.documentElement.setAttribute('data-theme', saved);
 })();
+
+// ── paleta de cores (preferência pessoal, salva no navegador; o modo escuro continua independente) ──
+// "sb" = cor do menu lateral e "cor" = destaque, só para desenhar a bolinha de escolha. As cores de verdade ficam no CSS (data-paleta).
+const PALETA_KEY = 'ws_app_paleta';
+const PALETAS = [
+  { id: 'classico', nome: 'Clássico', sb: '#021F33', cor: '#00FF7A' },
+  { id: 'nevoa', nome: 'Névoa', sb: '#FFFFFF', cor: '#7FD8BE' },
+  { id: 'oceano', nome: 'Oceano', sb: '#0E2A47', cor: '#5AB0FF' },
+  { id: 'lavanda', nome: 'Lavanda', sb: '#2A2150', cor: '#BBA9FF' },
+  { id: 'pessego', nome: 'Pêssego', sb: '#FFF9F4', cor: '#FFA586' },
+  { id: 'grafite', nome: 'Grafite', sb: '#22272F', cor: '#E8BD4F' },
+  { id: 'contraste', nome: 'Alto contraste', sb: '#000000', cor: '#FFD400' },
+];
+function paletaAtual() {
+  let id = 'classico';
+  try { id = localStorage.getItem(PALETA_KEY) || 'classico'; } catch (e) {}
+  return PALETAS.some(p => p.id === id) ? id : 'classico';
+}
+function aplicarPaleta(id) {
+  const p = PALETAS.find(x => x.id === id) || PALETAS[0];
+  if (p.id === 'classico') document.documentElement.removeAttribute('data-paleta');
+  else document.documentElement.setAttribute('data-paleta', p.id);
+  try { localStorage.setItem(PALETA_KEY, p.id); } catch (e) {}
+  renderPaletas();
+}
+function renderPaletas() {
+  const grid = document.getElementById('paleta-grid');
+  if (!grid) return;
+  const atual = paletaAtual();
+  grid.innerHTML = PALETAS.map(p => `<button type="button" class="paleta-sw" style="--sw-sb:${p.sb};--sw-cor:${p.cor};" title="${p.nome}" aria-label="Paleta ${p.nome}" aria-pressed="${p.id === atual}" onclick="aplicarPaleta('${p.id}')"></button>`).join('');
+  const nome = document.getElementById('paleta-nome');
+  if (nome) nome.textContent = PALETAS.find(p => p.id === atual).nome;
+}
 
 // ── intensidade de linhas/contornos (preferência pessoal, salva no navegador) ──
 const BORDA_KEY = 'ws_app_borda';
@@ -4556,6 +4761,7 @@ const AJUDA_CONTEUDO = [
   ]},
   { categoria: 'Aparência', itens: [
     { p: 'Como mudo as cores do app?', r: 'Configurações → "Cor de Destaque" (botões e realces) e "Cor de Fundo do Painel" (fundo das telas) — cada uma com pré-visualização ao vivo, botão Aplicar e Restaurar padrão. Só o admin edita.' },
+    { p: 'Posso escolher outra paleta de cores só para mim?', r: 'Sim: em "Aparência", no rodapé do menu, escolha Clássico, Névoa, Oceano, Lavanda, Pêssego, Grafite ou Alto contraste. Vale só para você, fica salva no navegador e funciona junto com o modo escuro. Se o admin definiu uma Cor de Destaque própria do workspace, ela continua valendo por cima.' },
     { p: 'O modo escuro/claro e o slider de contorno ficam salvos onde?', r: 'No seu navegador — é uma preferência pessoal, no rodapé da sidebar ("Aparência"). Não afeta o que as outras pessoas do workspace veem.' },
   ]},
   { categoria: 'Backup', itens: [
@@ -5009,6 +5215,7 @@ function importJSON(file) {
   document.getElementById('slider-borda').value = bordaIntensidade;
   document.getElementById('borda-valor').textContent = bordaIntensidade;
   aplicarIntensidadeBorda(bordaIntensidade);
+  renderPaletas();
 
   if (!CONFIG_OK) {
     document.getElementById('auth-screen').style.display = 'flex';

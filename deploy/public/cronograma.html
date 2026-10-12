@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cronograma do projeto</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
   :root { --navy:#021F33; --green:#00FF7A; --page-bg:#F4F5F3; --white:#FFFFFF; --gray-text:#6B7280; --border-light:#E5E7EB; --text-main:#1a1a1a; --light-bg:#F4F5F3; --red:#DC2626; --on-navy:#FFFFFF; }
   :root[data-theme="dark"] { --page-bg:#0B1622; --white:#14212F; --gray-text:#94A3B8; --border-light:#24374D; --text-main:#E5E7EB; --light-bg:#0B1622; }
@@ -48,7 +48,28 @@
   .pill.cliente { color:#B45309; background:rgba(245,158,11,.14); } .pill.equipe { color:#1D4ED8; background:rgba(29,78,216,.12); }
   .bloqueio { background:rgba(220,38,38,.08); border:1px dashed rgba(220,38,38,.4); border-radius:8px; padding:8px 12px; margin:6px 0 10px; font-size:12.5px; }
   .dica { font-size:12px; color:var(--gray-text); margin-bottom:14px; }
+  /* Visual v2: mesma linguagem do app e a paleta que a pessoa escolheu lá em Aparência (guardada neste navegador). Só estilo; nada de comportamento muda. */
+  :root { --radius-md:14px; --radius-lg:18px; --shadow-soft:0 1px 2px rgba(2,31,51,.05), 0 8px 24px rgba(2,31,51,.06); --gray-text:#5F6673; --accent-ink:#067A45; }
+  :root[data-theme="dark"] { --accent-ink:var(--green); --gray-text:#9AABBD; --shadow-soft:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent-ink:var(--green); --gray-text:#9AABBD; --shadow-soft:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); } }
+  :root[data-paleta="nevoa"] { --navy:#1E3A4C; --green:#7FD8BE; --accent-ink:#0F6B55; --page-bg:#F2F6F5; --light-bg:#F2F6F5; --text-main:#1D2A33; --gray-text:#566873; }
+  :root[data-paleta="oceano"] { --navy:#0E2A47; --green:#5AB0FF; --accent-ink:#0F55A8; --page-bg:#F0F5FA; --light-bg:#F0F5FA; --text-main:#14202E; --gray-text:#566677; }
+  :root[data-paleta="lavanda"] { --navy:#2A2150; --green:#BBA9FF; --accent-ink:#5236B8; --page-bg:#F6F4FB; --light-bg:#F6F4FB; --text-main:#1E1A33; --gray-text:#62597A; }
+  :root[data-paleta="pessego"] { --navy:#4A2B26; --green:#FFA586; --accent-ink:#A8401C; --page-bg:#FBF5F0; --light-bg:#FBF5F0; --text-main:#2E211E; --gray-text:#6B5650; }
+  :root[data-paleta="grafite"] { --navy:#22272F; --green:#E8BD4F; --accent-ink:#7A5800; --page-bg:#F3F3F1; --light-bg:#F3F3F1; --text-main:#1C1F24; --gray-text:#5B6068; }
+  :root[data-paleta="contraste"] { --navy:#000000; --green:#FFD400; --accent-ink:#000000; --page-bg:#FFFFFF; --light-bg:#F2F2F2; --text-main:#000000; --gray-text:#2F2F2F; --border-light:rgba(0,0,0,.55); }
+  :root[data-paleta][data-theme="dark"] { --page-bg:#0B1622; --light-bg:#0B1622; --white:#14212F; --gray-text:#9AABBD; --border-light:#24374D; --text-main:#E5E7EB; --accent-ink:var(--green); }
+  @media (prefers-color-scheme: dark) { :root[data-paleta]:not([data-theme="light"]) { --page-bg:#0B1622; --light-bg:#0B1622; --white:#14212F; --gray-text:#9AABBD; --border-light:#24374D; --text-main:#E5E7EB; --accent-ink:var(--green); } }
+  :focus-visible { outline:2px solid var(--accent-ink); outline-offset:2px; }
+  header .marca, .login h1, .titulo h1, .etapa-nome { font-family:'Bricolage Grotesque','Inter',system-ui,sans-serif; letter-spacing:-.01em; }
+  header .btn:hover { border-color:var(--green); }
+  .btn { border-radius:11px; } .btn-primary { font-weight:800; }
+  .cartao { border-radius:var(--radius-lg); box-shadow:var(--shadow-soft); }
+  .etapa { border-radius:var(--radius-lg); box-shadow:var(--shadow-soft); }
+  .campo input, td input, td select { border-radius:10px; }
+  .campo input:focus, td input:focus, td select:focus { outline:none; border-color:var(--accent-ink); box-shadow:0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
 </style>
+<script>try{var _p=localStorage.getItem('ws_app_paleta');if(_p&&/^[a-z]+$/.test(_p)&&_p!=='classico')document.documentElement.setAttribute('data-paleta',_p)}catch(e){}</script>
 </head>
 <body>
 <header>
