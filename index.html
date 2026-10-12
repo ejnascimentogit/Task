@@ -1050,6 +1050,23 @@
   .kanban-nova-raia button { width:100%; font:inherit; font-size:13px; font-weight:600; padding:14px; border:2px dashed var(--border-light); border-radius:16px; background:transparent; color:var(--gray-text); cursor:pointer; }
   .kanban-nova-raia button:hover { border-color:var(--accent-ink); color:var(--accent-ink); }
   @media (hover:none) { .kanban-col-tools { opacity:1; } }
+
+  /* Raias: modal com antes e depois */
+  .raia-linha { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .raia-rotulo { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--gray-text); margin:14px 0 6px; }
+  .raia-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid var(--border-light); border-radius:999px; font-size:13px; }
+  .raia-chip small { opacity:.65; }
+  .raia-chip em { font-style:normal; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+  .raia-chip.novo { border-color:#22c55e; background:rgba(34,197,94,.16); }
+  .raia-chip.editado { border-color:#f59e0b; background:rgba(245,158,11,.16); }
+  .raia-chip.removido { border-color:#ef4444; background:rgba(239,68,68,.14); }
+  .raia-chip.removido span { text-decoration:line-through; }
+  .raia-chip.inativa { opacity:.55; }
+  .raia-aviso { margin-top:14px; font-size:13px; line-height:1.45; padding:10px 12px; border-radius:12px; background:var(--light-bg); }
+  .raia-aviso.erro { background:rgba(239,68,68,.14); }
+  .btn.btn-perigo { background:#dc2626; border-color:#dc2626; color:#fff; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .raia-toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:300; max-width:90vw; padding:12px 18px; border-radius:14px; background:#0f2233; color:#fff; font-size:14px; box-shadow:0 10px 30px rgba(0,0,0,.3); }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1806,6 +1823,20 @@
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="closeTreinamentoModal()">Fechar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveTreinamentoEtapa)">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="raia-modal-overlay">
+  <div class="modal-box" style="max-width:560px;">
+    <h2 id="raia-titulo">Raia</h2>
+    <div id="raia-corpo"></div>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharRaiaModal()">Cancelar</button>
+        <button class="btn btn-primary" id="raia-ok" onclick="withLock(this, confirmarRaiaModal)">Confirmar</button>
       </div>
     </div>
   </div>
@@ -5861,37 +5892,135 @@ async function updateKanbanColuna(id, changes) {
   Object.assign(KANBAN_COLUNAS.find(c=>c.id===id), changes);
   renderKanbanColunasList(); renderAtividades();
 }
-async function novaRaiaDoQuadro() {
-  if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode criar raias.'); return; }
-  const nome = (prompt('Nome da nova raia:') || '').trim();
-  if (!nome) return;
-  const id = slugify(nome, KANBAN_COLUNAS);
-  const { error } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id, nome, ordem: KANBAN_COLUNAS.length + 1, ativo: true });
-  if (error) { alert(error.message); return; }
-  KANBAN_COLUNAS.push({ id, nome, ordem: KANBAN_COLUNAS.length + 1, ativo: true });
-  renderKanbanColunasList(); renderAtividades();
+// ── Raias do quadro: criar, renomear e remover com pré-visualização "antes e depois" ──
+let raiaModal = null;
+function raiaQtd(id) { return atividades.filter(a => a.coluna === id).length; }
+function raiaListaOrdenada() { return [...KANBAN_COLUNAS].sort((a, b) => a.ordem - b.ordem); }
+function raiaChips(itens) {
+  return `<div class="raia-linha">${itens.map(i => `<span class="raia-chip ${i.cls || ''} ${i.ativo === false ? 'inativa' : ''}"><span>${escapeHtml(i.nome)}</span><small>${i.n}</small>${i.tag ? `<em>${i.tag}</em>` : ''}</span>`).join('')}</div>`;
 }
-async function renomearKanbanColuna(id) {
-  if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode editar raias.'); return; }
-  const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
-  const nome = (prompt('Novo nome da raia:', col.nome) || '').trim();
-  if (!nome || nome === col.nome) return;
-  await updateKanbanColuna(id, { nome });
+function raiaBase(marcarId, depois) {
+  return raiaListaOrdenada().map(c => {
+    const b = { nome: c.nome, n: raiaQtd(c.id), ativo: c.ativo };
+    if (depois && depois[c.id]) Object.assign(b, depois[c.id]);
+    return b;
+  });
 }
-// Remove a raia só se estiver vazia (nenhuma atividade, nem cancelada): senão o usuário move as atividades ou desativa a raia.
-async function removerKanbanColuna(id) {
-  if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode remover raias.'); return; }
-  if (id === 'concluida') { alert('A raia "Concluído" é usada pelos relatórios e não pode ser removida. Se não quiser vê-la, desative.'); return; }
-  const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
-  const { count, error: e1 } = await sb.from('atividades').select('id', { count: 'exact', head: true }).eq('workspace_id', activeWorkspace.id).eq('coluna', id);
-  if (e1) { alert(e1.message); return; }
-  if (count > 0) { alert(`A raia "${col.nome}" tem ${count} atividade(s). Mova as atividades para outra raia ou use "Desativar" para escondê-la sem apagar nada.`); return; }
-  if (!confirm(`Remover a raia "${col.nome}"? Ela está vazia.`)) return;
-  const { error } = await sb.from('kanban_colunas').delete().eq('workspace_id', activeWorkspace.id).eq('id', id);
-  if (error) { alert(error.message); return; }
-  const i = KANBAN_COLUNAS.findIndex(c => c.id === id); if (i >= 0) KANBAN_COLUNAS.splice(i, 1);
-  renderKanbanColunasList(); renderAtividades();
+function abrirRaiaModal(tipo, id) {
+  if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode alterar raias.'); return; }
+  const col = id ? KANBAN_COLUNAS.find(c => c.id === id) : null;
+  if (tipo !== 'nova' && !col) return;
+  if (tipo === 'remover' && id === 'concluida') { alert('A raia "Concluído" é usada pelos relatórios e não pode ser removida. Se não quiser vê-la, desative.'); return; }
+  raiaModal = { tipo, id };
+  document.getElementById('raia-titulo').textContent = tipo === 'nova' ? 'Nova raia' : (tipo === 'editar' ? 'Renomear raia' : 'Remover raia');
+  const ok = document.getElementById('raia-ok');
+  ok.textContent = tipo === 'nova' ? 'Criar raia' : (tipo === 'editar' ? 'Salvar nome' : 'Remover raia');
+  ok.className = 'btn ' + (tipo === 'remover' ? 'btn-perigo' : 'btn-primary');
+  let corpo = '';
+  if (tipo === 'nova' || tipo === 'editar') {
+    corpo = `<div class="form-field full"><label>${tipo === 'nova' ? 'Nome da nova raia' : 'Novo nome'}</label><input type="text" id="raia-nome" maxlength="40" value="${tipo === 'editar' ? escapeHtml(col.nome) : ''}" oninput="atualizarRaiaPrevia()" onkeydown="if(event.key==='Enter'){event.preventDefault();withLock(document.getElementById('raia-ok'), confirmarRaiaModal)}"></div>`;
+  } else {
+    const outras = raiaListaOrdenada().filter(c => c.id !== id && c.id !== 'concluida');
+    const n = raiaQtd(id);
+    if (n > 0) {
+      corpo = outras.length
+        ? `<div class="raia-aviso">A raia "<b>${escapeHtml(col.nome)}</b>" tem <b>${n}</b> atividade(s). Escolha para onde movê-las: nada é apagado.</div><div class="form-field full" style="margin-top:10px;"><label>Mover as atividades para</label><select id="raia-destino" onchange="atualizarRaiaPrevia()">${outras.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('')}</select></div>`
+        : `<div class="raia-aviso erro">Esta raia tem ${n} atividade(s) e não há outra raia para recebê-las. Crie outra raia antes de remover, ou use "Desativar" para escondê-la.</div>`;
+    } else {
+      corpo = `<div class="raia-aviso">A raia "<b>${escapeHtml(col.nome)}</b>" está vazia e será removida.</div>`;
+    }
+  }
+  corpo += `<div class="raia-rotulo">Antes</div><div id="raia-antes"></div><div class="raia-rotulo">Depois</div><div id="raia-depois"></div><div id="raia-msg"></div>`;
+  document.getElementById('raia-corpo').innerHTML = corpo;
+  document.getElementById('raia-modal-overlay').classList.add('open');
+  atualizarRaiaPrevia();
+  const inp = document.getElementById('raia-nome'); if (inp) { inp.focus(); inp.select(); }
 }
+function fecharRaiaModal() { document.getElementById('raia-modal-overlay').classList.remove('open'); raiaModal = null; }
+function raiaNomeDigitado() { const e = document.getElementById('raia-nome'); return e ? e.value.trim() : ''; }
+function raiaNomeRepetido(nome, ignorarId) {
+  return KANBAN_COLUNAS.some(c => c.id !== ignorarId && c.nome.trim().toLowerCase() === nome.toLowerCase());
+}
+function atualizarRaiaPrevia() {
+  if (!raiaModal) return;
+  const { tipo, id } = raiaModal;
+  let antes = raiaBase(), depois, msg = '', ok = true;
+  if (tipo === 'nova') {
+    const nome = raiaNomeDigitado();
+    depois = raiaBase().concat([{ nome: nome || '…', n: 0, cls: 'novo', tag: 'nova' }]);
+    if (!nome) ok = false; else if (raiaNomeRepetido(nome)) { msg = 'Já existe uma raia com esse nome.'; ok = false; }
+  } else if (tipo === 'editar') {
+    const nome = raiaNomeDigitado();
+    antes = raiaBase(); antes.forEach((b, i) => { if (raiaListaOrdenada()[i].id === id) b.cls = 'editado'; });
+    depois = raiaBase(null, { [id]: { nome: nome || '…', cls: 'editado', tag: 'novo nome' } });
+    if (!nome) ok = false; else if (nome === KANBAN_COLUNAS.find(c => c.id === id).nome) { ok = false; }
+    else if (raiaNomeRepetido(nome, id)) { msg = 'Já existe uma raia com esse nome.'; ok = false; }
+    const n = raiaQtd(id);
+    if (ok && n) msg = `As ${n} atividade(s) desta raia continuam nela, só o nome muda.`;
+  } else {
+    antes.forEach((b, i) => { if (raiaListaOrdenada()[i].id === id) b.cls = 'removido'; });
+    const destino = (document.getElementById('raia-destino') || {}).value;
+    const n = raiaQtd(id);
+    depois = raiaListaOrdenada().filter(c => c.id !== id).map(c => ({ nome: c.nome, n: raiaQtd(c.id) + (c.id === destino ? n : 0), ativo: c.ativo, cls: c.id === destino && n ? 'editado' : '', tag: c.id === destino && n ? `+${n}` : '' }));
+    antes = antes.map(b => b.cls === 'removido' ? Object.assign(b, { tag: 'removida' }) : b);
+    if (n > 0 && !destino) ok = false;
+  }
+  document.getElementById('raia-antes').innerHTML = raiaChips(antes);
+  document.getElementById('raia-depois').innerHTML = raiaChips(depois);
+  const m = document.getElementById('raia-msg');
+  m.innerHTML = msg ? `<div class="raia-aviso ${ok ? '' : 'erro'}">${escapeHtml(msg)}</div>` : '';
+  document.getElementById('raia-ok').disabled = !ok;
+}
+function avisoRaia(texto) {
+  const el = document.createElement('div');
+  el.className = 'raia-toast'; el.textContent = texto;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+async function confirmarRaiaModal() {
+  if (!raiaModal) return;
+  const { tipo, id } = raiaModal;
+  if (tipo === 'nova') {
+    const nome = raiaNomeDigitado();
+    if (!nome || raiaNomeRepetido(nome)) return;
+    const novoId = slugify(nome, KANBAN_COLUNAS);
+    const ordem = KANBAN_COLUNAS.length + 1;
+    const { error } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id: novoId, nome, ordem, ativo: true });
+    if (error) { alert(error.message); return; }
+    KANBAN_COLUNAS.push({ id: novoId, nome, ordem, ativo: true });
+    fecharRaiaModal(); renderKanbanColunasList(); renderAtividades();
+    avisoRaia(`Raia criada: "${nome}".`);
+  } else if (tipo === 'editar') {
+    const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
+    const nome = raiaNomeDigitado(); const antigo = col.nome;
+    if (!nome || nome === antigo || raiaNomeRepetido(nome, id)) return;
+    const { error } = await sb.from('kanban_colunas').update({ nome }).eq('workspace_id', activeWorkspace.id).eq('id', id);
+    if (error) { alert(error.message); return; }
+    col.nome = nome;
+    fecharRaiaModal(); renderKanbanColunasList(); renderAtividades();
+    avisoRaia(`Raia renomeada: "${antigo}" → "${nome}".`);
+  } else {
+    const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
+    const { count, error: e1 } = await sb.from('atividades').select('id', { count: 'exact', head: true }).eq('workspace_id', activeWorkspace.id).eq('coluna', id);
+    if (e1) { alert(e1.message); return; }
+    const destino = (document.getElementById('raia-destino') || {}).value;
+    if (count > 0) {
+      if (!destino) { alert(`A raia "${col.nome}" tem ${count} atividade(s). Escolha para onde movê-las.`); return; }
+      const { error: e2 } = await sb.from('atividades').update({ coluna: destino }).eq('workspace_id', activeWorkspace.id).eq('coluna', id);
+      if (e2) { alert(e2.message); return; }
+      atividades.forEach(a => { if (a.coluna === id) a.coluna = destino; });
+    }
+    const { error } = await sb.from('kanban_colunas').delete().eq('workspace_id', activeWorkspace.id).eq('id', id);
+    if (error) { alert(error.message); return; }
+    const i = KANBAN_COLUNAS.findIndex(c => c.id === id); if (i >= 0) KANBAN_COLUNAS.splice(i, 1);
+    const destNome = (KANBAN_COLUNAS.find(c => c.id === destino) || {}).nome;
+    fecharRaiaModal(); renderKanbanColunasList(); renderAtividades();
+    avisoRaia(`Raia removida: "${col.nome}"` + (count > 0 && destNome ? `. ${count} atividade(s) movida(s) para "${destNome}".` : '.'));
+  }
+}
+function novaRaiaDoQuadro() { abrirRaiaModal('nova'); }
+function renomearKanbanColuna(id) { abrirRaiaModal('editar', id); }
+function removerKanbanColuna(id) { abrirRaiaModal('remover', id); }
 function toggleKanbanColunaAtiva(id, ativo) { return updateKanbanColuna(id, { ativo }); }
 async function moverKanbanColuna(id, direcao) {
   const lista = [...KANBAN_COLUNAS].sort((a,b)=>a.ordem-b.ordem);
