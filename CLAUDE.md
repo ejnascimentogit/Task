@@ -153,3 +153,5 @@ Bloco no Resumo do Dia (só perfil Pessoal), sem IA e sem chave. Tempo pelo Open
 - **Portal `/cronograma` com linha do tempo (2026-10-12):** etapas em passos clicáveis, aviso "N itens dependem de você" e contador por etapa. Só leitura e estilo.
 
 - **Datas comemorativas e raias (2026-10-12):** datas padrão (`DEFAULT_FERIADOS_COMERCIAIS`, com as móveis calculadas) aparecem no Calendário sem sincronizar (caixa em Configurações → Feriados & Datas, `ws_datas_padrao`); feriados nacionais têm plano B local se a BrasilAPI falhar. Raias do quadro: criar/renomear/remover no próprio quadro e em Configurações (só admin; remove só se vazia; `concluida` não remove). A Sincronização continua existindo.
+
+- **Títulos grandes (2026-10-12):** `h2.view-titulo` nas telas com cartão (Agenda, E-mails, Resumo do Dia, Indicadores, Buscar, Cronograma) e `view-head` novo em Pendências, Treinamentos e Lâmina. Só estilo.

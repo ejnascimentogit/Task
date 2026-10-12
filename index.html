@@ -996,6 +996,7 @@
   .view-head h1 { font-family: var(--font-display); font-size: clamp(28px, 3.6vw, 38px); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; }
   .view-head p { margin-top: 6px; color: var(--gray-text); }
   .view-head-acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+  .resumo-box h2.view-titulo { font-family: var(--font-display); font-size: clamp(28px, 3.6vw, 38px); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; margin-bottom: 6px; }
   .view-head-acoes .btn { padding: 11px 20px; font-size: 13.5px; border-radius: 12px; }
   #view-atividades .atividades-toolbar { margin-bottom: 18px; gap: 12px 24px; }
   #pessoa-filter-atividades, #pessoa-filter-agenda, #pessoa-filter-indicadores { background: none; border: 0; padding: 0; gap: 8px; }
@@ -1231,6 +1232,7 @@
       </section>
 
       <section id="view-pendencias" style="display:none">
+        <div class="view-head"><div><h1>Pendências</h1><p>O que ainda está em aberto, com uma observação em cada item.</p></div></div>
         <div class="toolbar">
           <input type="text" id="pend-search-input" placeholder="Buscar..." oninput="renderPendenciasOverview()">
         </div>
@@ -1239,7 +1241,7 @@
 
       <section id="view-resumo" style="display:none">
         <div class="resumo-box">
-          <h2>Resumo do Dia</h2>
+          <h2 class="view-titulo">Resumo do Dia</h2>
           <div class="resumo-sub" id="resumo-data"></div>
           <div class="resumo-actions">
             <input type="date" id="resumo-filtro-data" onchange="setResumoFiltroData(this.value)" style="font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);">
@@ -1258,7 +1260,7 @@
       <section id="view-agenda" style="display:none">
         <div class="resumo-box">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-            <h2 style="margin-bottom:0;">Agenda</h2>
+            <h2 class="view-titulo" style="margin-bottom:0;">Agenda</h2>
             <div style="display:flex;gap:8px;align-items:center;">
               <div class="view-toggle">
                 <button class="view-toggle-btn active" id="agenda-view-btn-lista" onclick="setAgendaView('lista')">☰ Lista</button>
@@ -1300,6 +1302,7 @@
       </section>
 
       <section id="view-treinamentos" style="display:none">
+        <div class="view-head"><div><h1>Treinamentos</h1><p>As etapas de treinamento de cada cliente e o andamento delas.</p></div></div>
         <div class="toolbar">
           <input type="text" id="trein-search-input" placeholder="Buscar..." oninput="renderTreinamentos()">
           <div class="spacer"></div>
@@ -1311,7 +1314,7 @@
 
       <section id="view-indicadores" style="display:none">
         <div class="resumo-box">
-          <h2 style="margin-bottom:0;">📊 Indicadores</h2>
+          <h2 class="view-titulo" style="margin-bottom:0;">Indicadores</h2>
           <div class="pessoa-filter" id="pessoa-filter-indicadores" style="margin-top:14px;"></div>
           <div class="ind-bloco" id="ind-b-fila" style="--ind-cor:#64748B;">
             <div class="ind-bloco-titulo">Fila atual, por coluna do quadro</div>
@@ -1354,7 +1357,7 @@
 
       <section id="view-emails" style="display:none">
         <div class="resumo-box">
-          <h2 style="margin-bottom:4px;">📧 E-mails</h2>
+          <h2 class="view-titulo">E-mails</h2>
           <div class="resumo-sub" id="emails-sub"></div>
           <div class="resumo-actions">
             <button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button>
@@ -1367,7 +1370,7 @@
 
       <section id="view-buscar" style="display:none">
         <div class="resumo-box">
-          <h2 style="margin-bottom:4px;">🔍 Buscar</h2>
+          <h2 class="view-titulo">Buscar</h2>
           <div class="resumo-sub" id="buscar-sub"></div>
           <div class="busca-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="buscar-input" class="busca-input" placeholder="O que você quer encontrar?" oninput="buscarNoWorkspace()" aria-label="Buscar"></div>
           <div class="busca-sugestoes" id="buscar-sugestoes"></div>
@@ -1376,6 +1379,7 @@
       </section>
 
       <section id="view-lamina" style="display:none">
+        <div class="view-head"><div><h1>Lâmina</h1><p>Uma folha com o andamento e as pendências de cada cliente, pronta para enviar.</p></div></div>
         <div class="toolbar">
           <div class="spacer"></div>
           <button class="btn btn-sm" id="btn-lamina-colapsar" onclick="toggleTodasLaminas()">▸ Recolher todos</button>
@@ -1388,7 +1392,7 @@
 
       <section id="view-cronograma" style="display:none">
         <div class="resumo-box">
-          <h2 style="margin-bottom:4px;">🗂 Cronograma dos projetos</h2>
+          <h2 class="view-titulo">Cronograma dos projetos</h2>
           <div class="resumo-sub">Cada projeto tem o seu cronograma. O cliente acompanha (e atualiza os itens que são dele) pelo portal, com um login só dele.</div>
           <div class="cron-layout">
             <div class="cron-lista" id="cron-lista"></div>
