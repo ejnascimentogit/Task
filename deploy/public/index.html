@@ -1008,7 +1008,7 @@
   .kanban-column-header { padding: 2px 4px 14px; }
   .kanban-column-header h3 { font-size: 14.5px; }
   .kanban-wip { font-weight: 700; padding: 1px 10px; }
-  .kanban-card { padding: 15px 16px 14px; margin-bottom: 12px; border-top: 3px solid var(--card-cor, transparent); display: block; }
+  .kanban-card { padding: 15px 16px 14px; margin-bottom: 12px; border-top: 3px solid var(--card-cor, var(--col-cor, var(--gray-text))); display: block; }   /* sem etiqueta, a faixa usa a cor da coluna */
   .kanban-card[data-label="red"] { --card-cor: var(--red); } .kanban-card[data-label="orange"] { --card-cor: var(--amber); }
   .kanban-card[data-label="yellow"] { --card-cor: #F2C94C; } .kanban-card[data-label="blue"] { --card-cor: #4A90D9; }
   .kanban-card .kc-label { display: none; }
