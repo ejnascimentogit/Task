@@ -5864,13 +5864,13 @@ function renderKanbanColunasList() {
   const lista = [...KANBAN_COLUNAS].sort((a,b)=>a.ordem-b.ordem);
   document.getElementById('kanban-colunas-list').innerHTML = lista.map((c,i) => `
     <div class="etapa-row" style="${c.ativo?'':'opacity:.55;'}">
-      <input type="text" value="${escapeHtml(c.nome)}" ${souAdmin?'':'disabled'} onchange="withLock(this, () => updateKanbanColuna('${c.id}', {nome:this.value}))">
+      <input type="text" value="${escapeHtml(c.nome)}" ${souAdmin?'':'disabled'} onchange="renomearDaLista('${c.id}', this)">
       <span class="etapa-usage">${c.ativo?'ativa':'inativa'}</span>
       ${souAdmin ? `
         <button class="icon-btn" ${i===0?'disabled':''} onclick="withLock(this, () => moverKanbanColuna('${c.id}', -1))" title="Mover pra cima">▲</button>
         <button class="icon-btn" ${i===lista.length-1?'disabled':''} onclick="withLock(this, () => moverKanbanColuna('${c.id}', 1))" title="Mover pra baixo">▼</button>
-        <button class="icon-btn ${c.ativo?'danger':''}" onclick="withLock(this, () => toggleKanbanColunaAtiva('${c.id}', ${!c.ativo}))">${c.ativo?'Desativar':'Reativar'}</button>
-        ${c.id === 'concluida' ? '' : `<button class="icon-btn danger" title="Remover (só se estiver vazia)" onclick="withLock(this, () => removerKanbanColuna('${c.id}'))">Remover</button>`}
+        <button class="icon-btn ${c.ativo?'danger':''}" onclick="abrirRaiaModal('${c.ativo?'desativar':'reativar'}', '${c.id}')">${c.ativo?'Desativar':'Reativar'}</button>
+        ${c.id === 'concluida' ? '' : `<button class="icon-btn danger" title="Remover (só se estiver vazia)" onclick="removerKanbanColuna('${c.id}')">Remover</button>`}
       ` : ''}
     </div>`).join('') || `<div style="font-size:12.5px;color:var(--gray-text);">Nenhuma raia ainda.</div>`;
 }
@@ -5878,13 +5878,8 @@ async function addKanbanColuna() {
   const nomeInput = document.getElementById('new-kanban-nome');
   const nome = nomeInput.value.trim();
   if (!nome) return;
-  const id = slugify(nome, KANBAN_COLUNAS);
-  const ordem = KANBAN_COLUNAS.length + 1;
-  const { error } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id, nome, ordem, ativo: true });
-  if (error) { alert(error.message); return; }
-  KANBAN_COLUNAS.push({ id, nome, ordem, ativo: true });
   nomeInput.value = '';
-  renderKanbanColunasList(); renderAtividades();
+  abrirRaiaModal('nova', null, nome);
 }
 async function updateKanbanColuna(id, changes) {
   const { error } = await sb.from('kanban_colunas').update(changes).eq('workspace_id', activeWorkspace.id).eq('id', id);
@@ -5906,19 +5901,22 @@ function raiaBase(marcarId, depois) {
     return b;
   });
 }
-function abrirRaiaModal(tipo, id) {
+function abrirRaiaModal(tipo, id, nomeInicial) {
   if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode alterar raias.'); return; }
   const col = id ? KANBAN_COLUNAS.find(c => c.id === id) : null;
   if (tipo !== 'nova' && !col) return;
   if (tipo === 'remover' && id === 'concluida') { alert('A raia "Concluído" é usada pelos relatórios e não pode ser removida. Se não quiser vê-la, desative.'); return; }
   raiaModal = { tipo, id };
-  document.getElementById('raia-titulo').textContent = tipo === 'nova' ? 'Nova raia' : (tipo === 'editar' ? 'Renomear raia' : 'Remover raia');
+  document.getElementById('raia-titulo').textContent = { nova: 'Nova raia', editar: 'Renomear raia', remover: 'Remover raia', desativar: 'Desativar raia', reativar: 'Reativar raia' }[tipo];
   const ok = document.getElementById('raia-ok');
-  ok.textContent = tipo === 'nova' ? 'Criar raia' : (tipo === 'editar' ? 'Salvar nome' : 'Remover raia');
+  ok.textContent = { nova: 'Criar raia', editar: 'Salvar nome', remover: 'Remover raia', desativar: 'Desativar raia', reativar: 'Reativar raia' }[tipo];
   ok.className = 'btn ' + (tipo === 'remover' ? 'btn-perigo' : 'btn-primary');
   let corpo = '';
   if (tipo === 'nova' || tipo === 'editar') {
-    corpo = `<div class="form-field full"><label>${tipo === 'nova' ? 'Nome da nova raia' : 'Novo nome'}</label><input type="text" id="raia-nome" maxlength="40" value="${tipo === 'editar' ? escapeHtml(col.nome) : ''}" oninput="atualizarRaiaPrevia()" onkeydown="if(event.key==='Enter'){event.preventDefault();withLock(document.getElementById('raia-ok'), confirmarRaiaModal)}"></div>`;
+    corpo = `<div class="form-field full"><label>${tipo === 'nova' ? 'Nome da nova raia' : 'Novo nome'}</label><input type="text" id="raia-nome" maxlength="40" value="${tipo === 'editar' ? escapeHtml(nomeInicial || col.nome) : escapeHtml(nomeInicial || '')}" oninput="atualizarRaiaPrevia()" onkeydown="if(event.key==='Enter'){event.preventDefault();withLock(document.getElementById('raia-ok'), confirmarRaiaModal)}"></div>`;
+  } else if (tipo === 'desativar' || tipo === 'reativar') {
+    const n = raiaQtd(id);
+    corpo = `<div class="raia-aviso">${tipo === 'desativar' ? `A raia "<b>${escapeHtml(col.nome)}</b>" deixa de aparecer no quadro. Nada é apagado${n ? `: as ${n} atividade(s) ficam guardadas nela` : ''} e dá para reativar quando quiser.` : `A raia "<b>${escapeHtml(col.nome)}</b>" volta a aparecer no quadro${n ? ` com as ${n} atividade(s) dela` : ''}.`}</div>`;
   } else {
     const outras = raiaListaOrdenada().filter(c => c.id !== id && c.id !== 'concluida');
     const n = raiaQtd(id);
@@ -5957,6 +5955,10 @@ function atualizarRaiaPrevia() {
     else if (raiaNomeRepetido(nome, id)) { msg = 'Já existe uma raia com esse nome.'; ok = false; }
     const n = raiaQtd(id);
     if (ok && n) msg = `As ${n} atividade(s) desta raia continuam nela, só o nome muda.`;
+  } else if (tipo === 'desativar' || tipo === 'reativar') {
+    const des = tipo === 'desativar';
+    antes.forEach((b, i) => { if (raiaListaOrdenada()[i].id === id) b.cls = 'editado'; });
+    depois = raiaBase(null, { [id]: { ativo: !des, cls: 'editado', tag: des ? 'desativada' : 'reativada' } });
   } else {
     antes.forEach((b, i) => { if (raiaListaOrdenada()[i].id === id) b.cls = 'removido'; });
     const destino = (document.getElementById('raia-destino') || {}).value;
@@ -5999,6 +6001,12 @@ async function confirmarRaiaModal() {
     col.nome = nome;
     fecharRaiaModal(); renderKanbanColunasList(); renderAtividades();
     avisoRaia(`Raia renomeada: "${antigo}" → "${nome}".`);
+  } else if (tipo === 'desativar' || tipo === 'reativar') {
+    const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
+    const des = tipo === 'desativar';
+    fecharRaiaModal();
+    await updateKanbanColuna(id, { ativo: !des });
+    avisoRaia(`Raia ${des ? 'desativada' : 'reativada'}: "${col.nome}".`);
   } else {
     const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
     const { count, error: e1 } = await sb.from('atividades').select('id', { count: 'exact', head: true }).eq('workspace_id', activeWorkspace.id).eq('coluna', id);
@@ -6019,6 +6027,12 @@ async function confirmarRaiaModal() {
   }
 }
 function novaRaiaDoQuadro() { abrirRaiaModal('nova'); }
+function renomearDaLista(id, input) {
+  const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
+  const novo = input.value.trim(); input.value = col.nome;
+  if (!novo || novo === col.nome) return;
+  abrirRaiaModal('editar', id, novo);
+}
 function renomearKanbanColuna(id) { abrirRaiaModal('editar', id); }
 function removerKanbanColuna(id) { abrirRaiaModal('remover', id); }
 function toggleKanbanColunaAtiva(id, ativo) { return updateKanbanColuna(id, { ativo }); }
