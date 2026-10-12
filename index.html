@@ -990,6 +990,35 @@
   .cal-mes-grid .cal-evento-chip .cal-evento-hora { font-weight: 500; margin-right: 3px; font-variant-numeric: tabular-nums; color: var(--text-main); opacity: .7; }
   .cal-mes-grid .cal-evento-chip input[type=checkbox] { width: 11px; height: 11px; margin: 0 5px 0 0; vertical-align: -1px; }
   .cal-mes-grid .cal-evento-chip:hover { filter: brightness(.97); }
+
+  /* ══ Atividades como no protótipo aprovado: cabeçalho, filtros em pílulas, colunas que dividem a largura, cartão com faixa colorida da etiqueta ══ */
+  .view-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+  .view-head h1 { font-family: var(--font-display); font-size: clamp(28px, 3.6vw, 38px); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; }
+  .view-head p { margin-top: 6px; color: var(--gray-text); }
+  .view-head-acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+  .view-head-acoes .btn { padding: 11px 20px; font-size: 13.5px; border-radius: 12px; }
+  #view-atividades .atividades-toolbar { margin-bottom: 18px; gap: 12px 24px; }
+  #pessoa-filter-atividades, #pessoa-filter-agenda, #pessoa-filter-indicadores { background: none; border: 0; padding: 0; gap: 8px; }
+  #pessoa-filter-atividades .pessoa-filter-btn, #pessoa-filter-agenda .pessoa-filter-btn, #pessoa-filter-indicadores .pessoa-filter-btn { border: 1px solid var(--border-light); background: var(--white); border-radius: 99px; padding: 5px 15px 5px 5px; }
+  #pessoa-filter-atividades .pessoa-filter-btn:first-child, #pessoa-filter-agenda .pessoa-filter-btn:first-child, #pessoa-filter-indicadores .pessoa-filter-btn:first-child { padding-left: 15px; }
+  #pessoa-filter-atividades .pessoa-filter-btn.active, #pessoa-filter-agenda .pessoa-filter-btn.active, #pessoa-filter-indicadores .pessoa-filter-btn.active { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
+  #view-atividades .ativ-legenda { margin: 0 0 0 auto; }
+  .kanban-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 14px; overflow-x: auto; align-items: start; padding-bottom: 14px; min-height: 0; }
+  .kanban-column { width: auto; min-width: 0; padding: 14px; }
+  .kanban-column-header { padding: 2px 4px 14px; }
+  .kanban-column-header h3 { font-size: 14.5px; }
+  .kanban-wip { font-weight: 700; padding: 1px 10px; }
+  .kanban-card { padding: 15px 16px 14px; margin-bottom: 12px; border-top: 3px solid var(--card-cor, transparent); display: block; }
+  .kanban-card[data-label="red"] { --card-cor: var(--red); } .kanban-card[data-label="orange"] { --card-cor: var(--amber); }
+  .kanban-card[data-label="yellow"] { --card-cor: #F2C94C; } .kanban-card[data-label="blue"] { --card-cor: #4A90D9; }
+  .kanban-card .kc-label { display: none; }
+  .kc-titulo { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 10px; }
+  .kc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .kc-meta .kc-idade { margin-left: 0; padding: 2px 9px; font-size: 11px; font-weight: 600; }
+  .kc-footer { justify-content: flex-start; gap: 6px 10px; }
+  .kc-criador { font-weight: 500; }
+  @media (hover: hover) { .kanban-card .kc-delete { opacity: 0; transition: opacity .15s; } .kanban-card:hover .kc-delete, .kanban-card .kc-delete:focus-visible { opacity: 1; } }
+  @media (max-width: 600px) { .kanban-board { grid-auto-columns: 85vw; } }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1225,14 +1254,17 @@
       </section>
 
       <section id="view-atividades" style="display:none">
-        <div class="atividades-toolbar">
-          <div class="pessoa-filter" id="pessoa-filter-atividades"></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-sm" onclick="abrirRelatorioAtividades()">📋 Gerar Relatório</button>
-            <button class="btn btn-green btn-sm" onclick="novaAtividade()">+ Nova Atividade</button>
+        <div class="view-head">
+          <div><h1>Atividades</h1><p>Arraste os cartões entre as colunas.</p></div>
+          <div class="view-head-acoes">
+            <button class="btn" onclick="abrirRelatorioAtividades()">📋 Gerar relatório</button>
+            <button class="btn btn-green" onclick="novaAtividade()">+ Nova atividade</button>
           </div>
         </div>
-        <div class="ativ-legenda" aria-label="Legenda das etiquetas"><span><i style="background:var(--red)"></i>Incidente Crítico</span><span><i style="background:var(--amber)"></i>Alta Urgência</span><span><i style="background:#F2C94C"></i>Atenção</span><span><i style="background:#4A90D9"></i>Rotina</span></div>
+        <div class="atividades-toolbar">
+          <div class="pessoa-filter" id="pessoa-filter-atividades"></div>
+          <div class="ativ-legenda" aria-label="Legenda das etiquetas"><span><i style="background:var(--red)"></i>Incidente Crítico</span><span><i style="background:var(--amber)"></i>Alta Urgência</span><span><i style="background:#F2C94C"></i>Atenção</span><span><i style="background:#4A90D9"></i>Rotina</span></div>
+        </div>
         <div class="kanban-board" id="kanban-board"></div>
       </section>
 
@@ -2186,7 +2218,7 @@ function idadeBadgeHtml(a) {
   const cls = dias >= 15 ? ' kc-idade-atrasada' : dias >= 8 ? ' kc-idade-atencao' : '';
   const d = new Date(a.criadoEm);
   const dd = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
-  return `<span class="kc-idade${cls}" title="Criado em ${formatDataHora(a.criadoEm)}">${dd} · ${dias === 0 ? 'hoje' : dias + 'd'}</span>`;
+  return `<span class="kc-idade${cls}" title="Criado em ${dd} (${formatDataHora(a.criadoEm)})">${dias === 0 ? 'hoje' : dias + (dias === 1 ? ' dia' : ' dias')}</span>`;
 }
 // Filtro de "hoje" que não fica preso no dia anterior se a aba passar da meia-noite aberta.
 // Só avança se o filtro ainda estava no "hoje antigo" (se a pessoa escolheu outra data, respeita).
@@ -4769,12 +4801,12 @@ function renderAtividades() {
   }).join('');
 }
 function atividadeCardHtml(a) {
-  return `<div class="kanban-card" draggable="true" ondragstart="onKanbanDragStart(event,'${a.id}')" ondragend="onKanbanDragEnd(event)" onclick="openAtividadeModal('${a.id}')">
+  return `<div class="kanban-card" data-label="${a.label||''}" draggable="true" ondragstart="onKanbanDragStart(event,'${a.id}')" ondragend="onKanbanDragEnd(event)" onclick="openAtividadeModal('${a.id}')">
     ${a.label?`<span class="kc-label ${a.label}"></span>`:''}
     <div class="kc-titulo">${escapeHtml(a.titulo)}</div>
+    <div class="kc-meta">${a.entidadeNome?`<span class="kc-entidade">${escapeHtml(a.entidadeNome)}</span>`:''}${idadeBadgeHtml(a)}</div>
     <div class="kc-footer">
-      ${a.entidadeNome?`<span class="kc-entidade">${escapeHtml(a.entidadeNome)}</span>`:''}
-      <span class="kc-pessoa">${avatarHtml(a.responsavel)}${escapeHtml(a.responsavel)}</span>${idadeBadgeHtml(a)}
+      <span class="kc-pessoa">${avatarHtml(a.responsavel)}${escapeHtml(a.responsavel)}</span>
       ${a.criadoPor?`<span class="kc-criador">pedido por ${escapeHtml(a.criadoPor)}</span>`:''}
     </div>
     ${(a.imagens && a.imagens.length) ? `<div class="kc-imagens">${a.imagens.slice(0,3).map(img=>`<img src="${img.url}">`).join('')}${a.imagens.length>3?`<span class="kc-imagens-mais">+${a.imagens.length-3}</span>`:''}</div>` : ''}
