@@ -4928,7 +4928,7 @@ function renderAtividades() {
         ${concluidoFiltroData ? `<span class="kanban-filtro-limpar" onclick="limparConcluidoFiltroData()">Ver todas as datas</span>` : ''}
       </div>` : '';
     return `<div class="kanban-column" data-coluna="${col.id}" ondragover="onKanbanDragOver(event)" ondragleave="onKanbanDragLeave(event)" ondrop="onKanbanDrop(event,'${col.id}')">
-      <div class="kanban-column-header"><h3>${escapeHtml(col.nome)}</h3><span class="kanban-wip">${cards.length}</span>${souAdminRaias ? `<span class="kanban-col-tools"><button type="button" title="Renomear a raia" onclick="renomearKanbanColuna('${col.id}')">✎</button>${col.id === 'concluida' ? '' : `<button type="button" title="Remover a raia" onclick="removerKanbanColuna('${col.id}')">✕</button>`}</span>` : ''}</div>
+      <div class="kanban-column-header"><h3>${escapeHtml(col.nome)}</h3><span class="kanban-wip">${cards.length}</span>${souAdminRaias && col.id !== 'concluida' ? `<span class="kanban-col-tools"><button type="button" title="Renomear a raia" onclick="renomearKanbanColuna('${col.id}')">✎</button><button type="button" title="Remover a raia" onclick="removerKanbanColuna('${col.id}')">✕</button></span>` : ''}</div>
       ${filtroHtml}
       <div class="kanban-cards-scroll">${cards.map(atividadeCardHtml).join('') || '<div class="kanban-empty">Vazio</div>'}<button class="kanban-add" onclick="openAtividadeModal(null, '${col.id}')">+ Nova atividade</button></div>
     </div>`;

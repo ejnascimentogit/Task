@@ -217,3 +217,5 @@ Bloco no topo do Resumo do Dia, só no perfil Pessoal. **Sem IA e sem chave**, e
 Todas as telas principais abrem com o título grande, no mesmo estilo de Atividades: Agenda, E-mails, Resumo do Dia, Indicadores, Buscar e Cronograma (classe `view-titulo`), e Pendências, Treinamentos e Lâmina ganharam cabeçalho (`view-head`) com título e uma frase de apoio. Só estilo e marcação.
 
 - **Nova pendência direto da aba Pendências (2026-10-12):** botão "+ Nova pendência" no cabeçalho da tela: escolhe o cliente/projeto/setor, de quem é (deles ou nossa), escreve o texto e, se quiser, uma observação. Também continua possível criar dentro da ficha de cada cliente.
+
+- **Ajuste (2026-10-12):** a raia "Concluído" não mostra mais os botões de renomear/remover no cabeçalho (ela é fixa); as demais raias mostram ✎ e ✕ para quem administra o workspace.
