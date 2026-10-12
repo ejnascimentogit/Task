@@ -1232,7 +1232,7 @@
       </section>
 
       <section id="view-pendencias" style="display:none">
-        <div class="view-head"><div><h1>Pendências</h1><p>O que ainda está em aberto, com uma observação em cada item.</p></div></div>
+        <div class="view-head"><div><h1>Pendências</h1><p>O que ainda está em aberto, com uma observação em cada item.</p></div><div class="view-head-acoes"><button class="btn btn-green" onclick="abrirNovaPendencia()">+ Nova pendência</button></div></div>
         <div class="toolbar">
           <input type="text" id="pend-search-input" placeholder="Buscar..." oninput="renderPendenciasOverview()">
         </div>
@@ -1806,6 +1806,25 @@
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="closeTreinamentoModal()">Fechar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveTreinamentoEtapa)">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="nova-pend-modal-overlay">
+  <div class="modal-box" style="max-width:480px;">
+    <h2>Nova pendência</h2>
+    <div class="form-grid">
+      <div class="form-field full"><label id="np-entidade-label">Cliente</label><select id="np-entidade"></select></div>
+      <div class="form-field full"><label>De quem é a pendência</label><select id="np-lado"><option value="entidade">⚠ Do lado deles</option><option value="equipe">🔧 Do nosso lado</option></select></div>
+      <div class="form-field full"><label>Pendência</label><input type="text" id="np-texto" placeholder="Ex: Enviar a planta atualizada" onkeydown="if(event.key==='Enter'){event.preventDefault();withLock(this, salvarNovaPendencia)}"></div>
+      <div class="form-field full"><label>Observação (opcional)</label><textarea id="np-obs" rows="2" placeholder="Algum detalhe sobre esta pendência..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharNovaPendencia()">Fechar</button>
+        <button class="btn btn-primary" onclick="withLock(this, salvarNovaPendencia)">Criar pendência</button>
       </div>
     </div>
   </div>
@@ -4399,6 +4418,31 @@ async function addPendencia(lado) {
   c.pendencias.push({ id:data.id, texto, responsavel:lado, feito:false });
   input.value = '';
   renderPendenciasModal();
+}
+function abrirNovaPendencia() {
+  if (!state.entidades.length) { alert('Cadastre antes ' + (entidadeLabel() === 'Entidades' ? 'um item' : 'um(a) ' + entidadeLabel().slice(0, -1).toLowerCase()) + ' para criar pendências.'); return; }
+  const rot = entidadeLabel().slice(0, -1) || 'Entidade';
+  document.getElementById('np-entidade-label').textContent = rot;
+  const lista = [...state.entidades].sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+  document.getElementById('np-entidade').innerHTML = lista.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+  document.getElementById('np-texto').value = ''; document.getElementById('np-obs').value = ''; document.getElementById('np-lado').value = 'entidade';
+  document.getElementById('nova-pend-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('np-texto').focus(), 50);
+}
+function fecharNovaPendencia() { document.getElementById('nova-pend-modal-overlay').classList.remove('open'); }
+async function salvarNovaPendencia() {
+  const entidadeId = document.getElementById('np-entidade').value;
+  const lado = document.getElementById('np-lado').value;
+  const texto = document.getElementById('np-texto').value.trim();
+  const observacao = document.getElementById('np-obs').value.trim();
+  const c = state.entidades.find(x => x.id === entidadeId);
+  if (!c) { alert('Escolha ' + (entidadeLabel().slice(0, -1) || 'a entidade') + '.'); return; }
+  if (!texto) { alert('Escreva a pendência.'); return; }
+  const { data, error } = await sb.from('pendencias').insert({ workspace_id: activeWorkspace.id, entidade_id: entidadeId, texto, responsavel: lado, feito: false, observacao }).select().single();
+  if (error) { alert(error.message); return; }
+  c.pendencias.push({ id: data.id, texto, responsavel: lado, feito: false, observacao, mostrarLamina: true });
+  fecharNovaPendencia();
+  renderPendenciasOverview();
 }
 async function togglePendencia(id, feito) {
   const { error } = await sb.from('pendencias').update({ feito }).eq('id', id);
