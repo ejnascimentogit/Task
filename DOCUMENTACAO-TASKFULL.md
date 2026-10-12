@@ -199,3 +199,5 @@ As telas passaram a seguir os protótipos aprovados pelo Edimilson, só com muda
 - **Indicadores**: blocos em grade (fila, criadas × concluídas ao lado da distribuição, prazos, por pessoa, uso do assessor).
 - **Cronograma**: barras de progresso na lista de projetos, no topo do projeto e em cada etapa; no portal `/cronograma`, cabeçalho com progresso geral.
 - Cores com significado continuam fixas (urgente, atrasado, etiquetas); as dos tipos de agenda foram conferidas (contraste acima de 4,5 no claro e no escuro).
+
+- **Layout v4 (mesmo dia)**: o que faltava. **E-mails**: contas como pílulas, cartão com iniciais do remetente, etiquetas abaixo e sugestão de compromisso em destaque. **Buscar**: campo grande com lupa e sugestões "Experimente" feitas com o que já existe (nomes de clientes/projetos, ou as primeiras palavras das atividades no perfil Pessoal; `usarSugestaoBusca`). **Clientes/Projetos**: cartão com inicial. **Pendências**: cabeçalho com inicial e contagem. **Treinamentos**: barra de progresso por cliente/projeto. **Ajuda e Configurações**: cartões arredondados. A **Lâmina** continua com cores fixas de propósito (imagem/PDF iguais em qualquer tema).

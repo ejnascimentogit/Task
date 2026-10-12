@@ -921,6 +921,57 @@
   .busca-input { border-radius: 16px; }
   .resumo-emails-box, .email-sugestao { border-radius: 14px; }
   .resumo-sub { line-height: 1.6; }
+
+  /* ══ Layout v4: E-mails, Buscar, Clientes/Projetos, Pendências, Treinamentos, Ajuda e Configurações no mesmo estilo ══ */
+  .cc-ini { width: 34px; height: 34px; border-radius: 11px; background: var(--accent-soft); color: var(--accent-ink); display: inline-grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 15px; flex: none; }
+  /* E-mails */
+  .resumo-sub .conta-pill { display: inline-flex; align-items: center; gap: 7px; margin: 0 8px 8px 0; padding: 4px 12px; border-radius: 99px; background: var(--light-bg); border: 1px solid var(--border-light); font-size: 12.5px; color: var(--gray-text); }
+  .resumo-sub .conta-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--green-mid); flex: none; }
+  .resumo-sub .conta-pill.erro i { background: var(--red); }
+  .email-card { display: grid; gap: 8px; }
+  .email-topo { align-items: flex-start; }
+  .email-quem { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .email-quem i.av { width: 34px; height: 34px; font-size: 14px; }
+  .email-de { margin-top: 0; }
+  .email-assunto { font-size: 17px; line-height: 1.3; margin-top: 0; }
+  .email-resumo { opacity: .9; max-width: 72ch; }
+  .email-sugestao { display: flex; align-items: center; gap: 8px; font-weight: 500; margin-top: 2px; }
+  .email-acoes { margin-top: 4px; }
+  /* Buscar */
+  .busca-box { position: relative; max-width: 760px; margin-top: 14px; }
+  .busca-box svg { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--gray-text); pointer-events: none; }
+  .busca-box .busca-input { margin-top: 0; padding-left: 50px; max-width: none; }
+  .busca-sugestoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 760px; margin-top: 12px; color: var(--gray-text); font-size: 12.5px; }
+  .busca-sugestoes button { cursor: pointer; padding: 5px 13px; border-radius: 99px; border: 1px solid var(--border-light); background: var(--white); color: var(--text-main); font: inherit; font-weight: 600; font-size: 12.5px; }
+  .busca-sugestoes button:hover { border-color: var(--accent-ink); }
+  .busca-resultado-card { transition: transform .12s, box-shadow .15s; max-width: 760px; }
+  .busca-resultado-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-up); }
+  .busca-item { border-left-color: var(--accent-ink); border-radius: 2px; }
+  /* Clientes / Projetos */
+  .entidade-card .cc-top { align-items: center; }
+  .entidade-card .cc-quem { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .entidade-card .cc-name { overflow-wrap: anywhere; }
+  .data-table tbody tr { background: var(--white); }
+  /* Pendências */
+  .pendencia-card-nome { display: flex; align-items: center; gap: 12px; min-width: 0; font-family: var(--font-display); letter-spacing: -.01em; }
+  .pendencia-card-header { margin-bottom: 14px; gap: 10px; } .pendencia-card-count { margin-left: auto; }
+  .pendencia-card-count { background: var(--warn-soft, rgba(245,158,11,.14)); }
+  .pend-obs-row { border-top: 1px solid var(--border-light); padding: 10px 0; }
+  .pend-obs-row textarea { border-radius: 11px; }
+  .pend-item.done { opacity: .75; }
+  /* Treinamentos */
+  .trein-entidade-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+  .trein-prog { height: 8px; border-radius: 99px; background: var(--light-bg); border: 1px solid var(--border-light); overflow: hidden; margin: -2px 0 12px; }
+  .trein-prog i { display: block; height: 100%; background: var(--green-mid); border-radius: 99px; }
+  .trein-etapa-row { border-radius: 12px; padding: 10px 12px; }
+  /* Ajuda e Configurações */
+  .ajuda-categoria { font-family: var(--font-display); font-size: 12px; letter-spacing: .08em; }
+  .ajuda-item { box-shadow: var(--shadow-soft); margin-bottom: 8px; }
+  .ajuda-pergunta { padding: 14px 18px; }
+  .ajuda-item.open { border-color: var(--accent-ink); }
+  .config-section-header { padding: 4px 0; }
+  .config-section-header:hover h2 { color: var(--accent-ink); }
+  .lamina-doc { border-radius: var(--radius-lg); }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1237,7 +1288,8 @@
         <div class="resumo-box">
           <h2 style="margin-bottom:4px;">🔍 Buscar</h2>
           <div class="resumo-sub" id="buscar-sub"></div>
-          <input type="text" id="buscar-input" class="busca-input" placeholder="O que você quer encontrar?" oninput="buscarNoWorkspace()">
+          <div class="busca-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="buscar-input" class="busca-input" placeholder="O que você quer encontrar?" oninput="buscarNoWorkspace()" aria-label="Buscar"></div>
+          <div class="busca-sugestoes" id="buscar-sugestoes"></div>
           <div id="buscar-resultados" style="margin-top:16px;"></div>
         </div>
       </section>
@@ -2729,8 +2781,8 @@ function cardEmail(e) {
       <button class="btn btn-sm" onclick="withLock(this, () => marcarEmail('${e.id}', 'novo'))">↩ Reabrir</button>`;
   return `
     <div class="email-card ${e.urgente ? 'urgente' : ''} ${e.status !== 'novo' ? 'tratado' : ''}">
-      <div class="email-topo"><div class="email-tags">${tags}</div><span class="email-data">${origemEmail(e)}${formatDataHora(e.recebido_em)}</span></div>
-      <div class="email-de">${escapeHtml(e.remetente_nome || e.remetente)} <span>&lt;${escapeHtml(e.remetente)}&gt;</span></div>
+      <div class="email-topo"><div class="email-quem">${avatarHtml(e.remetente_nome || e.remetente)}<div class="email-de">${escapeHtml(e.remetente_nome || e.remetente)} <span>&lt;${escapeHtml(e.remetente)}&gt;</span></div></div><span class="email-data">${origemEmail(e)}${formatDataHora(e.recebido_em)}</span></div>
+      <div class="email-tags">${tags}</div>
       <div class="email-assunto">${escapeHtml(e.assunto || '(sem assunto)')}</div>
       <div class="email-resumo">${escapeHtml(e.resumo || '')}</div>
       ${reu && reu.data ? `<div class="email-sugestao">📅 Sugestão de compromisso: ${escapeHtml(reu.titulo || e.assunto || '')} em ${formatDate(reu.data)}${reu.hora ? ' às ' + escapeHtml(reu.hora) : ''}</div>` : ''}
@@ -2750,7 +2802,7 @@ function renderEmails() {
     lista.innerHTML = `<p class="config-hint">Conecte o Gmail ou o Outlook e escolha de quais remetentes o assessor pode ler em <a href="#" onclick="abrirConfigAssessor(); return false;">Configurações → 🤖 Assessor</a>. Ele lê só esses e-mails, a cada 15 minutos, e guarda um resumo aqui. E-mail nunca vira compromisso sozinho: você decide pelos botões.</p>`;
     return;
   }
-  sub.textContent = emailContas.map(c => `${EMAIL_PROVEDOR_NOME[c.provedor] || c.provedor}: ${c.email} · ${c.ultima_varredura ? 'última verificação ' + formatDataHora(c.ultima_varredura) : 'ainda não verificado'}${c.ultimo_erro ? ' · ⚠️ ' + c.ultimo_erro : ''}`).join('   |   ');
+  sub.innerHTML = emailContas.map(c => `<span class="conta-pill ${c.ultimo_erro ? 'erro' : ''}"><i></i>${escapeHtml(EMAIL_PROVEDOR_NOME[c.provedor] || c.provedor)}: ${escapeHtml(c.email)} · ${c.ultima_varredura ? 'última verificação ' + formatDataHora(c.ultima_varredura) : 'ainda não verificado'}${c.ultimo_erro ? ' · ⚠️ ' + escapeHtml(c.ultimo_erro) : ''}</span>`).join('');
   document.getElementById('emails-filtro').innerHTML = [['novo', `Novos (${novos.length})`], ['tratados', 'Já tratados'], ['todos', 'Todos (30 dias)']]
     .map(([k, l]) => `<button class="pessoa-filter-btn ${emailsFiltro === k ? 'active' : ''}" onclick="setEmailsFiltro('${k}')">${l}</button>`).join('');
   const filtrados = emailsFiltro === 'novo' ? novos : (emailsFiltro === 'tratados' ? emailsLista.filter(e => e.status !== 'novo') : emailsLista);
@@ -3048,8 +3100,15 @@ function renderBuscar() {
     ? 'Procure nas notas, atividades e pendências deste workspace. Dá pra escrever uma pergunta normal, ex.: "quando foi feito o treinamento do ' + (entidadeLabel().slice(0, -1).toLowerCase() || 'cliente') + ' X?"'
     : 'Procure nas suas atividades (título, descrição e o que foi feito).';
   const input = document.getElementById('buscar-input');
+  const caixa = document.getElementById('buscar-sugestoes');
+  if (caixa) {   // sugestões feitas com o que já existe no workspace (nomes, ou as primeiras palavras das atividades)
+    const base = temAba('entidades') ? state.entidades.map(e => e.nome) : atividades.map(a => (a.titulo || '').split(/\s+/).slice(0, 2).join(' '));
+    const sug = [...new Set(base.map(x => (x || '').trim()).filter(Boolean))].slice(0, 5);
+    caixa.innerHTML = sug.length ? 'Experimente: ' + sug.map(t => `<button type="button" data-t="${escapeHtml(t)}" onclick="usarSugestaoBusca(this.dataset.t)">${escapeHtml(t)}</button>`).join('') : '';
+  }
   setTimeout(() => input.focus(), 50);
 }
+function usarSugestaoBusca(t) { const i = document.getElementById('buscar-input'); i.value = t; buscarNoWorkspace(); i.focus(); }
 function buscarNoWorkspace() {
   clearTimeout(buscaTimeout);
   const termoOriginal = document.getElementById('buscar-input').value.trim();
@@ -4163,7 +4222,7 @@ function renderEntidades() {
   } else {
     document.getElementById('entidades-cards-wrap').innerHTML = list.map(c => `
       <div class="entidade-card" onclick="openModal('${c.id}')">
-        <div class="cc-top"><div class="cc-name">${escapeHtml(c.nome)}</div><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></div>
+        <div class="cc-top"><div class="cc-quem"><span class="cc-ini">${inicialDe(c.nome)}</span><div class="cc-name">${escapeHtml(c.nome)}</div></div><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></div>
         <div class="cc-meta">${escapeHtml(c.responsavel)||'—'}${c.analista ? ' · 👤 ' + escapeHtml(c.analista) : ''}</div>${prazoBadgeHtml(c)}
         <div class="cc-badges"><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></div>
       </div>`).join('') || `<div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div>`;
@@ -4344,7 +4403,7 @@ function renderPendenciasOverview() {
   document.getElementById('pendencias-cards-wrap').innerHTML = list.map(c => `
     <div class="pendencia-card">
       <div class="pendencia-card-header">
-        <div class="pendencia-card-nome">${escapeHtml(c.nome)}</div>
+        <div class="pendencia-card-nome"><span class="cc-ini">${inicialDe(c.nome)}</span>${escapeHtml(c.nome)}</div>
         <div class="pendencia-card-count">${pendenciasAbertasDe(c).length} aberta(s)</div>
         <button class="btn btn-sm" title="Copiar as pendências abertas (pronto pra colar)" onclick="copiarPendenciasEntidade('${c.id}')">📋</button>
       </div>
@@ -5040,6 +5099,7 @@ function renderTreinamentos() {
     const pct = Math.round(100 * etapas.filter(t=>t.concluido).length / etapas.length);
     return `<div class="trein-entidade-card">
       <div class="trein-entidade-header"><div class="trein-entidade-nome">${escapeHtml(e.nome)}</div><div>${pct}% concluído</div></div>
+      <div class="trein-prog"><i style="width:${pct}%"></i></div>
       <div class="trein-etapas-list">${etapas.map(t => `
         <div class="trein-etapa-row ${t.concluido?'concluido':''}">
           <input type="checkbox" ${t.concluido?'checked':''} onchange="withLock(this, () => toggleTreinamentoEtapa('${t.id}', this.checked))">
