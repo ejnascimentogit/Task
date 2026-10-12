@@ -1040,6 +1040,15 @@
   .bd-news a small { display:block; color:var(--gray-text); font-size:11px; }
   .bd-vazio, .bd-rodape { color:var(--gray-text); font-size:12px; }
   .bd-rodape { margin-top:10px; }
+  .agenda-datas-hoje { margin:0 0 14px; padding:10px 14px; border-radius:12px; background:rgba(245,158,11,.14); border:1px solid rgba(245,158,11,.35); font-size:14px; }
+  .kanban-col-tools { margin-left:auto; display:inline-flex; gap:2px; opacity:0; transition:opacity .15s; }
+  .kanban-column:hover .kanban-col-tools, .kanban-col-tools:focus-within { opacity:1; }
+  .kanban-col-tools button { background:none; border:0; cursor:pointer; color:var(--gray-text); font-size:13px; padding:2px 5px; border-radius:6px; }
+  .kanban-col-tools button:hover { background:var(--light-bg); color:var(--text-main); }
+  .kanban-nova-raia { flex:0 0 220px; display:flex; align-items:flex-start; }
+  .kanban-nova-raia button { width:100%; font:inherit; font-size:13px; font-weight:600; padding:14px; border:2px dashed var(--border-light); border-radius:16px; background:transparent; color:var(--gray-text); cursor:pointer; }
+  .kanban-nova-raia button:hover { border-color:var(--accent-ink); color:var(--accent-ink); }
+  @media (hover:none) { .kanban-col-tools { opacity:1; } }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1518,6 +1527,7 @@
               </select>
               <button class="btn btn-green btn-sm" onclick="addFeriadoData()">+ Adicionar</button>
             </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0 10px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text-main);"><input type="checkbox" id="datas-padrao-check" onchange="alternarDatasPadrao(this.checked)"> Mostrar as datas comemorativas padrão no calendário (sem precisar sincronizar)</label>
             <div id="feriados-datas-list" class="etapas-list"></div>
           </div>
         </div>
@@ -4575,21 +4585,67 @@ async function garantirFeriadosNacionais(anos) {
     FERIADOS_NACIONAIS_CACHE[ano] = 'carregando';
     try {
       const r = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
-      FERIADOS_NACIONAIS_CACHE[ano] = r.ok ? await r.json() : [];
+      const j = r.ok ? await r.json() : [];
+      FERIADOS_NACIONAIS_CACHE[ano] = Array.isArray(j) && j.length ? j : [];
     } catch (e) { FERIADOS_NACIONAIS_CACHE[ano] = []; }
   }));
-  if (activeTab === 'agenda' && agendaView === 'mensal') renderAgenda();
+  if (activeTab === 'agenda') renderAgenda();
 }
+// Plano B: se a API pública falhar, os feriados nacionais são calculados aqui (nunca fica sem nada)
+function pascoaDe(ano) {
+  const a = ano % 19, b = Math.floor(ano / 100), c = ano % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31), dia = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(ano, mes - 1, dia);
+}
+function isoDe(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function somaDias(d, n) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); return x; }
+function feriadosNacionaisLocal(ano) {
+  const p = pascoaDe(ano), fx = (m, d, nome) => ({ date: `${ano}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, name: nome });
+  return [fx(1, 1, 'Confraternização mundial'), { date: isoDe(somaDias(p, -48)), name: 'Carnaval' }, { date: isoDe(somaDias(p, -47)), name: 'Carnaval' }, { date: isoDe(somaDias(p, -2)), name: 'Sexta-feira Santa' },
+    fx(4, 21, 'Tiradentes'), fx(5, 1, 'Dia do trabalho'), { date: isoDe(somaDias(p, 60)), name: 'Corpus Christi' }, fx(9, 7, 'Independência do Brasil'), fx(10, 12, 'Nossa Senhora Aparecida'),
+    fx(11, 2, 'Finados'), fx(11, 15, 'Proclamação da República'), ...(ano >= 2024 ? [fx(11, 20, 'Dia da Consciência Negra')] : []), fx(12, 25, 'Natal')];
+}
+function nesimoDiaSemana(ano, mes, dow, n) { // n-ésimo dia da semana (0=domingo) do mês
+  const primeiro = new Date(ano, mes - 1, 1).getDay();
+  return 1 + ((dow - primeiro + 7) % 7) + (n - 1) * 7;
+}
+// Datas comemorativas padrão (Dia das Mães, Black Friday...): as que mudam de dia a cada ano são calculadas para o ano visto
+function dataComercial(d, ano) {
+  if (d.nome === 'Dia das Maes') return { mes: 5, dia: nesimoDiaSemana(ano, 5, 0, 2) };
+  if (d.nome === 'Dia dos Pais') return { mes: 8, dia: nesimoDiaSemana(ano, 8, 0, 2) };
+  if (d.nome === 'Carnaval') { const c = somaDias(pascoaDe(ano), -47); return { mes: c.getMonth() + 1, dia: c.getDate() }; }
+  if (d.nome === 'Black Friday') { const q = nesimoDiaSemana(ano, 11, 4, 4); return { mes: 11, dia: q + 1 }; }
+  if (d.nome === 'Cyber Monday') { const q = nesimoDiaSemana(ano, 11, 4, 4); return { mes: 11, dia: q + 4 }; }
+  return { mes: d.mes, dia: d.dia };
+}
+const ACENTOS_DATAS = { 'Dia das Criancas': 'Dia das Crianças', 'Dia Internacional do Cafe': 'Dia Internacional do Café', 'Dia Mundial do Cafe': 'Dia Mundial do Café', 'Dia das Maes': 'Dia das Mães', 'Dia da Arvore': 'Dia da Árvore', 'Dia do Frete Gratis': 'Dia do Frete Grátis', 'Sao Joao': 'São João', 'Volta as Aulas': 'Volta às Aulas', 'Dia dos Avos': 'Dia dos Avós' };
+function datasPadraoLigadas() { try { return localStorage.getItem('ws_datas_padrao') !== '0'; } catch (e) { return true; } }
+function alternarDatasPadrao(on) { try { localStorage.setItem('ws_datas_padrao', on ? '1' : '0'); } catch (e) {} renderAgenda(); }
 function feriadosDoMes(ano, mes) {
   const out = [];
-  const nacionais = FERIADOS_NACIONAIS_CACHE[ano];
-  if (Array.isArray(nacionais)) {
-    nacionais.forEach(f => { if (Number(f.date.slice(5,7)) === mes) out.push({ data:f.date, nome:f.name, tipo:'nacional' }); });
+  const api = FERIADOS_NACIONAIS_CACHE[ano];
+  const nacionais = Array.isArray(api) && api.length ? api : feriadosNacionaisLocal(ano);
+  nacionais.forEach(f => { if (Number(f.date.slice(5, 7)) === mes) out.push({ data: f.date, nome: f.name, tipo: 'nacional' }); });
+  const proprios = feriadosDatas.filter(f => f.mes === mes);
+  proprios.forEach(f => out.push({ data: `${ano}-${String(mes).padStart(2, '0')}-${String(f.dia).padStart(2, '0')}`, nome: f.nome, tipo: f.tipo }));
+  if (datasPadraoLigadas()) {
+    DEFAULT_FERIADOS_COMERCIAIS.forEach(d => {
+      const dt = dataComercial(d, ano);
+      if (dt.mes !== mes) return;
+      if (proprios.some(f => f.dia === dt.dia && f.nome.toLowerCase() === d.nome.toLowerCase())) return;
+      out.push({ data: `${ano}-${String(mes).padStart(2, '0')}-${String(dt.dia).padStart(2, '0')}`, nome: ACENTOS_DATAS[d.nome] || d.nome, tipo: 'comercial' });
+    });
   }
-  feriadosDatas.filter(f => f.mes === mes).forEach(f => {
-    out.push({ data: `${ano}-${String(mes).padStart(2,'0')}-${String(f.dia).padStart(2,'0')}`, nome:f.nome, tipo:f.tipo });
-  });
   return out;
+}
+function datasDoDia(chave) {
+  const [a, m] = chave.split('-').map(Number);
+  return feriadosDoMes(a, m).filter(f => f.data === chave);
+}
+function datasHojeHtml() {
+  const hoje = datasDoDia(todayStr());
+  return hoje.length ? `<div class="agenda-datas-hoje">🎉 <b>Hoje:</b> ${hoje.map(f => escapeHtml(f.nome)).join(' · ')}</div>` : '';
 }
 function renderAgenda() {
   renderPessoaFiltro('pessoa-filter-agenda', 'setPessoaFiltroAgenda');
@@ -4606,7 +4662,8 @@ function renderAgenda() {
   const today = todayStr();
   const dias = Object.keys(groups).sort();
   if (agendaView === 'cards') {
-    document.getElementById('agenda-cards-wrap').innerHTML = dias.map(dia => `
+    garantirFeriadosNacionais([new Date().getFullYear()]);
+    document.getElementById('agenda-cards-wrap').innerHTML = datasHojeHtml() + dias.map(dia => `
       <div class="agenda-cards-group">
         ${rotuloDiaAgenda(dia, groups[dia].length, dia===today)}
         <div class="agenda-cards-grid">${groups[dia].map(agendamentoCardHtml).join('')}</div>
@@ -4623,7 +4680,8 @@ function renderAgenda() {
     });
     renderAgendaMensal(gruposMensal, Object.keys(gruposMensal).sort(), today);
   } else {
-    document.getElementById('agenda-list').innerHTML = dias.map(dia => `
+    garantirFeriadosNacionais([new Date().getFullYear()]);
+    document.getElementById('agenda-list').innerHTML = datasHojeHtml() + dias.map(dia => `
       <div>
         ${rotuloDiaAgenda(dia, groups[dia].length, dia===today)}
         <div class="calendario-items">${groups[dia].map(agendamentoItemHtml).join('')}</div>
@@ -4810,6 +4868,7 @@ function limparConcluidoFiltroData() { concluidoFiltroData = ''; renderAtividade
 function renderAtividades() {
   renderPessoaFiltro('pessoa-filter-atividades', 'setPessoaFiltroAtividades');
   const board = document.getElementById('kanban-board');
+  const souAdminRaias = activeWorkspace && activeWorkspace.role === 'admin';
   board.innerHTML = colunasAtivas().map(col => {
     let cards = atividades.filter(a => a.coluna===col.id);
     if (pessoaFiltro!=='Todos') cards = cards.filter(a => a.responsavel===pessoaFiltro || (a.participantes||[]).includes(pessoaFiltro));
@@ -4821,11 +4880,11 @@ function renderAtividades() {
         ${concluidoFiltroData ? `<span class="kanban-filtro-limpar" onclick="limparConcluidoFiltroData()">Ver todas as datas</span>` : ''}
       </div>` : '';
     return `<div class="kanban-column" data-coluna="${col.id}" ondragover="onKanbanDragOver(event)" ondragleave="onKanbanDragLeave(event)" ondrop="onKanbanDrop(event,'${col.id}')">
-      <div class="kanban-column-header"><h3>${col.nome}</h3><span class="kanban-wip">${cards.length}</span></div>
+      <div class="kanban-column-header"><h3>${escapeHtml(col.nome)}</h3><span class="kanban-wip">${cards.length}</span>${souAdminRaias ? `<span class="kanban-col-tools"><button type="button" title="Renomear a raia" onclick="renomearKanbanColuna('${col.id}')">✎</button>${col.id === 'concluida' ? '' : `<button type="button" title="Remover a raia" onclick="removerKanbanColuna('${col.id}')">✕</button>`}</span>` : ''}</div>
       ${filtroHtml}
       <div class="kanban-cards-scroll">${cards.map(atividadeCardHtml).join('') || '<div class="kanban-empty">Vazio</div>'}<button class="kanban-add" onclick="openAtividadeModal(null, '${col.id}')">+ Nova atividade</button></div>
     </div>`;
-  }).join('');
+  }).join('') + (souAdminRaias ? `<div class="kanban-nova-raia"><button type="button" onclick="novaRaiaDoQuadro()">+ Nova raia</button></div>` : '');
 }
 function atividadeCardHtml(a) {
   return `<div class="kanban-card" data-label="${a.label||''}" draggable="true" ondragstart="onKanbanDragStart(event,'${a.id}')" ondragend="onKanbanDragEnd(event)" onclick="openAtividadeModal('${a.id}')">
@@ -5732,6 +5791,7 @@ function renderKanbanColunasList() {
         <button class="icon-btn" ${i===0?'disabled':''} onclick="withLock(this, () => moverKanbanColuna('${c.id}', -1))" title="Mover pra cima">▲</button>
         <button class="icon-btn" ${i===lista.length-1?'disabled':''} onclick="withLock(this, () => moverKanbanColuna('${c.id}', 1))" title="Mover pra baixo">▼</button>
         <button class="icon-btn ${c.ativo?'danger':''}" onclick="withLock(this, () => toggleKanbanColunaAtiva('${c.id}', ${!c.ativo}))">${c.ativo?'Desativar':'Reativar'}</button>
+        ${c.id === 'concluida' ? '' : `<button class="icon-btn danger" title="Remover (só se estiver vazia)" onclick="withLock(this, () => removerKanbanColuna('${c.id}'))">Remover</button>`}
       ` : ''}
     </div>`).join('') || `<div style="font-size:12.5px;color:var(--gray-text);">Nenhuma raia ainda.</div>`;
 }
@@ -5751,6 +5811,37 @@ async function updateKanbanColuna(id, changes) {
   const { error } = await sb.from('kanban_colunas').update(changes).eq('workspace_id', activeWorkspace.id).eq('id', id);
   if (error) { alert(error.message); return; }
   Object.assign(KANBAN_COLUNAS.find(c=>c.id===id), changes);
+  renderKanbanColunasList(); renderAtividades();
+}
+async function novaRaiaDoQuadro() {
+  if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode criar raias.'); return; }
+  const nome = (prompt('Nome da nova raia:') || '').trim();
+  if (!nome) return;
+  const id = slugify(nome, KANBAN_COLUNAS);
+  const { error } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id, nome, ordem: KANBAN_COLUNAS.length + 1, ativo: true });
+  if (error) { alert(error.message); return; }
+  KANBAN_COLUNAS.push({ id, nome, ordem: KANBAN_COLUNAS.length + 1, ativo: true });
+  renderKanbanColunasList(); renderAtividades();
+}
+async function renomearKanbanColuna(id) {
+  if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode editar raias.'); return; }
+  const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
+  const nome = (prompt('Novo nome da raia:', col.nome) || '').trim();
+  if (!nome || nome === col.nome) return;
+  await updateKanbanColuna(id, { nome });
+}
+// Remove a raia só se estiver vazia (nenhuma atividade, nem cancelada): senão o usuário move as atividades ou desativa a raia.
+async function removerKanbanColuna(id) {
+  if (activeWorkspace.role !== 'admin') { alert('Só quem administra o workspace pode remover raias.'); return; }
+  if (id === 'concluida') { alert('A raia "Concluído" é usada pelos relatórios e não pode ser removida. Se não quiser vê-la, desative.'); return; }
+  const col = KANBAN_COLUNAS.find(c => c.id === id); if (!col) return;
+  const { count, error: e1 } = await sb.from('atividades').select('id', { count: 'exact', head: true }).eq('workspace_id', activeWorkspace.id).eq('coluna', id);
+  if (e1) { alert(e1.message); return; }
+  if (count > 0) { alert(`A raia "${col.nome}" tem ${count} atividade(s). Mova as atividades para outra raia ou use "Desativar" para escondê-la sem apagar nada.`); return; }
+  if (!confirm(`Remover a raia "${col.nome}"? Ela está vazia.`)) return;
+  const { error } = await sb.from('kanban_colunas').delete().eq('workspace_id', activeWorkspace.id).eq('id', id);
+  if (error) { alert(error.message); return; }
+  const i = KANBAN_COLUNAS.findIndex(c => c.id === id); if (i >= 0) KANBAN_COLUNAS.splice(i, 1);
   renderKanbanColunasList(); renderAtividades();
 }
 function toggleKanbanColunaAtiva(id, ativo) { return updateKanbanColuna(id, { ativo }); }
@@ -5872,6 +5963,7 @@ async function sincronizarFeriadosComerciais() {
 }
 const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function renderFeriadosDatasList() {
+  { const ck = document.getElementById('datas-padrao-check'); if (ck) ck.checked = datasPadraoLigadas(); }
   const lista = [...feriadosDatas].sort((a,b) => a.mes-b.mes || a.dia-b.dia);
   document.getElementById('feriados-datas-list').innerHTML = lista.map(f => `
     <div class="etapa-row">
