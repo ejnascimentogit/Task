@@ -633,7 +633,7 @@
   .cron-pill.cliente { color:#B45309; background:rgba(245,158,11,.14); }
   .cron-pill.equipe { color:#1D4ED8; background:rgba(29,78,216,.12); }
   /* ══ Visual v2 (out/2026): cantos maiores, sombras suaves, título em Bricolage Grotesque e paletas de cores escolhidas pela pessoa em Aparência.
-        Só acrescenta/ajusta estilo: nenhum comportamento muda. As paletas (data-paleta no <html>) trocam as variáveis abaixo; ──
+        Só acrescenta/ajusta estilo: nenhum comportamento muda. O tema escolhido em Aparência (Temas e cores) troca estas variáveis por um <style id="tema-usuario">; ──
         a cor de destaque do workspace (Configurações) continua valendo por cima, porque é gravada em estilo inline. ── */
   :root {
     --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
@@ -649,22 +649,6 @@
   }
   :root[data-theme="dark"] { --accent-ink: var(--green); --shadow-soft: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); --shadow-up: 0 12px 28px rgba(0,0,0,.5); --gray-text: #9AABBD; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent-ink: var(--green); --shadow-soft: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); --shadow-up: 0 12px 28px rgba(0,0,0,.5); --gray-text: #9AABBD; } }
-
-  /* ── Paletas (modo claro). Cada uma define marca (--navy), destaque (--green), texto de destaque sobre fundo claro (--accent-ink), fundo e menu lateral. ── */
-  :root[data-paleta="nevoa"] { --navy:#1E3A4C; --green:#7FD8BE; --green-mid:#5CC4A6; --accent-ink:#0F6B55; --page-bg:#F2F6F5; --light-bg:#F2F6F5; --text-main:#1D2A33; --gray-text:#566873;
-    --sb-bg:#FFFFFF; --sb-fg:#4A5B66; --sb-fg-strong:#1D2A33; --sb-muted:#5A6B76; --sb-hover:rgba(30,58,76,.06); --sb-line:rgba(30,58,76,.16); --sb-card:rgba(30,58,76,.04); --sb-active-bg:rgba(95,196,166,.24); --sb-active-fg:#0B5A47; }
-  :root[data-paleta="oceano"] { --navy:#0E2A47; --green:#5AB0FF; --green-mid:#3C98F0; --accent-ink:#0F55A8; --page-bg:#F0F5FA; --light-bg:#F0F5FA; --text-main:#14202E; --gray-text:#566677; --sb-bg:#0E2A47; --sb-active-fg:#8CC8FF; }
-  :root[data-paleta="lavanda"] { --navy:#2A2150; --green:#BBA9FF; --green-mid:#A18DF5; --accent-ink:#5236B8; --page-bg:#F6F4FB; --light-bg:#F6F4FB; --text-main:#1E1A33; --gray-text:#62597A; --sb-bg:#2A2150; --sb-active-fg:#CFC2FF; }
-  :root[data-paleta="pessego"] { --navy:#4A2B26; --green:#FFA586; --green-mid:#F58C68; --accent-ink:#A8401C; --page-bg:#FBF5F0; --light-bg:#FBF5F0; --text-main:#2E211E; --gray-text:#6B5650;
-    --sb-bg:#FFF9F4; --sb-fg:#6B4A42; --sb-fg-strong:#3B2420; --sb-muted:#8A6A62; --sb-hover:rgba(74,43,38,.06); --sb-line:rgba(74,43,38,.16); --sb-card:rgba(74,43,38,.04); --sb-active-bg:rgba(255,165,134,.28); --sb-active-fg:#9A3A18; }
-  :root[data-paleta="grafite"] { --navy:#22272F; --green:#E8BD4F; --green-mid:#D2A634; --accent-ink:#7A5800; --page-bg:#F3F3F1; --light-bg:#F3F3F1; --text-main:#1C1F24; --gray-text:#5B6068; --sb-bg:#22272F; --sb-active-fg:#F2CE6B; }
-  :root[data-paleta="contraste"] { --navy:#000000; --green:#FFD400; --green-mid:#E6BF00; --accent-ink:#000000; --page-bg:#FFFFFF; --light-bg:#F2F2F2; --white:#FFFFFF; --text-main:#000000; --gray-text:#2F2F2F; --border-light:rgba(0,0,0,.55);
-    --sb-bg:#000000; --sb-fg:#FFFFFF; --sb-muted:#E0E0E0; --sb-active-bg:#FFD400; --sb-active-fg:#000000; --sb-line:rgba(255,255,255,.6); }
-  /* modo escuro: superfícies voltam ao escuro padrão; destaque e menu seguem a paleta */
-  :root[data-paleta][data-theme="dark"] { --page-bg:#0B1622; --light-bg:#0B1622; --white:#14212F; --gray-text:#9AABBD; --border-light:#24374D; --text-main:#E5E7EB; --accent-ink:var(--green);
-    --sb-bg:#0A1B2A; --sb-fg:rgba(255,255,255,.68); --sb-fg-strong:#FFFFFF; --sb-muted:rgba(255,255,255,.5); --sb-hover:rgba(255,255,255,.07); --sb-line:rgba(255,255,255,.14); --sb-card:rgba(255,255,255,.05); --sb-active-bg:color-mix(in srgb, var(--green) 16%, transparent); --sb-active-fg:var(--green); }
-  @media (prefers-color-scheme: dark) { :root[data-paleta]:not([data-theme="light"]) { --page-bg:#0B1622; --light-bg:#0B1622; --white:#14212F; --gray-text:#9AABBD; --border-light:#24374D; --text-main:#E5E7EB; --accent-ink:var(--green);
-    --sb-bg:#0A1B2A; --sb-fg:rgba(255,255,255,.68); --sb-fg-strong:#FFFFFF; --sb-muted:rgba(255,255,255,.5); --sb-hover:rgba(255,255,255,.07); --sb-line:rgba(255,255,255,.14); --sb-card:rgba(255,255,255,.05); --sb-active-bg:color-mix(in srgb, var(--green) 16%, transparent); --sb-active-fg:var(--green); } }
 
   /* ── Base ── */
   body { -webkit-font-smoothing: antialiased; }
@@ -695,12 +679,6 @@
   .aparencia-slider-row, .aparencia-footer-row { color: var(--sb-muted); }
   .aparencia-slider-row input[type=range] { accent-color: var(--sb-active-fg); }
   .aparencia-restaurar:hover { color: var(--sb-fg-strong); }
-  .paleta-titulo { font-size: 10.5px; color: var(--sb-muted); }
-  .paleta-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-  .paleta-sw { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--sb-line); cursor: pointer; padding: 0; background: linear-gradient(135deg, var(--sw-sb) 0 50%, var(--sw-cor) 50% 100%); transition: transform .12s; }
-  .paleta-sw:hover { transform: scale(1.1); }
-  .paleta-sw[aria-pressed="true"] { border-color: var(--sb-fg-strong); box-shadow: 0 0 0 2px var(--sb-bg), 0 0 0 4px var(--sb-active-fg); }
-  .paleta-nome { font-size: 11px; color: var(--sb-fg); }
 
   /* ── Botões e controles ── */
   .btn { border-radius: 11px; transition: border-color .15s, transform .12s, background .15s; }
@@ -794,8 +772,60 @@
   .ws-dropdown-action { color: var(--accent-ink); }
   .stage-badge, .saude-badge, .fase-pill { padding: 4px 11px; }
   @media (prefers-reduced-motion: reduce) { .btn, .entidade-card, .agenda-card, .ag-item, .kanban-card, .paleta-sw { transition: none; } }
+  /* ── Estúdio de Temas (painel lateral) ── */
+  .estudio { position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 100vw); background: var(--white); color: var(--text-main); z-index: 200; box-shadow: -14px 0 44px rgba(2,31,51,.28); display: flex; flex-direction: column; transform: translateX(104%); visibility: hidden; transition: transform .22s ease, visibility 0s .22s; border-left: 1px solid var(--border-light); }
+  .estudio.aberto { transform: none; visibility: visible; transition: transform .22s ease; }
+  .estudio-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px; }
+  .estudio-head h2 { font-family: var(--font-display); font-size: 20px; letter-spacing: -.02em; }
+  .estudio-x { background: none; border: 1px solid var(--border-light); border-radius: 10px; width: 34px; height: 34px; cursor: pointer; color: var(--text-main); font-size: 14px; }
+  .estudio-corpo { flex: 1; overflow-y: auto; padding: 0 20px 16px; display: grid; gap: 22px; align-content: start; }
+  .estudio-corpo h3 { font-family: var(--font-display); font-size: 15px; letter-spacing: -.01em; margin-bottom: 10px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .estudio-corpo h3 small { font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 500; color: var(--gray-text); }
+  .estudio-rodape { display: flex; gap: 8px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--border-light); flex-wrap: wrap; }
+  .et-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .et-chip { cursor: pointer; padding: 6px 13px; border-radius: 99px; border: 1px solid var(--border-light); background: var(--light-bg); color: var(--text-main); font: inherit; font-size: 12.5px; font-weight: 600; }
+  .et-chip[aria-pressed="true"] { background: var(--navy); color: var(--on-navy); border-color: var(--navy); }
+  .et-galeria { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .et-tema { cursor: pointer; border-radius: 14px; border: 2px solid var(--border-light); padding: 6px; display: grid; gap: 6px; background: var(--light-bg); color: var(--text-main); font: inherit; text-align: left; transition: transform .12s; }
+  .et-tema:hover { transform: translateY(-2px); }
+  .et-tema[aria-pressed="true"] { border-color: var(--accent-ink); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .et-tema span:last-child { font-size: 11.5px; font-weight: 600; padding: 0 2px; overflow-wrap: anywhere; line-height: 1.25; }
+  .et-mini { height: 44px; border-radius: 9px; display: grid; grid-template-columns: 30% 1fr; overflow: hidden; border: 1px solid var(--border-light); }
+  .et-mini i { display: block; } .et-mini > span { padding: 6px; display: grid; gap: 4px; align-content: start; }
+  .et-mini b { display: block; height: 7px; border-radius: 4px; width: 70%; } .et-mini s { display: block; height: 7px; width: 55%; border-radius: 4px; }
+  .et-wheel-wrap { width: 200px; height: 200px; position: relative; margin: 0 auto 14px; touch-action: none; }
+  .et-wheel { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, hsl(0 78% 56%), hsl(30 85% 55%), hsl(60 85% 52%), hsl(90 65% 48%), hsl(120 55% 45%), hsl(150 60% 44%), hsl(180 70% 44%), hsl(210 75% 52%), hsl(240 75% 62%), hsl(270 65% 60%), hsl(300 62% 56%), hsl(330 72% 56%), hsl(360 78% 56%)); -webkit-mask: radial-gradient(circle, transparent 56%, #000 57%); mask: radial-gradient(circle, transparent 56%, #000 57%); cursor: grab; }
+  .et-wheel:active { cursor: grabbing; }
+  .et-wheel-svg { position: absolute; inset: 0; pointer-events: none; color: var(--text-main); }
+  .et-wheel-centro { position: absolute; inset: 27%; border-radius: 50%; background: var(--white); display: grid; place-items: center; text-align: center; font-size: 10.5px; color: var(--gray-text); line-height: 1.2; padding: 4px; }
+  .et-wheel-centro b { display: block; font-family: var(--font-display); font-size: 20px; color: var(--text-main); letter-spacing: -.03em; }
+  .et-campo { display: grid; gap: 6px; margin-bottom: 12px; }
+  .et-campo label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gray-text); display: flex; justify-content: space-between; gap: 10px; }
+  .et-campo label span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .et-campo input[type=range] { width: 100%; accent-color: var(--accent-ink); }
+  .et-seg { display: flex; flex-wrap: wrap; background: var(--light-bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 3px; gap: 2px; }
+  .et-seg button { cursor: pointer; padding: 6px 10px; border-radius: 9px; border: 0; background: none; font: inherit; font-weight: 600; font-size: 12px; color: var(--gray-text); }
+  .et-seg button[aria-pressed="true"] { background: var(--navy); color: var(--on-navy); }
+  .et-dica { font-size: 12px; color: var(--gray-text); margin: 4px 0 0; }
+  .et-fino { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+  .et-fino label { display: flex; align-items: center; gap: 8px; background: var(--light-bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 7px 10px; font-weight: 600; font-size: 12.5px; }
+  .et-fino input[type=color] { width: 30px; height: 28px; border: 0; background: none; padding: 0; cursor: pointer; }
+  .et-contraste { display: grid; gap: 6px; }
+  .et-cr { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 12.5px; }
+  .et-sw { height: 28px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; font-size: 12px; border: 1px solid var(--border-light); }
+  .et-cr b { font-variant-numeric: tabular-nums; }
+  .et-sel { font-weight: 700; font-size: 11px; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+  .et-sel.ok { background: rgba(16,185,129,.14); color: #047857; } .et-sel.bad { background: rgba(220,38,38,.12); color: #B91C1C; }
+  :root[data-theme="dark"] .et-sel.ok { color: #34D399; } :root[data-theme="dark"] .et-sel.bad { color: #F87171; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .et-sel.ok { color: #34D399; } :root:not([data-theme="light"]) .et-sel.bad { color: #F87171; } }
+  .et-salvar { display: flex; gap: 8px; } .et-salvar input { flex: 1; min-width: 0; font-family: inherit; font-size: 13px; padding: 8px 11px; border-radius: 11px; border: 1px solid var(--border-light); }
+  .paleta-sw { display: inline-block; width: 22px; height: 22px; flex: none; border-radius: 50%; border: 2px solid var(--sb-line); background: linear-gradient(135deg, var(--sw-sb) 0 50%, var(--sw-cor) 50% 100%); }
+  .paleta-nome { font-size: 11px; color: var(--sb-muted); }
+  @media (max-width: 480px) { .et-galeria { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (prefers-reduced-motion: reduce) { .estudio, .et-tema { transition: none; } }
+  .email-card { border-left-color: var(--accent-ink); } .resumo-emails-box { border-left-color: var(--accent-ink); }
 </style>
-<script>try{var _p=localStorage.getItem('ws_app_paleta');if(_p&&/^[a-z]+$/.test(_p)&&_p!=='classico')document.documentElement.setAttribute('data-paleta',_p)}catch(e){}</script>
+<script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
 <body>
 
@@ -901,8 +931,7 @@
         </div>
         <div id="aparencia-corpo" style="display:none;">
           <div class="aparencia-paletas">
-            <div class="aparencia-label" style="cursor:default;"><span>Paleta de cores</span><span class="paleta-nome" id="paleta-nome"></span></div>
-            <div class="paleta-grid" id="paleta-grid" role="group" aria-label="Paleta de cores" style="margin-top:8px;"></div>
+            <button type="button" class="btn-sidebar" style="width:100%;display:flex;align-items:center;gap:10px;" onclick="abrirEstudioTemas()" aria-haspopup="dialog"><span class="paleta-sw" id="tema-mini"></span><span style="flex:1;line-height:1.25;white-space:nowrap;">🎨 Temas e cores<br><span class="paleta-nome" id="tema-nome"></span></span></button>
           </div>
           <div class="aparencia-row">
             <span>🌙 Modo escuro</span>
@@ -1540,6 +1569,60 @@
   </div>
 </div>
 
+<!-- Estúdio de Temas: painel lateral; abre por "Temas e cores" em Aparência. As mudanças aparecem no app na hora; "Aplicar" guarda, "Cancelar" volta. -->
+<aside id="estudio-temas" class="estudio" aria-hidden="true" role="dialog" aria-label="Temas e cores">
+  <div class="estudio-head"><h2>🎨 Temas e cores</h2><button class="estudio-x" id="et-fechar" type="button" onclick="fecharEstudioTemas(false)" aria-label="Fechar sem aplicar">✕</button></div>
+  <div class="estudio-corpo">
+    <section>
+      <h3>Qual clima combina com você?</h3>
+      <div class="et-chips" id="et-climas" role="group" aria-label="Clima"></div>
+      <div class="et-galeria" id="et-galeria"></div>
+    </section>
+    <section>
+      <h3>Círculo cromático <small>arraste para escolher a cor base</small></h3>
+      <div class="et-wheel-wrap" id="et-wheel-wrap">
+        <div class="et-wheel" id="et-wheel" tabindex="0" role="slider" aria-label="Cor base no círculo cromático" aria-valuemin="0" aria-valuemax="359"></div>
+        <svg class="et-wheel-svg" id="et-wheel-svg" viewBox="0 0 200 200" aria-hidden="true"></svg>
+        <div class="et-wheel-centro"><div><b id="et-graus">0°</b><span id="et-harm-nome"></span></div></div>
+      </div>
+      <div class="et-campo"><label>Harmonia</label>
+        <div class="et-seg" id="et-harmonia" role="group" aria-label="Harmonia">
+          <button type="button" data-h="mono" onclick="etSetHarmonia('mono')">Uma cor</button><button type="button" data-h="analoga" onclick="etSetHarmonia('analoga')">Vizinhas</button><button type="button" data-h="split" onclick="etSetHarmonia('split')">Compl. suave</button><button type="button" data-h="comp" onclick="etSetHarmonia('comp')">Complementar</button><button type="button" data-h="triade" onclick="etSetHarmonia('triade')">Tríade</button>
+        </div>
+        <p class="et-dica" id="et-harm-dica"></p>
+      </div>
+      <div class="et-campo"><label>Intensidade <span id="et-sat-v"></span></label><input type="range" id="et-sat" min="12" max="92" aria-label="Intensidade da cor" oninput="etSetSat(this.value)"></div>
+      <div class="et-campo"><label>Menu lateral</label>
+        <div class="et-seg" id="et-menu" role="group" aria-label="Menu lateral"><button type="button" data-s="escuro" onclick="etSetMenu('escuro')">Escuro</button><button type="button" data-s="claro" onclick="etSetMenu('claro')">Claro</button></div>
+      </div>
+    </section>
+    <section>
+      <h3>Ajuste fino <small>os mesmos campos de cor de Configurações, só para você</small></h3>
+      <div class="et-fino">
+        <label><input type="color" id="et-destaque" oninput="etFino('destaque', this.value)" aria-label="Cor de destaque"> Destaque</label>
+        <label><input type="color" id="et-fundo" oninput="etFino('fundo', this.value)" aria-label="Cor de fundo"> Fundo</label>
+      </div>
+      <p class="et-dica" id="et-aviso-ws" style="display:none;">Este workspace tem uma Cor de Destaque própria (definida pelo admin em Configurações). Ela continua valendo por cima do destaque do tema.</p>
+      <button class="btn btn-sm" type="button" onclick="etResetFino()">Voltar ao tema</button>
+    </section>
+    <section>
+      <h3>Contraste <small id="et-cr-resumo"></small></h3>
+      <div class="et-contraste" id="et-contraste"></div>
+      <p class="et-dica">Mínimo de 4,5 para texto comum (WCAG AA). O estúdio clareia ou escurece sozinho o que ficaria difícil de ler; no ajuste fino ele só avisa.</p>
+    </section>
+    <section>
+      <h3>Guardar como meu tema <small>fica só neste navegador</small></h3>
+      <div class="et-salvar"><input type="text" id="et-nome" placeholder="Nome do tema" maxlength="24" aria-label="Nome do tema"><button class="btn btn-sm" type="button" onclick="etSalvarMeu()">Guardar</button></div>
+    </section>
+  </div>
+  <div class="estudio-rodape">
+    <button class="btn btn-sm" type="button" onclick="restaurarTemaClassico()">Voltar ao Clássico</button>
+    <span style="flex:1"></span>
+    <button class="btn btn-sm" type="button" onclick="fecharEstudioTemas(false)">Cancelar</button>
+    <button class="btn btn-green btn-sm" type="button" onclick="fecharEstudioTemas(true)">Aplicar</button>
+  </div>
+</aside>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1665,38 +1748,211 @@ function toggleTheme() {
   if (saved) document.documentElement.setAttribute('data-theme', saved);
 })();
 
-// ── paleta de cores (preferência pessoal, salva no navegador; o modo escuro continua independente) ──
-// "sb" = cor do menu lateral e "cor" = destaque, só para desenhar a bolinha de escolha. As cores de verdade ficam no CSS (data-paleta).
-const PALETA_KEY = 'ws_app_paleta';
-const PALETAS = [
-  { id: 'classico', nome: 'Clássico', sb: '#021F33', cor: '#00FF7A' },
-  { id: 'nevoa', nome: 'Névoa', sb: '#FFFFFF', cor: '#7FD8BE' },
-  { id: 'oceano', nome: 'Oceano', sb: '#0E2A47', cor: '#5AB0FF' },
-  { id: 'lavanda', nome: 'Lavanda', sb: '#2A2150', cor: '#BBA9FF' },
-  { id: 'pessego', nome: 'Pêssego', sb: '#FFF9F4', cor: '#FFA586' },
-  { id: 'grafite', nome: 'Grafite', sb: '#22272F', cor: '#E8BD4F' },
-  { id: 'contraste', nome: 'Alto contraste', sb: '#000000', cor: '#FFD400' },
+// ── temas e cores (preferência pessoal, salva no navegador; o modo escuro continua independente) ──
+// O tema vira um <style id="tema-usuario"> com variáveis para o modo claro e o escuro (assim o botão de modo escuro não precisa reaplicar nada).
+// Uma cópia do CSS fica em localStorage e é injetada por um script no <head> antes de pintar a tela. Tema "Clássico" sem ajuste = nenhum <style> (visual padrão).
+const TEMA_KEY = 'ws_app_tema';
+const TEMA_CSS_KEY = 'ws_app_tema_css';
+const TEMAS_MEUS_KEY = 'ws_app_temas_meus';
+const TEMA_HARMONIAS = {
+  mono:    { nome: 'uma cor', off: 0,   dica: 'Uma só cor em vários tons: calma e coesa. Cuidado para o destaque não se perder no fundo.' },
+  analoga: { nome: 'vizinhas', off: 30, dica: 'Cores vizinhas no círculo (cerca de 30°): harmoniosas e tranquilas, boas para o dia todo.' },
+  split:   { nome: 'complementar suave', off: 150, dica: 'A cor base mais um vizinho da oposta: muito contraste, mas mais amigável que a complementar pura.' },
+  comp:    { nome: 'complementar', off: 180, dica: 'Cores opostas (180°): contraste máximo. Fica forte; boa para quem quer energia.' },
+  triade:  { nome: 'tríade', off: 120, dica: 'Três cores a 120° uma da outra: variada e viva. Deixe uma dominar e as outras apoiarem.' },
+};
+const TEMA_CLIMAS = [['todos', 'Todos'], ['calmo', 'Calmo'], ['energico', 'Energético'], ['serio', 'Sério'], ['acolhedor', 'Acolhedor']];
+const TEMAS = [
+  { id: 'classico', nome: 'Clássico', clima: ['serio'], h: 205, s: 78, harm: 'mono', menu: 'escuro', accHex: '#00FF7A', desc: 'O visual de sempre: azul-marinho e verde.' },
+  { id: 'nevoa', nome: 'Névoa', clima: ['calmo'], h: 172, s: 40, harm: 'analoga', menu: 'claro', desc: 'Claro e suave, com verde-menta.' },
+  { id: 'salvia', nome: 'Sálvia', clima: ['calmo', 'acolhedor'], h: 140, s: 24, harm: 'analoga', menu: 'claro', desc: 'Verdes acinzentados, repousantes.' },
+  { id: 'oceano', nome: 'Oceano', clima: ['serio', 'calmo'], h: 214, s: 70, harm: 'mono', menu: 'escuro', desc: 'Azul profundo e confiável.' },
+  { id: 'marinho-laranja', nome: 'Marinho e laranja', clima: ['energico'], h: 216, s: 78, harm: 'comp', menu: 'escuro', desc: 'Complementar clássica: azul e laranja.' },
+  { id: 'uva-limao', nome: 'Uva e limão', clima: ['energico'], h: 280, s: 62, harm: 'split', menu: 'escuro', desc: 'Roxo com um destaque verde-limão.' },
+  { id: 'lavanda', nome: 'Lavanda', clima: ['calmo', 'acolhedor'], h: 255, s: 60, harm: 'mono', menu: 'escuro', desc: 'Violeta suave e moderno.' },
+  { id: 'pessego', nome: 'Pêssego', clima: ['acolhedor'], h: 18, s: 62, harm: 'analoga', menu: 'claro', desc: 'Claro e quente, tons de pôr do sol.' },
+  { id: 'areia', nome: 'Areia', clima: ['acolhedor', 'calmo'], h: 36, s: 34, harm: 'analoga', menu: 'claro', desc: 'Bege e terracota, aconchegante.' },
+  { id: 'grafite', nome: 'Grafite e âmbar', clima: ['serio'], h: 218, s: 14, harm: 'comp', menu: 'escuro', accHex: '#E8BD4F', desc: 'Neutro e sóbrio, com um toque de âmbar.' },
+  { id: 'tropical', nome: 'Tropical', clima: ['energico', 'acolhedor'], h: 176, s: 66, harm: 'triade', menu: 'escuro', desc: 'Turquesa com um destaque vibrante.' },
+  { id: 'contraste', nome: 'Alto contraste', clima: ['serio'], h: 0, s: 0, harm: 'mono', menu: 'escuro', accHex: '#FFD400', especial: 'contraste', desc: 'Preto, branco e amarelo para leitura máxima.' },
 ];
-function paletaAtual() {
-  let id = 'classico';
-  try { id = localStorage.getItem(PALETA_KEY) || 'classico'; } catch (e) {}
-  return PALETAS.some(p => p.id === id) ? id : 'classico';
+// matemática de cor (HSL ↔ RGB, contraste WCAG)
+function _hsl(h, s, l) { h = ((h % 360) + 360) % 360; s /= 100; l /= 100; const a = s * Math.min(l, 1 - l); const f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }; return [f(0), f(8), f(4)]; }
+function _hex(r) { return '#' + r.map(v => v.toString(16).padStart(2, '0')).join(''); }
+function _rgb(x) { return [1, 3, 5].map(i => parseInt(x.slice(i, i + 2), 16)); }
+function _hueDe(r) { const [R, G, B] = r.map(v => v / 255), mx = Math.max(R, G, B), mn = Math.min(R, G, B), d = mx - mn; if (!d) return 0; const h = mx === R ? ((G - B) / d) % 6 : mx === G ? (B - R) / d + 2 : (R - G) / d + 4; return (h * 60 + 360) % 360; }
+function _lum(r) { const c = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * c(r[0]) + .7152 * c(r[1]) + .0722 * c(r[2]); }
+function _cr(a, b) { const x = _lum(a), y = _lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+function _mix(fg, bg, a) { return fg.map((v, i) => Math.round(v * a + bg[i] * (1 - a))); }
+function _garante(h, s, l, fundo, dir) { let n = 0; while (_cr(_hsl(h, s, l), fundo) < 4.5 && n++ < 70) l = Math.max(2, Math.min(98, l + dir)); return _hsl(h, s, l); }
+// gera as cores de um tema, para o modo claro ou o escuro, já corrigindo o que ficaria abaixo de 4,5:1
+function gerarTema(p, escuro) {
+  const claroMenu = p.menu === 'claro', t = {};
+  if (p.id === 'classico' && !p.finoDest && !p.fundo) {   // o visual padrão do app (CSS base), só para desenhar bolinhas e conferir contraste
+    t.bg = escuro ? [11, 22, 34] : [244, 245, 243]; t.surface = escuro ? [20, 33, 47] : [255, 255, 255]; t.text = escuro ? [229, 231, 235] : [26, 26, 26];
+    t.muted = escuro ? [154, 171, 189] : [95, 102, 115]; t.brand = [2, 31, 51]; t.accent = [0, 255, 122]; t.onAccent = t.brand; t.ink = escuro ? t.accent : [6, 122, 69];
+    t.sb = escuro ? [10, 27, 42] : t.brand; t.sbFg = [255, 255, 255]; t.sbFgA = .68; t.sbStrong = [255, 255, 255]; t.sbMuted = _mix([255, 255, 255], t.sb, .5);
+    t.sbLine = _mix([255, 255, 255], t.sb, .14); t.sbActBg = _mix(t.accent, t.sb, .14); t.sbActFg = t.accent; t.sbHover = 'rgba(255,255,255,.07)'; t.sbCard = 'rgba(255,255,255,.05)';
+    return t;
+  }
+  const accBase = p.finoDest || p.accHex || null;
+  const ha = accBase ? _hueDe(_rgb(accBase)) : p.h + TEMA_HARMONIAS[p.harm].off;
+  const sat = Math.min(85, p.s + 15);
+  if (p.especial === 'contraste' && !escuro) {
+    t.bg = [255, 255, 255]; t.surface = [255, 255, 255]; t.text = [0, 0, 0]; t.muted = [47, 47, 47]; t.brand = [0, 0, 0];
+    t.accent = _rgb(accBase || '#FFD400'); t.onAccent = [0, 0, 0]; t.ink = [0, 0, 0];
+    t.sb = [0, 0, 0]; t.sbFg = [255, 255, 255]; t.sbFgA = 1; t.sbStrong = [255, 255, 255]; t.sbMuted = [224, 224, 224]; t.sbLine = [153, 153, 153];
+    t.sbActBg = t.accent; t.sbActFg = [0, 0, 0]; t.border = 'rgba(0,0,0,.55)'; t.sbHover = 'rgba(255,255,255,.14)'; t.sbCard = 'rgba(255,255,255,.08)';
+    if (p.fundo) t.bg = _rgb(p.fundo);
+    return t;
+  }
+  t.bg = escuro ? [11, 22, 34] : _hsl(p.h, 26, 96);
+  t.surface = escuro ? [20, 33, 47] : [255, 255, 255];
+  t.text = escuro ? [229, 231, 235] : _hsl(p.h, 32, 12);
+  t.muted = escuro ? [154, 171, 189] : _garante(p.h, 14, 40, t.bg, -1);
+  t.brand = _hsl(p.h, Math.min(70, p.s * .75), 17);
+  t.accent = accBase ? _rgb(accBase) : _hsl(ha, Math.min(95, p.s + 12), 70);
+  t.onAccent = _cr(t.brand, t.accent) >= 4.5 ? t.brand : (_cr([0, 0, 0], t.accent) > _cr([255, 255, 255], t.accent) ? [0, 0, 0] : [255, 255, 255]);
+  t.ink = escuro ? t.accent : _garante(ha, sat, 38, t.bg, -1);
+  const sbClaro = claroMenu && !escuro;
+  t.sb = escuro ? (claroMenu ? [10, 27, 42] : _hsl(p.h, Math.min(60, p.s * .6), 10)) : (sbClaro ? [255, 255, 255] : t.brand);
+  t.sbFg = sbClaro ? _hsl(p.h, 16, 33) : [255, 255, 255]; t.sbFgA = sbClaro ? 1 : .72;
+  t.sbStrong = sbClaro ? _hsl(p.h, 30, 12) : [255, 255, 255];
+  t.sbMuted = sbClaro ? _garante(p.h, 14, 42, t.sb, -1) : _mix([255, 255, 255], t.sb, .6);
+  t.sbLine = sbClaro ? _hsl(p.h, 18, 86) : _mix([255, 255, 255], t.sb, .14);
+  t.sbActBg = _mix(t.accent, t.sb, sbClaro ? .26 : .16);
+  t.sbActFg = sbClaro ? _garante(ha, sat, 28, t.sbActBg, -1) : _garante(ha, Math.min(95, p.s + 15), 78, t.sbActBg, +1);
+  t.sbHover = sbClaro ? 'rgba(30,58,76,.06)' : 'rgba(255,255,255,.07)'; t.sbCard = sbClaro ? 'rgba(30,58,76,.04)' : 'rgba(255,255,255,.05)';
+  if (p.fundo && !escuro) { t.bg = _rgb(p.fundo); t.muted = _garante(p.h, 14, 40, t.bg, -1); t.ink = _garante(ha, sat, 38, t.bg, -1); }
+  return t;
 }
-function aplicarPaleta(id) {
-  const p = PALETAS.find(x => x.id === id) || PALETAS[0];
-  if (p.id === 'classico') document.documentElement.removeAttribute('data-paleta');
-  else document.documentElement.setAttribute('data-paleta', p.id);
-  try { localStorage.setItem(PALETA_KEY, p.id); } catch (e) {}
-  renderPaletas();
+function _temaVars(t) {
+  const c = _hex;
+  return `--navy:${c(t.brand)};--green:${c(t.accent)};--green-mid:${c(_mix(t.accent, [0, 0, 0], .85))};--accent-ink:${c(t.ink)};--page-bg:${c(t.bg)};--light-bg:${c(t.bg)};--white:${c(t.surface)};--text-main:${c(t.text)};--gray-text:${c(t.muted)};`
+    + `--sb-bg:${c(t.sb)};--sb-fg:rgba(${t.sbFg.join(',')},${t.sbFgA});--sb-fg-strong:${c(t.sbStrong)};--sb-muted:${c(t.sbMuted)};--sb-hover:${t.sbHover};--sb-line:${c(t.sbLine)};--sb-card:${t.sbCard};--sb-active-bg:${c(t.sbActBg)};--sb-active-fg:${c(t.sbActFg)};`
+    + (t.border ? `--border-light:${t.border};` : '');
 }
-function renderPaletas() {
-  const grid = document.getElementById('paleta-grid');
-  if (!grid) return;
-  const atual = paletaAtual();
-  grid.innerHTML = PALETAS.map(p => `<button type="button" class="paleta-sw" style="--sw-sb:${p.sb};--sw-cor:${p.cor};" title="${p.nome}" aria-label="Paleta ${p.nome}" aria-pressed="${p.id === atual}" onclick="aplicarPaleta('${p.id}')"></button>`).join('');
-  const nome = document.getElementById('paleta-nome');
-  if (nome) nome.textContent = PALETAS.find(p => p.id === atual).nome;
+function temaCss(p) {
+  const L = _temaVars(gerarTema(p, false)), D = _temaVars(gerarTema(p, true));
+  return `@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){${L}}}:root[data-theme="light"]{${L}}:root[data-theme="dark"]{${D}}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${D}}}`;
 }
+function temaEhPadrao(p) { return !p || (p.id === 'classico' && !p.finoDest && !p.fundo); }
+function aplicarTema(p, persistir) {
+  let el = document.getElementById('tema-usuario');
+  if (temaEhPadrao(p)) { if (el) el.remove(); }
+  else {
+    if (!el) { el = document.createElement('style'); el.id = 'tema-usuario'; document.head.appendChild(el); }
+    el.textContent = temaCss(p);
+  }
+  if (persistir) {
+    try {
+      if (temaEhPadrao(p)) { localStorage.removeItem(TEMA_KEY); localStorage.removeItem(TEMA_CSS_KEY); }
+      else { localStorage.setItem(TEMA_KEY, JSON.stringify(p)); localStorage.setItem(TEMA_CSS_KEY, temaCss(p)); }
+    } catch (e) {}
+  }
+}
+function temaSalvo() {
+  try { const j = JSON.parse(localStorage.getItem(TEMA_KEY) || 'null'); if (j && typeof j.h === 'number' && TEMA_HARMONIAS[j.harm]) return j; } catch (e) {}
+  return { ...TEMAS[0] };
+}
+function temasMeus() { try { const j = JSON.parse(localStorage.getItem(TEMAS_MEUS_KEY) || '[]'); return Array.isArray(j) ? j.filter(x => x && typeof x.h === 'number' && TEMA_HARMONIAS[x.harm]) : []; } catch (e) { return []; } }
+function renderTemaBotao() {
+  const p = temaSalvo(), t = gerarTema(p, false);
+  const sw = document.getElementById('tema-mini'), nome = document.getElementById('tema-nome');
+  if (sw) { sw.style.setProperty('--sw-sb', _hex(t.sb)); sw.style.setProperty('--sw-cor', _hex(t.accent)); }
+  if (nome) nome.textContent = p.nome || (TEMAS.find(x => x.id === p.id) || {}).nome || 'Personalizado';
+}
+
+// ── estúdio de temas (painel lateral; as mudanças aparecem no app na hora e só ficam se a pessoa clicar em Aplicar) ──
+let etEstado = null, etClima = 'todos', etAbertoAntes = null, etArrastando = false;
+function _etMini(p) { const t = gerarTema(p, false); return `<span class="et-mini"><i style="background:${_hex(t.sb)}"></i><span style="background:${_hex(t.bg)}"><b style="background:${_hex(t.accent)}"></b><s style="background:${_hex(t.brand)}"></s></span></span>`; }
+function abrirEstudioTemas() {
+  etAbertoAntes = temaSalvo();
+  etEstado = { ...etAbertoAntes };
+  document.getElementById('estudio-temas').classList.add('aberto');
+  document.getElementById('estudio-temas').setAttribute('aria-hidden', 'false');
+  etRender();
+  setTimeout(() => document.getElementById('et-fechar').focus(), 50);
+}
+function fecharEstudioTemas(aplicar) {
+  const el = document.getElementById('estudio-temas');
+  if (!el.classList.contains('aberto')) return;
+  if (aplicar) { aplicarTema(etEstado, true); }
+  else aplicarTema(etAbertoAntes, false);   // cancelar: volta ao que estava salvo
+  el.classList.remove('aberto'); el.setAttribute('aria-hidden', 'true');
+  renderTemaBotao();
+}
+function restaurarTemaClassico() { etEstado = { ...TEMAS[0] }; aplicarTema(etEstado, false); etRender(); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharEstudioTemas(false); });
+function etAplicarAoVivo() { aplicarTema(etEstado, false); etRender(); }
+function etRender() {
+  const p = etEstado, meus = temasMeus();
+  document.getElementById('et-climas').innerHTML = TEMA_CLIMAS.map(c => `<button class="et-chip" type="button" aria-pressed="${etClima === c[0]}" onclick="etClima='${c[0]}';etRender()">${c[1]}</button>`).join('');
+  const lista = TEMAS.filter(t => etClima === 'todos' || t.clima.includes(etClima));
+  document.getElementById('et-galeria').innerHTML = lista.map(t => `<button class="et-tema" type="button" aria-pressed="${p.id === t.id && !p.finoDest && !p.fundo}" title="${t.desc}" onclick="etEscolher('${t.id}')">${_etMini(t)}<span>${t.nome}</span></button>`).join('')
+    + meus.map((t, i) => `<button class="et-tema" type="button" aria-pressed="${p.id === 'u' + i}" title="Meu tema" onclick="etEscolherMeu(${i})">${_etMini(t)}<span>★ ${escapeHtml(t.nome)}</span></button>`).join('');
+  document.getElementById('et-graus').textContent = Math.round(p.h) + '°';
+  document.getElementById('et-harm-nome').textContent = TEMA_HARMONIAS[p.harm].nome;
+  document.getElementById('et-harm-dica').textContent = TEMA_HARMONIAS[p.harm].dica;
+  document.querySelectorAll('#et-harmonia button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.h === p.harm)));
+  document.querySelectorAll('#et-menu button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === p.menu)));
+  document.getElementById('et-sat').value = p.s;
+  document.getElementById('et-sat-v').textContent = p.s < 30 ? 'suave' : p.s < 62 ? 'média' : 'vibrante';
+  document.getElementById('et-wheel').setAttribute('aria-valuenow', Math.round(p.h));
+  // pontos da harmonia no círculo
+  const C = 100, R = 80, pt = (deg, r) => { const a = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; };
+  const off = TEMA_HARMONIAS[p.harm].off;
+  const graus = [[p.h, 9]];
+  if (p.harm === 'triade') graus.push([p.h + 120, 6.5], [p.h + 240, 6.5]);
+  else if (p.harm === 'split') graus.push([p.h + 150, 6.5], [p.h + 210, 6.5]);
+  else if (p.harm !== 'mono') graus.push([p.h + off, 6.5]);
+  const xs = graus.map(g => pt(g[0], R));
+  const linhas = xs.length > 1 ? xs.map((a, i) => { const b = xs[(i + 1) % xs.length]; return (xs.length > 2 || i === 0) ? `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="currentColor" stroke-opacity=".4" stroke-width="1.4" stroke-dasharray="4 4"/>` : ''; }).join('') : '';
+  document.getElementById('et-wheel-svg').innerHTML = linhas + graus.map((g, i) => `<circle cx="${xs[i][0]}" cy="${xs[i][1]}" r="${g[1] + 2}" fill="var(--white)"/><circle cx="${xs[i][0]}" cy="${xs[i][1]}" r="${g[1]}" fill="${_hex(_hsl(g[0], 80, 55))}"/>` + (i === 0 ? `<circle cx="${xs[i][0]}" cy="${xs[i][1]}" r="3" fill="#fff"/>` : '')).join('');
+  // ajuste fino (os mesmos dois campos de Configurações, mas pessoais)
+  const t = gerarTema(p, temaEscuroAtivo());
+  document.getElementById('et-destaque').value = _hex(t.accent);
+  document.getElementById('et-fundo').value = p.fundo || _hex(gerarTema(p, false).bg);
+  const aviso = document.getElementById('et-aviso-ws');
+  aviso.style.display = (typeof activeWorkspace !== 'undefined' && activeWorkspace && activeWorkspace.corDestaque && activeWorkspace.corDestaque.toUpperCase() !== DEFAULT_COR_DESTAQUE.toUpperCase()) ? '' : 'none';
+  // teste de contraste do modo que está na tela
+  const esc = temaEscuroAtivo(), tt = gerarTema(p, esc);
+  const sbFg = _mix(tt.sbFg, tt.sb, tt.sbFgA);
+  const pares = [['Texto sobre o fundo', tt.text, tt.bg], ['Texto secundário', tt.muted, tt.bg], ['Botão de destaque', tt.onAccent, tt.accent], ['Link e selo de destaque', tt.ink, tt.surface], ['Menu: texto', sbFg, tt.sb], ['Menu: item ativo', tt.sbActFg, tt.sbActBg]];
+  let falhas = 0;
+  document.getElementById('et-contraste').innerHTML = pares.map(q => { const r = _cr(q[1], q[2]), ok = r >= 4.5; if (!ok) falhas++;
+    return `<div class="et-cr"><span class="et-sw" style="background:${_hex(q[2])};color:${_hex(q[1])}">Aa</span><span>${q[0]} <b>${r.toFixed(1)}</b></span><span class="et-sel ${ok ? 'ok' : 'bad'}">${ok ? 'AA ok' : 'baixo'}</span></div>`; }).join('');
+  document.getElementById('et-cr-resumo').textContent = (falhas ? falhas + ' par(es) abaixo de 4,5' : 'todos passam de 4,5') + (esc ? ' · modo escuro' : ' · modo claro');
+}
+function etEscolher(id) { const t = TEMAS.find(x => x.id === id); etEstado = { ...t }; etAplicarAoVivo(); }
+function etEscolherMeu(i) { const t = temasMeus()[i]; etEstado = { ...t, id: 'u' + i }; etAplicarAoVivo(); }
+function etManual() { etEstado.id = 'livre'; etEstado.nome = ''; delete etEstado.accHex; delete etEstado.especial; delete etEstado.finoDest; etAplicarAoVivo(); }
+function etAnguloDe(ev) { const r = document.getElementById('et-wheel-wrap').getBoundingClientRect(); const x = ev.clientX - (r.left + r.width / 2), y = ev.clientY - (r.top + r.height / 2); return ((Math.atan2(y, x) * 180 / Math.PI) + 90 + 360) % 360; }
+function etSetHarmonia(h) { etEstado.harm = h; etManual(); }
+function etSetMenu(m) { etEstado.menu = m; etManual(); }
+function etSetSat(v) { etEstado.s = Number(v); etManual(); }
+function etFino(campo, v) { if (campo === 'destaque') etEstado.finoDest = v; else etEstado.fundo = v; etAplicarAoVivo(); }
+function etResetFino() { delete etEstado.finoDest; delete etEstado.fundo; etAplicarAoVivo(); }
+function etSalvarMeu() {
+  const nome = document.getElementById('et-nome').value.trim();
+  if (!nome) { alert('Dê um nome ao seu tema.'); document.getElementById('et-nome').focus(); return; }
+  const meus = temasMeus();
+  const { id, desc, clima, ...resto } = etEstado;
+  meus.push({ ...resto, nome, clima: ['todos'] });
+  try { localStorage.setItem(TEMAS_MEUS_KEY, JSON.stringify(meus)); } catch (e) { alert('Não foi possível guardar: ' + e.message); return; }
+  document.getElementById('et-nome').value = '';
+  etEstado.id = 'u' + (meus.length - 1); etEstado.nome = nome;
+  etRender();
+}
+function etApagarMeu(i) { const meus = temasMeus(); meus.splice(i, 1); try { localStorage.setItem(TEMAS_MEUS_KEY, JSON.stringify(meus)); } catch (e) {} etRender(); }
+(function etLigarRoda() {
+  const w = document.getElementById('et-wheel');
+  if (!w) return;
+  w.addEventListener('pointerdown', e => { etArrastando = true; w.setPointerCapture(e.pointerId); etEstado.h = etAnguloDe(e); etManual(); });
+  w.addEventListener('pointermove', e => { if (etArrastando) { etEstado.h = etAnguloDe(e); etManual(); } });
+  w.addEventListener('pointerup', () => { etArrastando = false; });
+  w.addEventListener('keydown', e => { const d = (e.key === 'ArrowRight' || e.key === 'ArrowUp') ? 5 : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -5 : 0; if (d) { e.preventDefault(); etEstado.h = (etEstado.h + d + 360) % 360; etManual(); } });
+})();
 
 // ── intensidade de linhas/contornos (preferência pessoal, salva no navegador) ──
 const BORDA_KEY = 'ws_app_borda';
@@ -2156,7 +2412,7 @@ function renderIndicadores() {
         <div class="rot">${escapeHtml(b.label)}</div>
       </div>`).join('')}
     </div>
-    <div class="ind-legenda"><span><span class="sw" style="background:#3B82F6"></span>Criadas</span><span><span class="sw" style="background:#00C853"></span>Concluídas</span></div>`;
+    <div class="ind-legenda"><span><span class="sw" style="background:#3B82F6"></span>Criadas</span><span><span class="sw" style="background:var(--green-mid)"></span>Concluídas</span></div>`;
   ['dia', 'semana', 'mes'].forEach(p => { const btn = document.getElementById('ind-per-' + p); if (btn) btn.classList.toggle('active', p === indicadoresPeriodo); });
 
   // Pizzas
@@ -4761,7 +5017,7 @@ const AJUDA_CONTEUDO = [
   ]},
   { categoria: 'Aparência', itens: [
     { p: 'Como mudo as cores do app?', r: 'Configurações → "Cor de Destaque" (botões e realces) e "Cor de Fundo do Painel" (fundo das telas) — cada uma com pré-visualização ao vivo, botão Aplicar e Restaurar padrão. Só o admin edita.' },
-    { p: 'Posso escolher outra paleta de cores só para mim?', r: 'Sim: em "Aparência", no rodapé do menu, escolha Clássico, Névoa, Oceano, Lavanda, Pêssego, Grafite ou Alto contraste. Vale só para você, fica salva no navegador e funciona junto com o modo escuro. Se o admin definiu uma Cor de Destaque própria do workspace, ela continua valendo por cima.' },
+    { p: 'Posso escolher outro tema de cores só para mim?', r: 'Sim: em "Aparência", no rodapé do menu, clique em "Temas e cores". Escolha um tema pronto (por clima: calmo, energético, sério ou acolhedor) ou monte o seu no círculo cromático, com harmonias, intensidade e menu claro ou escuro. Dá para ajustar o destaque e o fundo e guardar como "meu tema". Vale só para você, fica salvo no navegador e funciona junto com o modo escuro. O estúdio confere o contraste de leitura (mínimo 4,5) e mostra o resultado. Se o admin definiu uma Cor de Destaque própria do workspace, ela continua valendo por cima.' },
     { p: 'O modo escuro/claro e o slider de contorno ficam salvos onde?', r: 'No seu navegador — é uma preferência pessoal, no rodapé da sidebar ("Aparência"). Não afeta o que as outras pessoas do workspace veem.' },
   ]},
   { categoria: 'Backup', itens: [
@@ -5215,7 +5471,7 @@ function importJSON(file) {
   document.getElementById('slider-borda').value = bordaIntensidade;
   document.getElementById('borda-valor').textContent = bordaIntensidade;
   aplicarIntensidadeBorda(bordaIntensidade);
-  renderPaletas();
+  renderTemaBotao();
 
   if (!CONFIG_OK) {
     document.getElementById('auth-screen').style.display = 'flex';
