@@ -149,3 +149,5 @@ Pedido do Edimilson para a apresentação/demonstração: layout mais moderno e 
 
 ## Bom dia: tempo e manchetes (2026-10-12)
 Bloco no Resumo do Dia (só perfil Pessoal), sem IA e sem chave. Tempo pelo Open-Meteo direto do navegador; manchetes pela Edge Function `bom-dia-noticias` (publicada, `verify_jwt = true`, RSS do Google Notícias; só título/fonte/link). Local (país/estado/cidade) em `localStorage` `ws_bomdia_local` (padrão São Paulo, SP), definido em Configurações → Localização, por filtros encadeados país → estado → cidade (IBGE para o Brasil, CountriesNow para os outros; também direto no botão "Alterar local" do bloco) ou por geolocalização do navegador + BigDataCloud (grátis, sem chave). Não pude testar as chamadas reais neste ambiente (rede bloqueada): conferir no site. Antes de vender: Open-Meteo gratuito é só não comercial, conferir termos das fontes de notícias.
+
+- **Portal `/cronograma` com linha do tempo (2026-10-12):** etapas em passos clicáveis, aviso "N itens dependem de você" e contador por etapa. Só leitura e estilo.

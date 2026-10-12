@@ -65,6 +65,25 @@
   .etapa { border-radius:var(--radius-lg); box-shadow:var(--shadow-soft); }
   .campo input, td input, td select { border-radius:10px; }
   .campo input:focus, td input:focus, td select:focus { outline:none; border-color:var(--accent-ink); box-shadow:0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
+  /* Linha do tempo das etapas + aviso do que depende do cliente */
+  .stepper { display:flex; align-items:flex-start; overflow-x:auto; padding:6px 2px 14px; margin-bottom:10px; gap:0; }
+  .passo { flex:1 0 120px; min-width:120px; text-align:center; position:relative; cursor:pointer; background:none; border:0; font-family:inherit; color:inherit; padding:0 6px; }
+  .passo::before { content:''; position:absolute; top:15px; left:-50%; width:100%; height:3px; background:var(--border-light); z-index:0; }
+  .passo:first-child::before { display:none; }
+  .passo.feito::before, .passo.feito-ant::before { background:var(--green); }
+  .passo .bola { position:relative; z-index:1; width:32px; height:32px; margin:0 auto 8px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; background:var(--white); border:3px solid var(--border-light); color:var(--gray-text); }
+  .passo.feito .bola { background:var(--green); border-color:var(--green); color:var(--navy); }
+  .passo.andamento .bola { border-color:var(--green); color:var(--accent-ink); }
+  .passo.bloqueada .bola { border-color:#DC2626; color:#B91C1C; }
+  .passo b { display:block; font-size:13px; line-height:1.25; }
+  .passo small { display:block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--gray-text); margin-top:3px; }
+  .passo.andamento small, .passo.feito small { color:var(--accent-ink); }
+  .passo:hover b { text-decoration:underline; }
+  .depende { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.35); border-radius:14px; padding:12px 16px; margin-bottom:14px; font-size:14px; }
+  .depende.ok { background:rgba(16,185,129,.12); border-color:rgba(16,185,129,.35); }
+  .depende b { font-weight:800; }
+  .etapa-conta { font-size:12px; color:var(--gray-text); margin-left:auto; }
+  .etapa { scroll-margin-top:16px; }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -100,6 +119,8 @@
       <div class="sub" id="proj-ws"></div>
       <div class="barra-geral" role="progressbar" aria-label="Andamento geral do projeto"><i id="barra-geral-i"></i></div>
     </div>
+    <div class="stepper" id="stepper" role="list" aria-label="Etapas do projeto"></div>
+    <div class="depende" id="depende" hidden></div>
     <div class="dica">Nos itens marcados como <strong>Cliente</strong> você pode atualizar o status, o baseline e a data de validação. Os demais são acompanhados pela equipe.</div>
     <div id="etapas"></div>
   </div>
@@ -198,11 +219,25 @@ function render() {
   $('proj-ws').textContent = projeto.workspace_nome;
   $('pct-geral').innerHTML = pctBadge(itens);
   $('barra-geral-i').style.width = pct(itens) + '%';
+  // linha do tempo das etapas
+  const estados = etapas.map(e => estadoEtapa(e, itens.filter(i => i.etapa_id === e.id)));
+  $('stepper').innerHTML = etapas.map((e, n) => {
+    const [cls, txt] = estados[n];
+    const c = cls === 'concluido' ? 'feito' : cls;
+    const ant = n > 0 && estados[n - 1][0] === 'concluido' ? ' feito-ant' : '';
+    return `<button type="button" class="passo ${c}${ant}" role="listitem" onclick="irParaEtapa('${e.id}')"><span class="bola">${cls === 'concluido' ? '✓' : n + 1}</span><b>${esc(e.nome)}</b><small>${txt}</small></button>`;
+  }).join('');
+  // o que depende do cliente
+  const meus = itens.filter(i => i.responsavel === 'cliente' && i.status !== 'concluido');
+  const dep = $('depende');
+  dep.hidden = !itens.some(i => i.responsavel === 'cliente');
+  dep.className = 'depende' + (meus.length ? '' : ' ok');
+  dep.innerHTML = meus.length ? `<span>⏳</span><span><b>${meus.length} ${meus.length === 1 ? 'item depende' : 'itens dependem'} de você:</b> ${meus.slice(0, 3).map(i => esc(i.nome)).join(', ')}${meus.length > 3 ? ' e mais ' + (meus.length - 3) : ''}.</span>` : '<span>✅</span><span><b>Tudo o que dependia de você está concluído.</b> Obrigado!</span>';
   $('etapas').innerHTML = etapas.map(e => {
     const its = itens.filter(i => i.etapa_id === e.id).sort((a, b) => a.ordem - b.ordem);
     const [cls, txt] = estadoEtapa(e, its);
-    return `<div class="etapa">
-      <div class="etapa-head"><span class="etapa-nome">${esc(e.nome)}</span>${pctBadge(its)}<span class="pill ${cls}">${txt}</span></div>
+    return `<div class="etapa" id="etapa-${e.id}">
+      <div class="etapa-head"><span class="etapa-nome">${esc(e.nome)}</span>${pctBadge(its)}<span class="pill ${cls}">${txt}</span><span class="etapa-conta">${its.filter(i => i.status === 'concluido').length}/${its.length} concluídos</span></div>
       <div class="etapa-corpo">
         ${e.bloqueada ? `<div class="bloqueio">🔒 ${esc(e.nota_bloqueio || 'Esta etapa está bloqueada no momento.')}</div>` : ''}
         <table>
@@ -212,6 +247,10 @@ function render() {
         </table>
       </div></div>`;
   }).join('') || '<div class="cartao">O cronograma ainda está sendo montado pela equipe.</div>';
+}
+function irParaEtapa(id) {
+  const el = document.getElementById('etapa-' + id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function linha(i) {
   const subs = subitens.filter(s => s.item_id === i.id).sort((a, b) => a.ordem - b.ordem);
