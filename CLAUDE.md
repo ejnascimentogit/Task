@@ -157,3 +157,12 @@ Bloco no Resumo do Dia (só perfil Pessoal), sem IA e sem chave. Tempo pelo Open
 - **Títulos grandes (2026-10-12):** `h2.view-titulo` nas telas com cartão (Agenda, E-mails, Resumo do Dia, Indicadores, Buscar, Cronograma) e `view-head` novo em Pendências, Treinamentos e Lâmina. Só estilo.
 
 - **Nova pendência (2026-10-12):** botão "+ Nova pendência" na aba Pendências (`abrirNovaPendencia`/`salvarNovaPendencia`, modal `nova-pend-modal-overlay`); a criação pela ficha do cliente continua.
+
+## Anotações em andamento: apresentação e vídeo (2026-10-12)
+O Edimilson pediu para **só anotar** e concluir quando ele avisar que terminou o vídeo. Nada abaixo deve ser feito antes desse aviso.
+- **Slides:** o deck está em https://claude.ai/artifact/LjrKWFxDaiBW6ncQkHBeCB (16 slides, privado). O Edimilson edita slides direto na página (ex.: título do "Bom dia"): ao publicar, **ler o arquivo atual do slide antes** e nunca sobrescrever a edição dele.
+- **Pendente 1:** trocar a imagem do slide "Agenda: o mês inteiro numa tela" por um calendário **cheio**: compromissos já preenchidos em todo o mês **e** as datas comemorativas/feriados visíveis (a imagem atual está cortada e sem datas comemorativas). Gerar com dados e empresas de exemplo (Construtora Aurora, Clínica Vitta, Grupo Meridian), tema claro, locale pt-BR, calendário do mês inteiro (5 semanas) sem corte.
+- **Pendente 2:** refazer o vídeo (v3) com os 16 slides (entrou o slide "Relatório do dia" depois de Atividades e o bullet "Raia Concluído"). Voz neural Piper pt-BR (modelo `vits-piper-pt_BR-faber-medium`, baixado do GitHub release do sherpa-onnx), TTS com `sherpa-onnx`, `length_scale` 1,15. **Pronúncia:** a voz lia "sozinho" como "suzinho": na voz usar "so zinho", "so zinhos", "so zinhas" (a legenda mantém a grafia correta). Trocar também "Taskfull" por "Task Full" só na voz.
+- **Pendente 3:** no último slide o contato ainda é o texto provisório `[contato: e-mail ou WhatsApp]` (no vídeo vai o endereço do site). O Edimilson preenche o contato real.
+- **Decisão em aberto (Telegram):** hoje o assessor cria na hora e mostra "↩ Desfazer". Opções para confirmar antes de criar: (A) sempre; (B) só quando veio de áudio (recomendada). Aguardando escolha.
+- **Observação:** os prints de Pendências/Treinamentos/Lâmina nos slides foram feitos antes dos títulos grandes; refazer só se ele quiser.
