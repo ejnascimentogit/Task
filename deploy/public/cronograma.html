@@ -52,6 +52,11 @@
   :root { --radius-md:14px; --radius-lg:18px; --shadow-soft:0 1px 2px rgba(2,31,51,.05), 0 8px 24px rgba(2,31,51,.06); --gray-text:#5F6673; --accent-ink:#067A45; }
   :root[data-theme="dark"] { --accent-ink:var(--green); --gray-text:#9AABBD; --shadow-soft:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent-ink:var(--green); --gray-text:#9AABBD; --shadow-soft:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); } }
+  .hero-portal { background:var(--navy); color:var(--on-navy); border-radius:var(--radius-lg); padding:24px 26px 22px; margin-bottom:16px; box-shadow:var(--shadow-soft); }
+  .hero-portal .titulo h1 { font-size:clamp(22px,3vw,30px); }
+  .hero-portal .sub { color:rgba(255,255,255,.7); margin-bottom:14px; }
+  .barra-geral { height:10px; border-radius:99px; background:rgba(255,255,255,.16); overflow:hidden; }
+  .barra-geral i { display:block; height:100%; width:0; background:var(--green); border-radius:99px; transition:width .35s; }
   :focus-visible { outline:2px solid var(--accent-ink); outline-offset:2px; }
   header .marca, .login h1, .titulo h1, .etapa-nome { font-family:'Bricolage Grotesque','Inter',system-ui,sans-serif; letter-spacing:-.01em; }
   header .btn:hover { border-color:var(--green); }
@@ -90,8 +95,11 @@
   </div>
 
   <div id="app" hidden>
-    <div class="titulo"><h1 id="proj-nome"></h1><span id="pct-geral"></span></div>
-    <div class="sub" id="proj-ws"></div>
+    <div class="hero-portal">
+      <div class="titulo"><h1 id="proj-nome"></h1><span id="pct-geral"></span></div>
+      <div class="sub" id="proj-ws"></div>
+      <div class="barra-geral" role="progressbar" aria-label="Andamento geral do projeto"><i id="barra-geral-i"></i></div>
+    </div>
     <div class="dica">Nos itens marcados como <strong>Cliente</strong> você pode atualizar o status, o baseline e a data de validação. Os demais são acompanhados pela equipe.</div>
     <div id="etapas"></div>
   </div>
@@ -189,6 +197,7 @@ function render() {
   $('proj-nome').textContent = projeto.nome;
   $('proj-ws').textContent = projeto.workspace_nome;
   $('pct-geral').innerHTML = pctBadge(itens);
+  $('barra-geral-i').style.width = pct(itens) + '%';
   $('etapas').innerHTML = etapas.map(e => {
     const its = itens.filter(i => i.etapa_id === e.id).sort((a, b) => a.ordem - b.ordem);
     const [cls, txt] = estadoEtapa(e, its);

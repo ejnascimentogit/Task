@@ -736,7 +736,7 @@
   .filter-day-btn.active { background: var(--green); color: var(--navy); }
 
   /* ── Indicadores ── */
-  .ind-bloco { position: relative; border-radius: var(--radius-lg); border-top-width: 1px; box-shadow: var(--shadow-soft); background: var(--white); padding: 20px; }
+  .ind-bloco { position: relative; border-radius: var(--radius-lg); border-top-width: 1px; border-top-color: var(--border-light); box-shadow: var(--shadow-soft); background: var(--white); padding: 20px; }
   .ind-bloco::before { content: ''; position: absolute; left: 20px; top: -1px; width: 44px; height: 4px; border-radius: 0 0 4px 4px; background: var(--ind-cor, #64748B); }
   .ind-card { border-radius: var(--radius-md); background: var(--light-bg); border-color: transparent; padding: 14px 16px; }
   .ind-card .num { font-size: 32px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
@@ -824,6 +824,103 @@
   @media (max-width: 480px) { .et-galeria { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) { .estudio, .et-tema { transition: none; } }
   .email-card { border-left-color: var(--accent-ink); } .resumo-emails-box { border-left-color: var(--accent-ink); }
+
+  /* ══ Layout v3: as telas passam a seguir os protótipos aprovados (Atividades, Agenda, Resumo do Dia, Indicadores, Cronograma, menu). Só marcação e estilo; os dados e as ações são os mesmos. ══ */
+  :root { --tipo-1:#1F6FA8; --tipo-2:#6B46C1; --tipo-3:#B4560F; --tipo-4:#0B7F58; --tipo-5:#B0316B; --tipo-6:#4D6B00; }
+  :root[data-theme="dark"] { --tipo-1:#5FA8DC; --tipo-2:#A58BE8; --tipo-3:#F0A559; --tipo-4:#34D399; --tipo-5:#F58FB5; --tipo-6:#A3C95A; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --tipo-1:#5FA8DC; --tipo-2:#A58BE8; --tipo-3:#F0A559; --tipo-4:#34D399; --tipo-5:#F58FB5; --tipo-6:#A3C95A; } }
+  i.av { font-style: normal; width: 22px; height: 22px; border-radius: 50%; background: var(--navy); color: var(--on-navy); display: inline-grid; place-items: center; font-size: 10.5px; font-weight: 700; flex: none; }
+  .nav-ico { width: 17px; height: 17px; flex: none; }
+  .nav-item { gap: 11px; }
+  .nav-item .badge-count { margin-left: auto; }
+  .pessoa-filter-btn { display: inline-flex; align-items: center; gap: 7px; }
+  .pessoa-filter-btn i.av { width: 20px; height: 20px; font-size: 10px; }
+  .pessoa-filter-btn.active i.av { background: var(--green); color: var(--navy); }
+
+  /* Atividades */
+  .ativ-legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: -6px 0 16px; color: var(--gray-text); font-size: 12px; }
+  .ativ-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .ativ-legenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .kanban-column-header h3 { display: flex; align-items: center; gap: 8px; }
+  .kanban-column-header h3::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--col-cor, var(--gray-text)); flex: none; }
+  .kanban-column[data-coluna="urgencias"] { --col-cor: var(--red); } .kanban-column[data-coluna="afazer"] { --col-cor: #4A90D9; }
+  .kanban-column[data-coluna="andamento"] { --col-cor: var(--amber); } .kanban-column[data-coluna="concluida"] { --col-cor: var(--green-mid); }
+  .kanban-card { border-top: 3px solid transparent; }
+  .kc-pessoa { display: inline-flex; align-items: center; gap: 6px; background: none; color: var(--gray-text); padding: 0; font-size: 11.5px; font-weight: 600; }
+  .kc-footer { gap: 8px; }
+
+  /* Agenda */
+  .calendario-group-label { display: flex; align-items: baseline; gap: 10px; border-bottom: 0; padding-bottom: 2px; font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--text-main); }
+  .calendario-group-label.hoje { color: var(--text-main); }
+  .calendario-group-label small { font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 500; text-transform: none; color: var(--gray-text); }
+  .dia-hoje { background: var(--green); color: var(--navy); border-radius: 8px; padding: 1px 10px; font-size: 13px; text-transform: none; }
+  .ag-item { display: grid; grid-template-columns: 22px 64px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 13px 16px; background: var(--white); box-shadow: var(--shadow-soft); border-left: 4px solid var(--c, var(--border-light)); }
+  .ag-item .ag-hora { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; min-width: 0; }
+  .ag-item .ag-titulo { font-size: 14px; }
+  .ag-tipo-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--c, var(--gray-text)); }
+  .ag-resp { display: inline-flex; align-items: center; gap: 7px; color: var(--gray-text); font-size: 12px; }
+  .agenda-card { border-left: 4px solid var(--c, var(--border-light)); }
+  .agenda-cards-group { margin-bottom: 18px; } .agenda-cards-group .calendario-group-label { margin-bottom: 8px; }
+  .agenda-card-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .agenda-card-hora { font-family: var(--font-display); font-size: 17px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .cal-evento-chip { border-left: 3px solid var(--c, transparent); }
+  @media (max-width: 600px) { .ag-item { grid-template-columns: 22px 56px minmax(0, 1fr); } .ag-resp span { display: none; } .ag-resp { grid-column: 3; } }
+
+  /* Resumo do Dia: painel do dia (blocos) acima do texto para copiar */
+  .rp-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+  .rp-tile { background: var(--light-bg); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .rp-tile h3 { font-family: var(--font-display); font-size: 14.5px; margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .rp-tile h3 span { font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; color: var(--gray-text); }
+  .rp-hero { grid-column: span 5; background: var(--navy); color: var(--on-navy); }
+  .rp-hero h3 span { color: rgba(255,255,255,.65); }
+  .rp-agenda { grid-column: span 7; } .rp-fila { grid-column: span 6; } .rp-pessoa { grid-column: span 6; }
+  .rp-linha { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .rp-big { font-family: var(--font-display); font-weight: 800; font-size: 60px; line-height: .9; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+  .rp-big small { font-size: .4em; color: rgba(255,255,255,.6); margin-left: 4px; }
+  .rp-ring { width: 84px; height: 84px; border-radius: 50%; flex: none; background: conic-gradient(var(--green) calc(var(--p) * 1%), rgba(255,255,255,.16) 0); display: grid; place-items: center; position: relative; }
+  .rp-ring::before { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--navy); }
+  .rp-ring b { position: relative; font-family: var(--font-display); font-size: 19px; }
+  .rp-ag { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 4px; border-top: 1px solid var(--border-light); }
+  .rp-ag:first-of-type { border-top: 0; }
+  .rp-ag time { font-family: var(--font-display); font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .rp-ag b { display: block; font-weight: 600; font-size: 13.5px; overflow-wrap: anywhere; } .rp-ag small { color: var(--gray-text); }
+  .rp-ag.feito time, .rp-ag.feito b { color: var(--gray-text); text-decoration: line-through; }
+  .rp-vazio { color: var(--gray-text); font-size: 13px; }
+  .rp-num { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13.5px; padding: 6px 0; border-top: 1px solid var(--border-light); }
+  .rp-num:first-of-type { border-top: 0; } .rp-num b { font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
+  @media (max-width: 960px) { .rp-hero, .rp-agenda, .rp-fila, .rp-pessoa { grid-column: span 12; } }
+  .resumo-pre { margin-top: 18px; }
+
+  /* Indicadores em blocos (bento) */
+  #view-indicadores .resumo-box { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 16px; align-items: start; }
+  #view-indicadores .resumo-box > h2, #view-indicadores .resumo-box > .pessoa-filter { grid-column: 1 / -1; }
+  #view-indicadores .resumo-box > h2 { margin-bottom: -6px; }
+  #view-indicadores .resumo-box > .pessoa-filter { width: fit-content; margin-top: 0 !important; }
+  #view-indicadores .ind-bloco { margin-top: 0; min-width: 0; }
+  #ind-b-fila { grid-column: 1 / -1; }
+  #ind-b-criadas { grid-column: 1 / span 8; }
+  #view-indicadores .pizza-row { display: contents; }
+  #view-indicadores .pizza-row > .ind-bloco:first-child { grid-column: 9 / span 4; }
+  #ind-prazos-wrap { grid-column: 1 / -1; }
+  #pizza-pessoa-wrap { grid-column: 1 / span 6; }
+  #ind-assessor-wrap { grid-column: 1 / -1; }
+  @media (max-width: 1000px) { #ind-b-criadas, #view-indicadores .pizza-row > .ind-bloco:first-child, #pizza-pessoa-wrap { grid-column: 1 / -1; } }
+  .ind-card .num { font-size: 36px; }
+
+  /* Cronograma */
+  .cron-layout > div { min-width: 0; }
+  .cron-proj { flex-wrap: wrap; }
+  .cron-bar, .cron-mini { height: 6px; border-radius: 99px; background: var(--border-light); overflow: hidden; display: block; }
+  .cron-bar { flex-basis: 100%; } .cron-mini { width: 90px; flex: none; }
+  .cron-bar i, .cron-mini i, .cron-prog i { display: block; height: 100%; background: var(--green-mid); border-radius: 99px; }
+  .cron-prog { height: 10px; border-radius: 99px; background: var(--light-bg); border: 1px solid var(--border-light); overflow: hidden; margin: 0 0 14px; }
+  .cron-etapa-head { gap: 12px; } .cron-etapa-head .cron-pct { margin-left: auto; }
+  .cron-etapa-head .cron-mini { margin-left: auto; } .cron-etapa-head .cron-mini + .cron-pct { margin-left: 0; }
+
+  /* Buscar e e-mails */
+  .busca-input { border-radius: 16px; }
+  .resumo-emails-box, .email-sugestao { border-radius: 14px; }
+  .resumo-sub { line-height: 1.6; }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1023,6 +1120,7 @@
             <button class="btn btn-sm" onclick="withLock(this, baixarResumoImagem)">📸 Imagem</button>
             <button class="btn btn-sm" onclick="withLock(this, baixarResumoPDF)">📄 PDF</button>
           </div>
+          <div id="resumo-painel"></div>
           <div class="resumo-pre" id="resumo-texto"></div>
           <div id="resumo-emails"></div>
         </div>
@@ -1065,6 +1163,7 @@
             <button class="btn btn-green btn-sm" onclick="novaAtividade()">+ Nova Atividade</button>
           </div>
         </div>
+        <div class="ativ-legenda" aria-label="Legenda das etiquetas"><span><i style="background:var(--red)"></i>Incidente Crítico</span><span><i style="background:var(--amber)"></i>Alta Urgência</span><span><i style="background:#F2C94C"></i>Atenção</span><span><i style="background:#4A90D9"></i>Rotina</span></div>
         <div class="kanban-board" id="kanban-board"></div>
       </section>
 
@@ -1082,11 +1181,11 @@
         <div class="resumo-box">
           <h2 style="margin-bottom:0;">📊 Indicadores</h2>
           <div class="pessoa-filter" id="pessoa-filter-indicadores" style="margin-top:14px;"></div>
-          <div class="ind-bloco" style="--ind-cor:#64748B;">
+          <div class="ind-bloco" id="ind-b-fila" style="--ind-cor:#64748B;">
             <div class="ind-bloco-titulo">Fila atual, por coluna do quadro</div>
             <div class="ind-cards" id="ind-cards"></div>
           </div>
-          <div class="ind-bloco" style="--ind-cor:#3B82F6;">
+          <div class="ind-bloco" id="ind-b-criadas" style="--ind-cor:#3B82F6;">
             <div class="ind-bloco-titulo">Criadas × Concluídas
               <span class="view-toggle" style="margin-left:auto;">
                 <button class="view-toggle-btn" id="ind-per-dia" onclick="setIndicadoresPeriodo('dia')">Dia</button>
@@ -1698,7 +1797,8 @@ const PERFIL_DESC = {
   projeto: 'Tudo do modo Equipe, mais treinamentos/onboarding por etapas.',
 };
 const ENTIDADE_LABEL_PADRAO = { pessoal: null, equipe: 'Clientes', projeto: 'Projetos' };
-const NAV_ICON = { entidades: '🏢', agenda: '🗓', pendencias: '⚠️', atividades: '✅', resumo: '📋', treinamentos: '🎓', indicadores: '📊', lamina: '🖼', cronograma: '🗂', buscar: '🔍', emails: '📧' };
+const _ni = d => `<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7') };
 const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails' };
 
 const DEFAULT_ETAPAS = [
@@ -3361,7 +3461,7 @@ function desenharCronograma() {
   if (!cron.sel || !projetos.some(p => p.id === cron.sel)) cron.sel = projetos[0] ? projetos[0].id : null;
   document.getElementById('cron-lista').innerHTML = projetos.map(p => `
     <div class="cron-proj ${p.id === cron.sel ? 'ativo' : ''}" onclick="cronSelecionar('${p.id}')">
-      <span class="nome">${escapeHtml(p.nome)}</span>${cron.acessos.some(a => a.entidade_id === p.id) ? '<span title="Tem login do cliente">🔑</span>' : ''}${cronPctBadge(cronItensDoProjeto(p.id))}
+      <span class="nome">${escapeHtml(p.nome)}</span>${cron.acessos.some(a => a.entidade_id === p.id) ? '<span title="Tem login do cliente">🔑</span>' : ''}${cronPctBadge(cronItensDoProjeto(p.id))}<span class="cron-bar"><i style="width:${cronPct(cronItensDoProjeto(p.id))}%"></i></span>
     </div>`).join('') || '<div class="cron-vazio">Cadastre um projeto na aba Projetos para montar o cronograma dele.</div>';
   document.getElementById('cron-conteudo').innerHTML = cron.sel ? (cron.preview ? cronPreviewHtml(cron.sel) : cronEditorHtml(cron.sel)) : '';
 }
@@ -3391,7 +3491,7 @@ function cronEditorHtml(eid) {
       ${cronEhAdmin() ? `<button class="btn btn-sm" onclick="withLock(this, () => cronLogin('${eid}', ${acesso ? 'true' : 'false'}))">${acesso ? '🔑 Gerar nova senha' : '🔑 Criar login do cliente'}</button>` : ''}
       <button class="btn btn-green btn-sm" onclick="withLock(this, () => cronAddEtapa('${eid}'))">+ Etapa</button>
     </div>
-    ${acessoHtml}${dup}
+    <div class="cron-prog"><i style="width:${cronPct(itens)}%"></i></div>${acessoHtml}${dup}
     ${etapas.map(e => cronEtapaHtml(e)).join('') || '<div class="cron-vazio">Nenhuma etapa ainda. Clique em "+ Etapa" para começar.</div>'}
     ${log.length ? `<div class="cron-log"><strong>Últimas alterações feitas pelo cliente</strong>${log.map(l => `<div>${new Date(l.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · ${escapeHtml(l.item_nome || 'item')}: ${l.status_antes !== l.status_depois ? escapeHtml(l.status_antes + ' → ' + l.status_depois) + ' ' : ''}${(l.baseline_antes || '') !== (l.baseline_depois || '') ? 'baseline "' + escapeHtml(l.baseline_depois || '') + '" ' : ''}${(l.data_validacao_antes || '') !== (l.data_validacao_depois || '') ? 'data ' + (l.data_validacao_depois ? formatDate(l.data_validacao_depois) : '—') : ''}</div>`).join('')}</div>` : ''}`;
 }
@@ -3403,7 +3503,7 @@ function cronEtapaHtml(e) {
     <div class="cron-etapa-head" onclick="cronToggleEtapa('${e.id}')">
       <span>${colapsada ? '▸' : '▾'}</span>
       <span class="cron-etapa-nome">${escapeHtml(e.nome)}</span>
-      <span style="color:var(--gray-text);font-size:12px;">(${itens.length})</span>${cronPctBadge(itens)}<span class="cron-pill ${est.cls}">${est.txt}</span>
+      <span style="color:var(--gray-text);font-size:12px;">(${itens.length})</span><span class="cron-mini"><i style="width:${cronPct(itens)}%"></i></span>${cronPctBadge(itens)}<span class="cron-pill ${est.cls}">${est.txt}</span>
       <span style="margin-left:auto;display:flex;gap:10px;" onclick="event.stopPropagation()">
         <span class="cron-del" title="Renomear" onclick="withLock(this, () => cronRenomearEtapa('${e.id}'))">✏️</span>
         <span class="cron-del" title="${e.bloqueada ? 'Desbloquear' : 'Bloquear'}" onclick="withLock(this, () => cronToggleBloqueio('${e.id}'))">${e.bloqueada ? '🔓' : '🔒'}</span>
@@ -3831,7 +3931,7 @@ function buildSidebarNav() {
     const label = aba === 'entidades' ? entidadeLabel() : NAV_NOME_FIXO[aba];
     const badge = aba === 'agenda' ? ` <span class="badge-count" id="agenda-count">0</span>`
       : (aba === 'emails' ? ` <span class="badge-count" id="emails-count">0</span>` : '');
-    return `<button class="nav-item" id="tab-${aba}" onclick="setTab('${aba}')">${NAV_ICON[aba]} ${label}${badge}</button>`;
+    return `<button class="nav-item" id="tab-${aba}" onclick="setTab('${aba}')">${NAV_ICON[aba]}<span>${label}</span>${badge}</button>`;
   }).join('');
 }
 
@@ -4287,11 +4387,20 @@ function pendItemsHtml(list) {
 // ══════════════════════════════════════════════════════════════
 let editingAgendamentoId = null;
 
+// ── Layout v3: ajudantes só de desenho (iniciais, cor por tipo, rótulo do dia) ──
+function inicialDe(n) { return escapeHtml(((n || '?').trim()[0] || '?').toUpperCase()); }
+function avatarHtml(n) { return `<i class="av" title="${escapeHtml(n || '')}">${inicialDe(n)}</i>`; }
+function corDoTipo(tipoId) { const i = Math.max(0, TIPOS_AGENDAMENTO.findIndex(t => t.id === tipoId)); return `var(--tipo-${(i % 6) + 1})`; }
+function rotuloDiaAgenda(dia, n, hoje) {
+  let nome = new Date(dia + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  nome = nome.charAt(0).toUpperCase() + nome.slice(1);
+  return `<div class="calendario-group-label ${hoje ? 'hoje' : ''}">${hoje ? '<span class="dia-hoje">Hoje</span>' : ''}<span>${escapeHtml(nome)}</span><small>${n} ${n === 1 ? 'compromisso' : 'compromissos'}</small></div>`;
+}
 function renderPessoaFiltro(containerId, extraOnclick) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const nomes = ['Todos', ...membrosAtivos()];
-  el.innerHTML = nomes.map(n => `<button class="pessoa-filter-btn ${pessoaFiltro===n?'active':''}" onclick="${extraOnclick}('${n}')">${escapeHtml(n)}</button>`).join('');
+  el.innerHTML = nomes.map(n => `<button class="pessoa-filter-btn ${pessoaFiltro===n?'active':''}" onclick="${extraOnclick}('${n}')">${n === 'Todos' ? '' : avatarHtml(n)}${escapeHtml(n)}</button>`).join('');
 }
 function setPessoaFiltroAgenda(n) { pessoaFiltro = n; renderAgenda(); }
 function setPessoaFiltroAtividades(n) { pessoaFiltro = n; renderAtividades(); }
@@ -4363,7 +4472,7 @@ function renderAgenda() {
   if (agendaView === 'cards') {
     document.getElementById('agenda-cards-wrap').innerHTML = dias.map(dia => `
       <div class="agenda-cards-group">
-        <div class="calendario-group-label ${dia===today?'hoje':''}">${dia===today?'Hoje — ':''}${formatDate(dia)}</div>
+        ${rotuloDiaAgenda(dia, groups[dia].length, dia===today)}
         <div class="agenda-cards-grid">${groups[dia].map(agendamentoCardHtml).join('')}</div>
       </div>`).join('') || `<div class="empty-state"><div class="big">🗓</div><h3>Nada agendado</h3></div>`;
   } else if (agendaView === 'mensal') {
@@ -4380,21 +4489,21 @@ function renderAgenda() {
   } else {
     document.getElementById('agenda-list').innerHTML = dias.map(dia => `
       <div>
-        <div class="calendario-group-label ${dia===today?'hoje':''}">${dia===today?'Hoje — ':''}${formatDate(dia)}</div>
+        ${rotuloDiaAgenda(dia, groups[dia].length, dia===today)}
         <div class="calendario-items">${groups[dia].map(agendamentoItemHtml).join('')}</div>
       </div>`).join('') || `<div class="empty-state"><div class="big">🗓</div><h3>Nada agendado</h3></div>`;
   }
 }
 function agendamentoCardHtml(a) {
   const tipo = TIPOS_AGENDAMENTO.find(t=>t.id===a.tipo) || { icone:'📌' };
-  return `<div class="agenda-card ${a.feito?'feito':''}" onclick="openAgendamentoModal('${a.id}')">
+  return `<div class="agenda-card ${a.feito?'feito':''}" style="--c:${corDoTipo(a.tipo)}" onclick="openAgendamentoModal('${a.id}')">
     <div class="agenda-card-top">
       <input type="checkbox" ${a.feito?'checked':''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))">
       <span class="agenda-card-hora">${a.hora||'—'}</span>
       <span class="agenda-card-tipo">${tipo.icone}</span>
     </div>
     <div class="agenda-card-titulo">${escapeHtml(a.titulo)}</div>
-    <div class="agenda-card-meta">${a.entidadeNome?escapeHtml(a.entidadeNome)+' · ':''}${escapeHtml(a.responsavel)}</div>
+    <div class="agenda-card-meta">${avatarHtml(a.responsavel)}<span>${a.entidadeNome?escapeHtml(a.entidadeNome)+' · ':''}${escapeHtml(a.responsavel)}</span></div>
   </div>`;
 }
 function renderAgendaMensal(groups, dias, today) {
@@ -4409,7 +4518,7 @@ function renderAgendaMensal(groups, dias, today) {
           <div class="cal-dia-cell-header"><span class="cal-dia-cell-num">${parseInt(dia.slice(8,10))}</span><span class="cal-dia-cell-dow">${dow}</span></div>
           <div class="cal-dia-cell-eventos">${groups[dia].map(a => a.feriado ? `
             <div class="cal-evento-chip cal-evento-feriado feriado-${a.tipo}" title="${escapeHtml(a.titulo)} (${a.tipo})">🎉 ${escapeHtml(a.titulo)}</div>` : `
-            <div class="cal-evento-chip ${a.feito?'feito':''}" onclick="openAgendamentoModal('${a.id}')">
+            <div class="cal-evento-chip ${a.feito?'feito':''}" style="--c:${corDoTipo(a.tipo)}" onclick="openAgendamentoModal('${a.id}')">
               <input type="checkbox" ${a.feito?'checked':''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))">
               ${a.hora?`<span class="cal-evento-hora">${a.hora}</span> `:''}${escapeHtml(a.titulo)}${a.entidadeNome?` — <span class="cal-evento-entidade">${escapeHtml(a.entidadeNome)}</span>`:''}
             </div>`).join('')}</div>
@@ -4419,19 +4528,19 @@ function renderAgendaMensal(groups, dias, today) {
   }).join('') || `<div class="empty-state"><div class="big">📅</div><h3>Nada agendado</h3></div>`;
 }
 function agendamentoItemHtml(a) {
-  const tipo = TIPOS_AGENDAMENTO.find(t=>t.id===a.tipo) || { icone:'📌' };
-  return `<div class="ag-item ${a.feito?'feito':''}" onclick="openAgendamentoModal('${a.id}')">
+  const tipo = TIPOS_AGENDAMENTO.find(t=>t.id===a.tipo) || { icone:'📌', nome:'' };
+  return `<div class="ag-item ${a.feito?'feito':''}" style="--c:${corDoTipo(a.tipo)}" onclick="openAgendamentoModal('${a.id}')">
     <input type="checkbox" ${a.feito?'checked':''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))">
     <div class="ag-hora">${a.hora||'—'}</div>
-    <div class="ag-tipo-icon">${tipo.icone}</div>
     <div class="ag-body">
       <div class="ag-titulo-row">
         <span class="ag-titulo">${escapeHtml(a.titulo)}</span>
         ${a.entidadeNome?`<span class="ag-entidade-badge">${escapeHtml(a.entidadeNome)}</span>`:''}
         ${a.reagendadoDe?`<span class="ag-reagendado-badge" title="Data anterior: ${formatDate(a.reagendadoDe)}">🔁 Reagendado</span>`:''}
       </div>
-      <div class="ag-meta">${escapeHtml(a.responsavel)||''}</div>
+      <div class="ag-meta"><span class="ag-tipo-chip">${tipo.icone} ${escapeHtml(tipo.nome||'')}</span></div>
     </div>
+    ${a.responsavel?`<span class="ag-resp">${avatarHtml(a.responsavel)}<span>${escapeHtml(a.responsavel)}</span></span>`:''}
   </div>`;
 }
 function openAgendamentoModal(id) {
@@ -4589,7 +4698,7 @@ function atividadeCardHtml(a) {
     <div class="kc-titulo">${escapeHtml(a.titulo)}</div>
     <div class="kc-footer">
       ${a.entidadeNome?`<span class="kc-entidade">${escapeHtml(a.entidadeNome)}</span>`:''}
-      <span class="kc-pessoa">${escapeHtml(a.responsavel)}</span>${idadeBadgeHtml(a)}
+      <span class="kc-pessoa">${avatarHtml(a.responsavel)}${escapeHtml(a.responsavel)}</span>${idadeBadgeHtml(a)}
       ${a.criadoPor?`<span class="kc-criador">pedido por ${escapeHtml(a.criadoPor)}</span>`:''}
     </div>
     ${(a.imagens && a.imagens.length) ? `<div class="kc-imagens">${a.imagens.slice(0,3).map(img=>`<img src="${img.url}">`).join('')}${a.imagens.length>3?`<span class="kc-imagens-mais">+${a.imagens.length-3}</span>`:''}</div>` : ''}
@@ -4784,6 +4893,7 @@ function renderResumo() {
   document.getElementById('resumo-data').textContent = 'Referente a ' + formatDate(resumoFiltroData) + (resumoFiltroEntidade ? ' — ' + resumoFiltroEntidade : '');
   document.getElementById('resumo-filtro-data').value = resumoFiltroData;
   const concluidas = atividades.filter(a => a.coluna==='concluida' && !a.cancelado && a.concluidoEm===resumoFiltroData && (!resumoFiltroEntidade || a.entidadeNome===resumoFiltroEntidade));
+  renderResumoPainel(concluidas);
   if (!concluidas.length) { document.getElementById('resumo-texto').textContent = 'Nada concluído nesse dia.'; return; }
   if (souSolo()) {
     const texto = concluidas.map(a => '✓ ' + a.titulo + (a.resolucao?(' — ' + a.resolucao):'')).join('\n');
@@ -4804,6 +4914,28 @@ function renderResumo() {
     texto += '\n' + '─'.repeat(24) + '\n\n';
   });
   document.getElementById('resumo-texto').textContent = texto.replace(/\s*─{24}\s*$/, '').trim();
+}
+// Painel do dia (só desenho: usa os mesmos dados da Agenda e das Atividades; o texto para copiar continua logo abaixo)
+function renderResumoPainel(concluidas) {
+  const box = document.getElementById('resumo-painel');
+  if (!box) return;
+  const ent = resumoFiltroEntidade;
+  const abertas = atividades.filter(a => a.coluna !== 'concluida' && !a.cancelado && (!ent || a.entidadeNome === ent));
+  const ag = agendamentos.filter(a => a.data === resumoFiltroData && (!ent || a.entidadeNome === ent)).sort((x, y) => (x.hora || '').localeCompare(y.hora || ''));
+  const total = concluidas.length + abertas.length, pct = total ? Math.round(concluidas.length / total * 100) : 0;
+  const porColuna = colunasAtivas().filter(c => c.id !== 'concluida').map(c => [c.nome, abertas.filter(a => a.coluna === c.id).length]);
+  const porPessoa = souSolo() ? [] : membrosAtivos().map(n => [n, concluidas.filter(a => a.responsavel === n).length]).filter(x => x[1] > 0);
+  const tipoDe = id => TIPOS_AGENDAMENTO.find(t => t.id === id) || { icone: '📌', nome: '' };
+  box.innerHTML = `<div class="rp-grid">
+    <div class="rp-tile rp-hero"><h3>Concluídas no dia <span>${formatDate(resumoFiltroData)}</span></h3>
+      <div class="rp-linha"><div class="rp-big">${concluidas.length}<small>/${total}</small></div><div class="rp-ring" style="--p:${pct}"><b>${pct}%</b></div></div>
+      <div style="color:rgba(255,255,255,.7)">${abertas.length ? abertas.length + (abertas.length === 1 ? ' atividade ainda em aberto' : ' atividades ainda em aberto') : 'Nada em aberto.'}</div></div>
+    <div class="rp-tile rp-agenda"><h3>Agenda do dia <span>${ag.length} ${ag.length === 1 ? 'compromisso' : 'compromissos'}</span></h3>
+      ${ag.map(a => `<div class="rp-ag ${a.feito ? 'feito' : ''}"><time>${a.hora || '—'}</time><div><b>${escapeHtml(a.titulo)}</b><small>${tipoDe(a.tipo).icone} ${escapeHtml(tipoDe(a.tipo).nome || '')}${a.entidadeNome ? ' · ' + escapeHtml(a.entidadeNome) : ''}</small></div>${a.responsavel ? avatarHtml(a.responsavel) : ''}</div>`).join('') || '<div class="rp-vazio">Nenhum compromisso nesse dia.</div>'}</div>
+    <div class="rp-tile rp-fila"><h3>Fila em aberto <span>${abertas.length} no total</span></h3>
+      ${porColuna.map(([n, q]) => `<div class="rp-num"><span>${escapeHtml(n)}</span><b>${q}</b></div>`).join('') || '<div class="rp-vazio">Sem colunas ativas.</div>'}</div>
+    ${porPessoa.length ? `<div class="rp-tile rp-pessoa"><h3>Concluídas por pessoa</h3>${porPessoa.map(([n, q]) => `<div class="rp-num"><span style="display:inline-flex;align-items:center;gap:8px">${avatarHtml(n)}${escapeHtml(n)}</span><b>${q}</b></div>`).join('')}</div>` : ''}
+  </div>`;
 }
 function copyResumo() {
   navigator.clipboard.writeText(document.getElementById('resumo-texto').textContent).then(() => alert('Copiado!'));

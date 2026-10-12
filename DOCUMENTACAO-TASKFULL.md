@@ -188,3 +188,14 @@ Nada disso gasta nada hoje. Foi deixado pronto porque a chave da Anthropic é do
 - **É preferência pessoal** (navegador), igual ao modo escuro: não depende de perfil nem de workspace e não afeta as outras pessoas. A **Cor de Destaque/Cor de Fundo do workspace** (Configurações, só admin) continua existindo e valendo por cima do destaque do tema (estilo inline); o estúdio avisa quando o workspace tem destaque próprio. Quando o workspace não tem cor própria, `aplicarCorDestaque` remove o estilo inline para o tema valer.
 - **Contraste**: todos os 12 temas, nos modos claro e escuro, foram testados por cálculo WCAG (texto, texto secundário, botão de destaque, link/selo, texto do menu, rótulo do menu e item ativo) e passam de 4,5:1. Sobre cores: o azul é a cor preferida com mais frequência entre culturas, mas não é universal; para pessoas mais velhas pesa o contraste, não o tom; matiz e saturação quase não mudam a leitura (quem manda é a luminância). Por isso a escolha é da pessoa e todas as opções mantêm contraste alto.
 - **Tema novo na galeria**: acrescentar a entrada em `TEMAS` (h, s, harm, menu, e opcionalmente `accHex`) e rodar a conferência de contraste. Não é preciso mexer em CSS.
+
+### 9.8 Layout v3: telas no estilo dos protótipos (outubro/2026)
+
+As telas passaram a seguir os protótipos aprovados pelo Edimilson, só com mudança de marcação e estilo (dados e ações são os mesmos), nos três perfis:
+- **Menu lateral**: ícones desenhados (SVG, herdam a cor do tema) no lugar dos emojis.
+- **Atividades**: legenda das etiquetas, ponto colorido em cada coluna, iniciais da pessoa no filtro e nos cartões.
+- **Agenda**: dia com rótulo "Hoje" e contagem de compromissos, linha com hora grande, faixa colorida por tipo (cor por posição do tipo, `corDoTipo()`), chip do tipo e iniciais do responsável; os modos Cards e Calendário acompanham.
+- **Resumo do Dia**: painel de blocos acima do texto para copiar (`renderResumoPainel`): concluídas no dia com anel de progresso, agenda do dia, fila em aberto e concluídas por pessoa (fora do perfil Pessoal). O texto, o botão Copiar, a Imagem e o PDF continuam como eram.
+- **Indicadores**: blocos em grade (fila, criadas × concluídas ao lado da distribuição, prazos, por pessoa, uso do assessor).
+- **Cronograma**: barras de progresso na lista de projetos, no topo do projeto e em cada etapa; no portal `/cronograma`, cabeçalho com progresso geral.
+- Cores com significado continuam fixas (urgente, atrasado, etiquetas); as dos tipos de agenda foram conferidas (contraste acima de 4,5 no claro e no escuro).
