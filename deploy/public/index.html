@@ -972,6 +972,24 @@
   .config-section-header { padding: 4px 0; }
   .config-section-header:hover h2 { color: var(--accent-ink); }
   .lamina-doc { border-radius: var(--radius-lg); }
+
+  /* ══ Agenda: calendário do mês completo (semanas de domingo a sábado), como no protótipo aprovado ══ */
+  .cal-mes { background: var(--white); border: 1px solid var(--border-light); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); overflow: hidden; margin-top: 14px; }
+  .cal-mes-scroll { overflow-x: auto; }
+  .cal-mes-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 760px; }
+  .cal-dow { padding: 10px 12px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--gray-text); background: var(--light-bg); border-bottom: 1px solid var(--border-light); }
+  .cal-cel { min-height: 118px; padding: 8px; border-right: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; transition: background .12s; }
+  .cal-cel:nth-child(7n) { border-right: 0; }
+  .cal-cel:hover { background: var(--accent-soft); }
+  .cal-cel.fora { background: var(--light-bg); opacity: .55; cursor: default; } .cal-cel.fora:hover { background: var(--light-bg); }
+  .cal-num { font-family: var(--font-display); font-weight: 700; font-size: 13px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-variant-numeric: tabular-nums; }
+  .cal-cel.hoje .cal-num { background: var(--green); color: var(--navy); }
+  .cal-mes-grid .cal-evento-chip:not(.cal-evento-feriado) { background: color-mix(in srgb, var(--c, var(--gray-text)) 14%, var(--white)); }
+  .cal-mes-grid .cal-evento-chip { font-size: 11.5px; font-weight: 600; padding: 4px 7px; }
+  .cal-mes-grid .cal-evento-chip { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.3; }
+  .cal-mes-grid .cal-evento-chip .cal-evento-hora { font-weight: 500; margin-right: 3px; font-variant-numeric: tabular-nums; color: var(--text-main); opacity: .7; }
+  .cal-mes-grid .cal-evento-chip input[type=checkbox] { width: 11px; height: 11px; margin: 0 5px 0 0; vertical-align: -1px; }
+  .cal-mes-grid .cal-evento-chip:hover { filter: brightness(.97); }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1197,7 +1215,7 @@
           <div id="agenda-cards-wrap" style="display:none"></div>
           <div id="agenda-mensal-nav" style="display:none;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;">
             <button class="btn btn-sm" onclick="navegarMesAgenda(-1)">◀</button>
-            <strong id="agenda-mensal-label" style="min-width:160px;text-align:center;text-transform:capitalize;"></strong>
+            <strong id="agenda-mensal-label" style="min-width:160px;text-align:center;"></strong>
             <button class="btn btn-sm" onclick="navegarMesAgenda(1)">▶</button>
             <button class="btn btn-sm" onclick="irParaMesAtualAgenda()">Hoje</button>
             <input type="month" id="agenda-mensal-picker" onchange="irParaMesEspecifico(this.value)" style="font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border-light);">
@@ -4536,7 +4554,7 @@ function renderAgenda() {
       </div>`).join('') || `<div class="empty-state"><div class="big">🗓</div><h3>Nada agendado</h3></div>`;
   } else if (agendaView === 'mensal') {
     const [anoAtual, mesAtual] = calMesAtual.split('-').map(Number);
-    document.getElementById('agenda-mensal-label').textContent = new Date(anoAtual, mesAtual-1, 1).toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+    { const t = new Date(anoAtual, mesAtual-1, 1).toLocaleDateString('pt-BR', { month:'long', year:'numeric' }); document.getElementById('agenda-mensal-label').textContent = t.charAt(0).toUpperCase() + t.slice(1); }
     document.getElementById('agenda-mensal-picker').value = calMesAtual;
     garantirFeriadosNacionais([anoAtual]);
     const gruposMensal = {};
@@ -4566,26 +4584,25 @@ function agendamentoCardHtml(a) {
   </div>`;
 }
 function renderAgendaMensal(groups, dias, today) {
-  const porMes = {};
-  dias.forEach(dia => { const mesKey = dia.slice(0,7); (porMes[mesKey] = porMes[mesKey]||[]).push(dia); });
-  const meses = Object.keys(porMes).sort();
-  document.getElementById('agenda-mensal-wrap').innerHTML = meses.map(mesKey => {
-    return `<div class="mensal-mes-group">
-      <div class="cal-grid-dias">${porMes[mesKey].map(dia => {
-        const dow = new Date(dia+'T00:00:00').toLocaleDateString('pt-BR', { weekday:'short' }).replace('.','');
-        return `<div class="cal-dia-cell ${dia===today?'hoje':''}">
-          <div class="cal-dia-cell-header"><span class="cal-dia-cell-num">${parseInt(dia.slice(8,10))}</span><span class="cal-dia-cell-dow">${dow}</span></div>
-          <div class="cal-dia-cell-eventos">${groups[dia].map(a => a.feriado ? `
-            <div class="cal-evento-chip cal-evento-feriado feriado-${a.tipo}" title="${escapeHtml(a.titulo)} (${a.tipo})">🎉 ${escapeHtml(a.titulo)}</div>` : `
-            <div class="cal-evento-chip ${a.feito?'feito':''}" style="--c:${corDoTipo(a.tipo)}" onclick="openAgendamentoModal('${a.id}')">
-              <input type="checkbox" ${a.feito?'checked':''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))">
-              ${a.hora?`<span class="cal-evento-hora">${a.hora}</span> `:''}${escapeHtml(a.titulo)}${a.entidadeNome?` — <span class="cal-evento-entidade">${escapeHtml(a.entidadeNome)}</span>`:''}
-            </div>`).join('')}</div>
-        </div>`;
-      }).join('')}</div>
+  // Mês completo em semanas (domingo a sábado): cada dia mostra o que está agendado; clicar num compromisso abre a edição, clicar no dia vazio abre um novo agendamento naquela data.
+  const [ano, mes] = calMesAtual.split('-').map(Number);
+  const inicio = new Date(ano, mes - 1, 1).getDay();
+  const diasMes = new Date(ano, mes, 0).getDate();
+  const total = Math.ceil((inicio + diasMes) / 7) * 7;
+  let html = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(n => `<div class="cal-dow">${n}</div>`).join('');
+  for (let i = 0; i < total; i++) {
+    const d = new Date(ano, mes - 1, 1 - inicio + i);
+    const chave = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const fora = d.getMonth() !== mes - 1;
+    const evs = fora ? [] : (groups[chave] || []);
+    html += `<div class="cal-cel ${fora ? 'fora' : ''} ${chave === today ? 'hoje' : ''}" ${fora ? '' : `onclick="novoAgendamentoNoDia('${chave}')"`}>
+      <span class="cal-num">${d.getDate()}</span>
+      ${evs.map(a => a.feriado ? `<div class="cal-evento-chip cal-evento-feriado feriado-${a.tipo}" title="${escapeHtml(a.titulo)} (${a.tipo})" onclick="event.stopPropagation()">🎉 ${escapeHtml(a.titulo)}</div>` : `<div class="cal-evento-chip ${a.feito ? 'feito' : ''}" style="--c:${corDoTipo(a.tipo)}" title="${escapeHtml(a.titulo)}${a.entidadeNome ? ' — ' + escapeHtml(a.entidadeNome) : ''}" onclick="event.stopPropagation(); openAgendamentoModal('${a.id}')"><input type="checkbox" ${a.feito ? 'checked' : ''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))" aria-label="Marcar como feito">${a.hora ? `<span class="cal-evento-hora">${a.hora}</span>` : ''}${escapeHtml(a.titulo)}${a.entidadeNome ? ` — <span class="cal-evento-entidade">${escapeHtml(a.entidadeNome)}</span>` : ''}</div>`).join('')}
     </div>`;
-  }).join('') || `<div class="empty-state"><div class="big">📅</div><h3>Nada agendado</h3></div>`;
+  }
+  document.getElementById('agenda-mensal-wrap').innerHTML = `<div class="cal-mes"><div class="cal-mes-scroll"><div class="cal-mes-grid">${html}</div></div></div>`;
 }
+function novoAgendamentoNoDia(dia) { openAgendamentoModal(null); const f = document.getElementById('ag-data'); if (f) f.value = dia; }
 function agendamentoItemHtml(a) {
   const tipo = TIPOS_AGENDAMENTO.find(t=>t.id===a.tipo) || { icone:'📌', nome:'' };
   return `<div class="ag-item ${a.feito?'feito':''}" style="--c:${corDoTipo(a.tipo)}" onclick="openAgendamentoModal('${a.id}')">
