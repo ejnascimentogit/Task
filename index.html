@@ -5097,7 +5097,13 @@ async function bomDiaListaCidades(cod, estado) {
     if (cod === 'BR') {
       const uf = Object.keys(BOMDIA_UFS).find(u => BOMDIA_UFS[u] === estado);
       if (uf) nomes = (await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados/' + uf + '/municipios').then(r => r.json())).map(m => m.nome).sort((x, y) => x.localeCompare(y, 'pt'));
-    } else nomes = (await fetch('https://countriesnow.space/api/v0.1/countries/state/cities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: BOMDIA_PAISES_EN[cod], state: estado }) }).then(r => r.json())).data || [];
+    } else {
+      // O CountriesNow lista "Barcelona Province" nos estados, mas só acha as cidades com "Barcelona": tenta as duas formas
+      for (const st of [estado, estado.replace(/ (Province|Region|County|Department|Prefecture|State|District|Governorate)$/i, '')]) {
+        nomes = (await fetch('https://countriesnow.space/api/v0.1/countries/state/cities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: BOMDIA_PAISES_EN[cod], state: st }) }).then(r => r.json()).catch(() => ({}))).data || [];
+        if (nomes.length) break;
+      }
+    }
   } catch (e) {}
   if (nomes.length) bomDiaCacheListas[k] = nomes;
   return nomes;
@@ -5119,7 +5125,13 @@ function bomDiaFormHtml(p, l) {
 function bomDiaCampo(p, nivel, lista, atual, onchange) {
   const box = document.getElementById(p + '-' + nivel + '-box');
   if (!box) return;
-  if (!lista.length) { box.innerHTML = `<input id="${p}-${nivel}" type="text" value="${escapeHtml(atual || '')}" style="${BD_CAMPO}" ${nivel === 'cidade' ? `onchange="bomDiaSalvarDoForm('${p}')"` : `onchange="${onchange}"`}>`; return; }
+  if (!lista.length) {
+    // sem lista: texto livre; na cidade, sugere nomes enquanto digita (busca de lugares do Open-Meteo)
+    box.innerHTML = nivel === 'cidade'
+      ? `<input id="${p}-cidade" type="text" value="${escapeHtml(atual || '')}" placeholder="Digite a cidade" list="${p}-cidade-sug" autocomplete="off" oninput="bomDiaSugerir('${p}')" onchange="bomDiaSalvarDoForm('${p}')" style="${BD_CAMPO}"><datalist id="${p}-cidade-sug"></datalist>`
+      : `<input id="${p}-${nivel}" type="text" value="${escapeHtml(atual || '')}" placeholder="Digite o estado" onchange="${onchange}" style="${BD_CAMPO}">`;
+    return;
+  }
   const opts = lista.slice();
   if (atual && !opts.includes(atual)) opts.unshift(atual);
   box.innerHTML = `<select id="${p}-${nivel}" onchange="${onchange}" style="${BD_CAMPO}"><option value="">${nivel === 'estado' ? 'Escolha o estado' : 'Escolha a cidade'}</option>${opts.map(n => `<option ${n === atual ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('')}</select>`;
@@ -5135,6 +5147,23 @@ async function bomDiaCarregarCidades(p, cod, estado, cidadeSel) {
   const box = document.getElementById(p + '-cidade-box'); if (box) box.innerHTML = '<small>carregando…</small>';
   const cid = await bomDiaListaCidades(cod, estado);
   bomDiaCampo(p, 'cidade', cid, cidadeSel, `bomDiaSalvarDoForm('${p}')`);
+}
+let bomDiaSugTimer = null;
+function bomDiaSugerir(p) {
+  clearTimeout(bomDiaSugTimer);
+  bomDiaSugTimer = setTimeout(async () => {
+    const campo = document.getElementById(p + '-cidade'), lista = document.getElementById(p + '-cidade-sug');
+    const q = campo && campo.value.trim();
+    if (!lista || !q || q.length < 2) return;
+    try {
+      const cod = document.getElementById(p + '-pais').value, estado = (document.getElementById(p + '-estado')?.value || '').toLowerCase();
+      const g = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(q) + '&count=20&language=pt&country=' + cod).then(r => r.json());
+      let res = g.results || [];
+      const doEstado = res.filter(x => estado && (x.admin1 || '').toLowerCase().includes(estado.replace(/ (province|region)$/i, '')));
+      if (doEstado.length) res = doEstado;
+      lista.innerHTML = [...new Set(res.map(x => x.name))].map(n => `<option value="${escapeHtml(n)}">`).join('');
+    } catch (e) {}
+  }, 300);
 }
 function bomDiaMudouPais(p) { bomDiaCarregarEstados(p, document.getElementById(p + '-pais').value, '', ''); }
 function bomDiaMudouEstado(p) { bomDiaCarregarCidades(p, document.getElementById(p + '-pais').value, document.getElementById(p + '-estado').value, ''); }
