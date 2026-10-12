@@ -299,7 +299,7 @@
     <ul>
       <li>Bloco no topo do Resumo do Dia, só no perfil Pessoal. <strong>Sem IA e sem chave</strong>: não gasta token.</li>
       <li><strong>Tempo</strong>: Open-Meteo (previsão de 3 dias), direto do navegador. <strong>Manchetes</strong> (mundo, Brasil, estado e cidade): Edge Function <code>bom-dia-noticias</code>, que lê o RSS aberto do Google Notícias e devolve só título, fonte e link.</li>
-      <li>A cidade fica no navegador (<code>ws_bomdia_cidade</code>, padrão São Paulo, SP) e muda em "Trocar cidade". Cache de 30 minutos.</li>
+      <li>O local (país, estado, cidade) fica no navegador (<code>ws_bomdia_local</code>, padrão São Paulo, SP) e se define em Configurações → "Localização": à mão ou por "Usar minha localização" (o navegador pede permissão; a cidade vem das coordenadas pelo BigDataCloud, grátis e sem chave). Cache de 30 minutos.</li>
       <li>Antes de vender: o Open-Meteo gratuito é só para uso não comercial e os termos das fontes de notícias devem ser conferidos.</li>
     </ul>
 

@@ -1533,6 +1533,11 @@
           </div>
         </div>
 
+        <div class="resumo-box config-section" id="section-bomdia" style="display:none">
+          <div class="config-section-header" onclick="toggleConfigSection('bomdia')"><h2>📍 Localização (tempo e notícias)</h2><span class="config-chevron" id="chevron-bomdia">▸</span></div>
+          <div class="config-section-body" id="body-bomdia" style="display:none"><div id="bomdia-config"></div></div>
+        </div>
+
         <div class="resumo-box config-section" id="section-assessor" style="display:none">
           <div class="config-section-header" onclick="toggleConfigSection('assessor')"><h2>🤖 Assessor (Telegram e E-mail)</h2><span class="config-chevron" id="chevron-assessor">▸</span></div>
           <div class="config-section-body" id="body-assessor" style="display:none">
@@ -5052,20 +5057,60 @@ function renderResumo() {
 // ══════════════════════════════════════════════════════════════
 const BOMDIA_UFS = { AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará', DF:'Distrito Federal', ES:'Espírito Santo', GO:'Goiás', MA:'Maranhão', MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará', PB:'Paraíba', PR:'Paraná', PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro', RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima', SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins' };
 const BOMDIA_WMO = { 0:['☀️','Céu limpo'], 1:['🌤️','Poucas nuvens'], 2:['⛅','Parcialmente nublado'], 3:['☁️','Nublado'], 45:['🌫️','Neblina'], 48:['🌫️','Neblina'], 51:['🌦️','Garoa'], 53:['🌦️','Garoa'], 55:['🌦️','Garoa forte'], 61:['🌧️','Chuva fraca'], 63:['🌧️','Chuva'], 65:['🌧️','Chuva forte'], 66:['🌧️','Chuva gelada'], 67:['🌧️','Chuva gelada'], 71:['🌨️','Neve fraca'], 73:['🌨️','Neve'], 75:['🌨️','Neve forte'], 77:['🌨️','Granizo'], 80:['🌦️','Pancadas de chuva'], 81:['🌧️','Pancadas de chuva'], 82:['⛈️','Pancadas fortes'], 85:['🌨️','Neve'], 86:['🌨️','Neve'], 95:['⛈️','Tempestade'], 96:['⛈️','Tempestade com granizo'], 99:['⛈️','Tempestade com granizo'] };
+const BOMDIA_PAISES = { BR:'Brasil', PT:'Portugal', US:'Estados Unidos', AR:'Argentina', UY:'Uruguai', PY:'Paraguai', CL:'Chile', CO:'Colômbia', MX:'México', PE:'Peru', ES:'Espanha', FR:'França', IT:'Itália', DE:'Alemanha', GB:'Reino Unido', CA:'Canadá', JP:'Japão', AO:'Angola', MZ:'Moçambique' };
 let bomDiaDados = null, bomDiaChave = '', bomDiaQuando = 0, bomDiaCarregando = false, bomDiaErro = '';
-function bomDiaCidade() {
-  try { const c = JSON.parse(localStorage.getItem('ws_bomdia_cidade')); if (c && c.cidade && BOMDIA_UFS[c.uf]) return c; } catch (e) {}
-  return { cidade: 'São Paulo', uf: 'SP' };
+function bomDiaLocal() {
+  try {
+    const c = JSON.parse(localStorage.getItem('ws_bomdia_local'));
+    if (c && c.cidade) return c;
+    const v = JSON.parse(localStorage.getItem('ws_bomdia_cidade')); // formato antigo (cidade + UF)
+    if (v && v.cidade && BOMDIA_UFS[v.uf]) return { pais: 'Brasil', paisCodigo: 'BR', estado: BOMDIA_UFS[v.uf], cidade: v.cidade };
+  } catch (e) {}
+  return { pais: 'Brasil', paisCodigo: 'BR', estado: 'São Paulo', cidade: 'São Paulo', padrao: true };
 }
-function bomDiaTrocarCidade() {
-  const atual = bomDiaCidade();
-  const r = prompt('Sua cidade e o estado (sigla). Exemplo: Campinas, SP', atual.cidade + ', ' + atual.uf);
-  if (r === null) return;
-  const m = r.split(',').map(s => s.trim());
-  const uf = (m[1] || '').toUpperCase();
-  if (!m[0] || !BOMDIA_UFS[uf]) { alert('Escreva no formato "Cidade, UF". Exemplo: Campinas, SP'); return; }
-  try { localStorage.setItem('ws_bomdia_cidade', JSON.stringify({ cidade: m[0], uf })); } catch (e) {}
+function bomDiaSalvarLocal(l) {
+  try { localStorage.setItem('ws_bomdia_local', JSON.stringify(l)); } catch (e) {}
   carregarBomDia(true);
+  renderBomDiaConfig();
+}
+function renderBomDiaConfig(msg) {
+  const box = document.getElementById('bomdia-config');
+  if (!box) return;
+  const l = bomDiaLocal();
+  box.innerHTML = `<p class="config-hint">Usado no bloco "Bom dia" do Resumo do Dia (tempo e manchetes). Fica só neste navegador.${l.padrao ? ' <b>Ainda não escolhida: usando São Paulo, SP.</b>' : ''}</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px;">
+      <label style="font-size:12px;">País<select id="bd-pais" style="width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);">${Object.entries(BOMDIA_PAISES).map(([k, n]) => `<option value="${k}" ${k === (l.paisCodigo || 'BR') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label style="font-size:12px;">Estado / região<input id="bd-estado" type="text" value="${escapeHtml(l.estado || '')}" list="bd-estados" style="width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);"><datalist id="bd-estados">${Object.values(BOMDIA_UFS).map(n => `<option value="${n}">`).join('')}</datalist></label>
+      <label style="font-size:12px;">Cidade<input id="bd-cidade" type="text" value="${escapeHtml(l.cidade || '')}" style="width:100%;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border-light);"></label>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-green btn-sm" onclick="bomDiaSalvarDoForm()">Salvar</button>
+      <button class="btn btn-sm" onclick="bomDiaDetectar()">📍 Usar minha localização</button>
+      <span id="bd-msg" class="config-hint" style="margin:0">${msg || ''}</span>
+    </div>`;
+}
+function bomDiaSalvarDoForm() {
+  const cod = document.getElementById('bd-pais').value;
+  const cidade = document.getElementById('bd-cidade').value.trim(), estado = document.getElementById('bd-estado').value.trim();
+  if (!cidade) { alert('Escreva o nome da cidade.'); return; }
+  bomDiaSalvarLocal({ pais: BOMDIA_PAISES[cod], paisCodigo: cod, estado, cidade });
+}
+// Localização automática: pede permissão ao navegador (GPS/Wi-Fi) e descobre a cidade pelas coordenadas (BigDataCloud, grátis e sem chave).
+function bomDiaDetectar() {
+  const msg = t => { const m = document.getElementById('bd-msg'); if (m) m.textContent = t; };
+  if (!navigator.geolocation) { msg('Este navegador não oferece localização.'); return; }
+  msg('Aguardando a permissão do navegador…');
+  navigator.geolocation.getCurrentPosition(async pos => {
+    try {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      const r = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=pt').then(x => x.json());
+      const cidade = r.city || r.locality;
+      if (!cidade) throw new Error('não deu para descobrir a cidade');
+      const cod = (r.countryCode || '').toUpperCase();
+      bomDiaSalvarLocal({ pais: BOMDIA_PAISES[cod] || r.countryName || cod, paisCodigo: cod, estado: r.principalSubdivision || '', cidade, lat, lon });
+      renderBomDiaConfig('✓ Localização encontrada: ' + cidade);
+    } catch (e) { msg('Não consegui identificar a cidade (' + e.message + '). Preencha à mão.'); }
+  }, err => msg(err.code === 1 ? 'Permissão negada. Libere a localização no navegador ou preencha à mão.' : 'Não foi possível obter a localização. Preencha à mão.'), { timeout: 12000, maximumAge: 600000 });
 }
 function bomDiaDiaSemana(iso, i) {
   if (i === 0) return 'Hoje';
@@ -5074,11 +5119,15 @@ function bomDiaDiaSemana(iso, i) {
   return n.charAt(0).toUpperCase() + n.slice(1);
 }
 async function bomDiaBuscarTempo(c) {
-  const g = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(c.cidade) + '&count=10&language=pt&country=BR').then(r => r.json());
-  const lista = g.results || [];
-  const alvo = lista.find(x => (x.admin1 || '').toLowerCase() === BOMDIA_UFS[c.uf].toLowerCase()) || lista[0];
-  if (!alvo) throw new Error('Cidade não encontrada. Confira o nome e o estado.');
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + alvo.latitude + '&longitude=' + alvo.longitude
+  let lat = c.lat, lon = c.lon;
+  if (lat == null || lon == null) {
+    const g = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(c.cidade) + '&count=10&language=pt&country=' + (c.paisCodigo || 'BR')).then(r => r.json());
+    const lista = g.results || [];
+    const alvo = lista.find(x => c.estado && (x.admin1 || '').toLowerCase() === c.estado.toLowerCase()) || lista[0];
+    if (!alvo) throw new Error('Cidade não encontrada. Confira o nome e o estado.');
+    lat = alvo.latitude; lon = alvo.longitude;
+  }
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon
     + '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m'
     + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=3';
   const t = await fetch(url).then(r => r.json());
@@ -5087,7 +5136,7 @@ async function bomDiaBuscarTempo(c) {
 }
 async function carregarBomDia(forcar) {
   if (!souSolo() || !sb) return;
-  const c = bomDiaCidade(), chave = c.cidade + '|' + c.uf;
+  const c = bomDiaLocal(), chave = [c.pais, c.estado, c.cidade, c.lat].join('|');
   if (!forcar && bomDiaDados && bomDiaChave === chave && Date.now() - bomDiaQuando < 30 * 60 * 1000) return;
   if (bomDiaCarregando) return;
   bomDiaCarregando = true; bomDiaErro = '';
@@ -5095,18 +5144,26 @@ async function carregarBomDia(forcar) {
   try {
     const [tempo, noticias] = await Promise.all([
       bomDiaBuscarTempo(c).catch(e => ({ erro: e.message })),
-      sb.functions.invoke('bom-dia-noticias', { body: { cidade: c.cidade, estado: BOMDIA_UFS[c.uf] } }).then(r => r.error ? { erro: r.error.message } : r.data).catch(e => ({ erro: e.message })),
+      sb.functions.invoke('bom-dia-noticias', { body: { cidade: c.cidade, estado: c.estado, pais: c.pais } }).then(r => r.error ? { erro: r.error.message } : r.data).catch(e => ({ erro: e.message })),
     ]);
     bomDiaDados = { tempo, noticias };
     bomDiaChave = chave; bomDiaQuando = Date.now();
   } finally { bomDiaCarregando = false; renderBomDia(); }
 }
+function abrirConfigLocalizacao() {
+  setTab('configuracoes');
+  const body = document.getElementById('body-bomdia');
+  if (body && body.style.display === 'none') toggleConfigSection('bomdia');
+  renderBomDiaConfig();
+  document.getElementById('section-bomdia')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function bomDiaDetectar2() { abrirConfigLocalizacao(); setTimeout(bomDiaDetectar, 300); }
 function renderBomDia() {
   const box = document.getElementById('resumo-bomdia');
   if (!box) return;
   if (!souSolo()) { box.innerHTML = ''; return; }
-  const c = bomDiaCidade();
-  const topo = `<div class="bd-topo"><h3>☀️ Bom dia · ${escapeHtml(c.cidade)}, ${c.uf}</h3><button type="button" onclick="bomDiaTrocarCidade()">📍 Trocar cidade</button></div>`;
+  const c = bomDiaLocal();
+  const topo = `<div class="bd-topo"><h3>☀️ Bom dia · ${escapeHtml(c.cidade)}${c.estado ? ', ' + escapeHtml(c.estado) : ''}</h3><span>${c.padrao ? '<button type="button" onclick="bomDiaDetectar2()">📍 Detectar onde estou</button> ' : ''}<button type="button" onclick="abrirConfigLocalizacao()">⚙ Localização</button></span></div>`;
   if (!bomDiaDados) { box.innerHTML = `<div class="bd-box">${topo}<div class="bd-vazio">${bomDiaCarregando ? 'Buscando o tempo e as manchetes…' : 'Carregando…'}</div></div>`; return; }
   const { tempo, noticias } = bomDiaDados;
   let clima;
@@ -5121,7 +5178,7 @@ function renderBomDia() {
   if (noticias.erro) news = `<div class="bd-vazio">Manchetes indisponíveis agora (${escapeHtml(noticias.erro)}).</div>`;
   else {
     const bloco = (titulo, itens) => `<div><h4>${titulo}</h4>${(itens || []).slice(0, 4).map(n => `<a href="${escapeHtml(n.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(n.titulo)}<small>${escapeHtml(n.fonte || '')}</small></a>`).join('') || '<div class="bd-vazio">Sem manchetes.</div>'}</div>`;
-    news = `<div class="bd-news">${bloco('🌍 Mundo', noticias.mundo)}${bloco('🇧🇷 Brasil', noticias.pais)}${bloco('📍 ' + BOMDIA_UFS[c.uf], noticias.estado)}${bloco('🏙️ ' + escapeHtml(c.cidade), noticias.cidade)}</div>`;
+    news = `<div class="bd-news">${bloco('🌍 Mundo', noticias.mundo)}${bloco('🏳️ ' + escapeHtml(c.pais || 'País'), noticias.pais)}${c.estado ? bloco('📍 ' + escapeHtml(c.estado), noticias.estado) : ''}${bloco('🏙️ ' + escapeHtml(c.cidade), noticias.cidade)}</div>`;
   }
   box.innerHTML = `<div class="bd-box">${topo}${clima}${news}<div class="bd-rodape">Tempo: Open-Meteo · Manchetes: Google Notícias (só título e link; a matéria abre no site de origem). Atualiza a cada 30 min.</div></div>`;
 }
@@ -5436,6 +5493,8 @@ function renderConfiguracoes() {
   document.getElementById('section-feriados-datas').style.display = temAba('agenda') ? '' : 'none';
   document.getElementById('section-treinamentos-padrao').style.display = temAba('treinamentos') ? '' : 'none';
   document.getElementById('section-assessor').style.display = souSolo() ? '' : 'none';
+  document.getElementById('section-bomdia').style.display = souSolo() ? '' : 'none';
+  if (souSolo()) renderBomDiaConfig();
   if (souSolo()) { renderAssessorConfig(); renderAssessorEmailConfig(); }
   renderMembrosList();
   renderKanbanColunasList();

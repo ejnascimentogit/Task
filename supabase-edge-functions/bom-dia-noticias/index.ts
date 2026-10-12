@@ -1,7 +1,8 @@
 // bom-dia-noticias — manchetes para o bloco "Bom dia" do Resumo do Dia (perfil Pessoal).
 // Sem IA e sem chave: lê o RSS aberto do Google Notícias (mundo, país, estado e cidade) e devolve
 // só título, fonte, data e link (o texto das matérias nunca é copiado).
-// Publicar com verify_jwt = true. Entrada (POST, JSON): { cidade: "Campinas", estado: "São Paulo" }.
+// Publicar com verify_jwt = true. Entrada (POST, JSON): { cidade: "Campinas", estado: "São Paulo", pais: "Brasil" }.
+// Fora do Brasil, o bloco "país" vem de uma busca pelo nome do país.
 // Saída: { mundo: [...], pais: [...], estado: [...], cidade: [...] } com { titulo, fonte, link, data }.
 
 const CORS = {
@@ -50,15 +51,16 @@ const busca = (q: string) => `${BASE}/search?q=${encodeURIComponent(q + " when:2
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  let corpo: { cidade?: string; estado?: string } = {};
+  let corpo: { cidade?: string; estado?: string; pais?: string } = {};
   try { corpo = await req.json(); } catch (_) { /* sem corpo: só mundo e país */ }
   const cidade = String(corpo.cidade || "").slice(0, 80).trim();
+  const paisNome = String(corpo.pais || "Brasil").slice(0, 80).trim();
   const estado = String(corpo.estado || "").slice(0, 80).trim();
-  const [mundo, pais, est, cid] = await Promise.all([
+  const [mundo, paisLista, est, cid] = await Promise.all([
     manchetes(`${BASE}/headlines/section/topic/WORLD?${SUFIXO}`),
-    manchetes(`${BASE}/headlines/section/topic/NATION?${SUFIXO}`),
-    estado ? manchetes(busca(estado)) : Promise.resolve([]),
-    cidade ? manchetes(busca(cidade + (estado ? " " + estado : ""))) : Promise.resolve([]),
+    paisNome === "Brasil" ? manchetes(`${BASE}/headlines/section/topic/NATION?${SUFIXO}`) : manchetes(busca(paisNome)),
+    estado ? manchetes(busca(estado + (paisNome !== "Brasil" ? " " + paisNome : ""))) : Promise.resolve([]),
+    cidade ? manchetes(busca(cidade + (estado ? " " + estado : "") + (paisNome !== "Brasil" ? " " + paisNome : ""))) : Promise.resolve([]),
   ]);
-  return new Response(JSON.stringify({ mundo, pais, estado: est, cidade: cid }), { headers: CORS });
+  return new Response(JSON.stringify({ mundo, pais: paisLista, estado: est, cidade: cid }), { headers: CORS });
 });
