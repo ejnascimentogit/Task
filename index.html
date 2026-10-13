@@ -2,7 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#021F33">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TaskFull">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>TaskFull</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
@@ -1050,6 +1057,39 @@
   .kanban-nova-raia button { width:100%; font:inherit; font-size:13px; font-weight:600; padding:14px; border:2px dashed var(--border-light); border-radius:16px; background:transparent; color:var(--gray-text); cursor:pointer; }
   .kanban-nova-raia button:hover { border-color:var(--accent-ink); color:var(--accent-ink); }
   @media (hover:none) { .kanban-col-tools { opacity:1; } }
+
+  /* ── Versão mobile (2026-10-13): barra de abas embaixo, topo enxuto, menu "☰" para o resto.
+        Só estilo + um botão; nenhuma função muda. Vale até 860px de largura. ── */
+  .btn-menu-mobile { display: none; }
+  @media (max-width: 860px) {
+    .app-shell { min-height: 100dvh; }
+    .sidebar { position: sticky; top: 0; z-index: 50; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 0; overflow: visible;
+      padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; border-right: 0; border-bottom: 1px solid var(--sb-line); }
+    .sidebar-brand { flex: 0 0 auto; padding: 0; }
+    .app-brand { margin: 0; font-size: 14px; color: var(--sb-fg-strong, #fff); opacity: .85; }
+    .ws-switcher { flex: 1 1 0; min-width: 0; }
+    .ws-switcher-btn { padding: 8px 12px; min-height: 40px; }
+    .btn-menu-mobile { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 40px; font-size: 20px; line-height: 1;
+      border-radius: 12px; border: 1px solid var(--sb-line); background: var(--sb-card); color: var(--sb-fg-strong, #fff); cursor: pointer; }
+    .sidebar-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; flex-direction: row; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      padding: 6px 6px calc(env(safe-area-inset-bottom) + 6px); background: var(--sb-bg); border-top: 1px solid var(--sb-line); scrollbar-width: none; }
+    .sidebar-nav::-webkit-scrollbar { display: none; }
+    .sidebar-nav .nav-item { flex: 0 0 auto; flex-direction: column; justify-content: center; gap: 3px; min-width: 66px; min-height: 52px; padding: 6px 8px; font-size: 11px; text-align: center; position: relative; }
+    .sidebar-nav .nav-item svg { width: 22px; height: 22px; }
+    .sidebar-nav .nav-item .badge-count { position: absolute; top: 2px; right: 8px; margin: 0; padding: 0 5px; font-size: 10px; }
+    .sidebar-footer { display: none; flex-basis: 100%; max-height: 65vh; overflow-y: auto; padding-top: 8px; margin-top: 0; }
+    .sidebar.menu-aberto .sidebar-footer { display: flex; }
+    .main-area { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+    .topbar { padding: 12px 14px 0; gap: 10px; }
+    main { padding: 12px 14px; }
+    .btn, .btn-sm { min-height: 40px; }
+    input, select, textarea { font-size: 16px; }   /* evita o zoom automático do iPhone ao tocar num campo */
+    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal-box { max-width: 100%; width: 100%; border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; overflow-y: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+    .toolbar { flex-wrap: wrap; }
+    .toolbar > input, .toolbar > select { flex: 1 1 140px; min-width: 0; }
+    .ws-dropdown { max-width: calc(100vw - 24px); }
+  }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1142,6 +1182,7 @@
       </button>
       <div class="ws-dropdown" id="ws-dropdown"></div>
     </div>
+    <button type="button" class="btn-menu-mobile" id="btn-menu-mobile" onclick="toggleMenuMobile()" aria-label="Abrir menu" aria-expanded="false">☰</button>
 
     <nav class="sidebar-nav" id="sidebar-nav"></nav>
 
@@ -4278,10 +4319,24 @@ async function loadWorkspaceData() {
 let activeTab = null;
 let pessoaFiltro = 'Todos';
 
+// Menu "☰" do celular (Configurações, Ajuda, Aparência, sair). No computador o botão nem aparece.
+function toggleMenuMobile() {
+  const sb = document.querySelector('.sidebar'); if (!sb) return;
+  const aberto = sb.classList.toggle('menu-aberto');
+  document.getElementById('btn-menu-mobile')?.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+}
+function fecharMenuMobile() {
+  document.querySelector('.sidebar')?.classList.remove('menu-aberto');
+  document.getElementById('btn-menu-mobile')?.setAttribute('aria-expanded', 'false');
+}
+// Instalável no celular (PWA): o service worker só guarda arquivos do próprio site, nunca dados do banco.
+if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+
 function setTab(tab) {
   if (tab !== 'configuracoes' && tab !== 'ajuda' && !temAba(tab)) tab = abasAtivas()[0] || 'configuracoes';
   if (tab === 'agenda' && activeTab !== 'agenda') { const chk = document.getElementById('show-concluidos-agenda'); if (chk) chk.checked = false; }
   activeTab = tab;
+  fecharMenuMobile();
   ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','usuarios','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
     if (navBtn) navBtn.classList.toggle('active', t===tab);
