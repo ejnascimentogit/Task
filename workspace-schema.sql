@@ -1248,3 +1248,39 @@ end $$;
 revoke all on function public.assessor_email_iniciar(uuid, text, text) from public, anon;
 grant execute on function public.assessor_email_iniciar(uuid, text, text) to authenticated;
 
+
+-- ══════════════════════════════════════════════════════════════
+-- Usuário MASTER: aba "Usuários" (monitoramento de contas), 2026-10-13
+-- Só a conta ejnascimento@hotmail.com enxerga. A checagem é no servidor (e-mail do login),
+-- não na tela. Se a conta master mudar, trocar o e-mail aqui e o MASTER_EMAIL do index.html.
+-- ══════════════════════════════════════════════════════════════
+create or replace function public.eh_master()
+returns boolean language sql stable security definer set search_path = public, auth as $$
+  select exists (select 1 from auth.users u where u.id = auth.uid() and lower(u.email) = 'ejnascimento@hotmail.com' and u.email_confirmed_at is not null);
+$$;
+revoke all on function public.eh_master() from public, anon;
+grant execute on function public.eh_master() to authenticated;
+
+create or replace function public.master_usuarios()
+returns table (user_id uuid, email text, nome text, cliente_cronograma boolean, criado_em timestamptz, ultimo_login timestamptz, ultimo_acesso timestamptz, ultima_movimentacao timestamptz, workspaces integer, perfis text[], atividades integer, agendamentos integer, assessor_mensagens_mes integer, assessor_custo_mes_usd numeric, telegram boolean, emails_conectados integer)
+language plpgsql stable security definer set search_path = public, auth as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  return query
+  select u.id, u.email::text, coalesce(u.raw_user_meta_data->>'nome','')::text, (u.email like '%@cliente.taskfull.invalid'),
+    u.created_at, u.last_sign_in_at,
+    greatest(u.last_sign_in_at, (select max(coalesce(s.refreshed_at, s.updated_at, s.created_at)) from auth.sessions s where s.user_id = u.id)),
+    greatest((select max(a.created_at) from atividades a where a.workspace_id = any(w.ids)), (select max(g.created_at) from agendamentos g where g.workspace_id = any(w.ids))),
+    coalesce(cardinality(w.ids),0), coalesce(w.perfis,'{}'),
+    (select count(*)::int from atividades a where a.workspace_id = any(w.ids)),
+    (select count(*)::int from agendamentos g where g.workspace_id = any(w.ids)),
+    (select count(*)::int from assessor_uso s where s.user_id = u.id and s.created_at >= date_trunc('month', now())),
+    coalesce((select sum(s.custo_estimado_usd) from assessor_uso s where s.user_id = u.id and s.created_at >= date_trunc('month', now())),0),
+    exists (select 1 from assessor_vinculos v where v.user_id = u.id and v.canal = 'telegram' and v.chat_id is not null),
+    (select count(*)::int from assessor_email_contas c where c.user_id = u.id and c.ativo)
+  from auth.users u
+  left join lateral (select array_agg(m.workspace_id) ids, array_agg(distinct x.perfil_tipo) perfis from workspace_membros m join workspaces x on x.id = m.workspace_id where m.user_id = u.id and m.status = 'ativo') w on true
+  order by u.created_at;
+end $$;
+revoke all on function public.master_usuarios() from public, anon;
+grant execute on function public.master_usuarios() to authenticated;

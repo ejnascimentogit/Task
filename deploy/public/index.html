@@ -1368,6 +1368,16 @@
         </div>
       </section>
 
+      <section id="view-usuarios" style="display:none">
+        <div class="resumo-box">
+          <h2 class="view-titulo">Usuários</h2>
+          <div class="resumo-sub">Painel do master: todas as contas do Taskfull, desde quando usam e se ainda estão ativas. Só você vê esta aba.</div>
+          <div class="pessoa-filter" id="usuarios-filtro" style="margin-top:14px;"></div>
+          <div id="usuarios-resumo" style="margin-top:14px;"></div>
+          <div id="usuarios-lista" style="margin-top:14px;overflow-x:auto;"></div>
+        </div>
+      </section>
+
       <section id="view-buscar" style="display:none">
         <div class="resumo-box">
           <h2 class="view-titulo">Buscar</h2>
@@ -1960,8 +1970,8 @@ const PERFIL_DESC = {
 };
 const ENTIDADE_LABEL_PADRAO = { pessoal: null, equipe: 'Clientes', projeto: 'Projetos' };
 const _ni = d => `<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
-const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7') };
-const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails' };
+const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7'), usuarios: _ni('M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8') };
+const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails', usuarios: 'Usuários' };
 
 const DEFAULT_ETAPAS = [
   { id: 'kickoff', nome: 'Kickoff', cor: '#3B82F6', ordem: 1 },
@@ -3205,6 +3215,77 @@ function escapeExcetoMarks(raw) {
 
 let buscaTimeout = null;
 let buscaSeq = 0;   // contador anti-corrida: uma busca antiga nunca sobrescreve a mais nova
+// ══════════════════════════════════════════════════════════════
+// USUÁRIOS (só master): quem tem conta, desde quando usa e se está ativo
+// ══════════════════════════════════════════════════════════════
+let usuariosMaster = [];
+let usuariosFiltro = 'todos';
+let usuariosCarregando = false;
+async function carregarUsuarios() {
+  if (!souMaster() || !sb) return;
+  usuariosCarregando = true;
+  const { data, error } = await sb.rpc('master_usuarios');
+  usuariosCarregando = false;
+  if (error) { alert('Não foi possível carregar os usuários: ' + error.message); return; }
+  usuariosMaster = data || [];
+  renderUsuarios(true);
+}
+function diasDesde(iso) { return iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null; }
+function situacaoUsuario(u) {
+  const d = diasDesde(u.ultimo_acesso || u.ultimo_login);
+  if (d === null) return { id: 'nunca', rotulo: 'Nunca entrou', cor: '#6B7280' };
+  if (d <= 7) return { id: 'ativo', rotulo: 'Ativo', cor: '#10B981' };
+  if (d <= 30) return { id: 'parado', rotulo: 'Parado', cor: '#F59E0B' };
+  return { id: 'inativo', rotulo: 'Inativo', cor: '#EF4444' };
+}
+function tempoDeUso(iso) {
+  const d = diasDesde(iso);
+  if (d === null) return '-';
+  if (d < 1) return 'hoje';
+  if (d < 60) return d + (d === 1 ? ' dia' : ' dias');
+  return Math.floor(d / 30) + ' meses';
+}
+function dataHoraCurta(iso) { return iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'; }
+function setUsuariosFiltro(f) { usuariosFiltro = f; renderUsuarios(true); }
+function renderUsuarios(semRecarregar) {
+  const lista = document.getElementById('usuarios-lista');
+  if (!lista) return;
+  if (!souMaster()) { lista.innerHTML = ''; return; }
+  if (!semRecarregar && !usuariosCarregando) { carregarUsuarios(); }
+  if (!usuariosMaster.length) { lista.innerHTML = '<p style="color:var(--gray-text);font-size:13px;">' + (usuariosCarregando ? 'Carregando...' : 'Nenhum usuário.') + '</p>'; return; }
+  const comSit = usuariosMaster.map(u => ({ u, s: situacaoUsuario(u) }));
+  const cont = id => comSit.filter(x => x.s.id === id).length;
+  document.getElementById('usuarios-resumo').innerHTML =
+    `<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;">
+      <span><b>${comSit.length}</b> contas</span><span>·</span>
+      <span style="color:#10B981"><b>${cont('ativo')}</b> ativas (7 dias)</span><span>·</span>
+      <span style="color:#F59E0B"><b>${cont('parado')}</b> paradas (8 a 30 dias)</span><span>·</span>
+      <span style="color:#EF4444"><b>${cont('inativo')}</b> inativas (mais de 30 dias)</span>
+      <button class="btn btn-sm" style="margin-left:auto;" onclick="carregarUsuarios()">🔄 Atualizar</button>
+    </div>`;
+  const filtros = [['todos', 'Todos'], ['ativo', 'Ativos'], ['parado', 'Parados'], ['inativo', 'Inativos']];
+  document.getElementById('usuarios-filtro').innerHTML = filtros.map(([id, nome]) =>
+    `<button class="pessoa-filter-btn ${usuariosFiltro === id ? 'active' : ''}" onclick="setUsuariosFiltro('${id}')">${nome}</button>`).join('');
+  const rows = comSit.filter(x => usuariosFiltro === 'todos' || x.s.id === usuariosFiltro)
+    .sort((a, b) => new Date(b.u.ultimo_acesso || 0) - new Date(a.u.ultimo_acesso || 0));
+  lista.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:860px;">
+    <thead><tr style="text-align:left;color:var(--gray-text);">
+      <th style="padding:8px;">Usuário</th><th>Situação</th><th>Primeiro acesso</th><th>Tempo de uso</th><th>Último acesso</th><th>Última movimentação</th><th>Workspaces</th><th>Atividades / Agenda</th><th>Assessor (mês)</th>
+    </tr></thead><tbody>` + rows.map(({ u, s }) => `
+    <tr style="border-top:1px solid var(--border,#e5e7eb);">
+      <td style="padding:8px;"><b>${escapeHtml(u.nome || u.email)}</b>${u.nome ? `<br><small style="color:var(--gray-text)">${escapeHtml(u.email)}</small>` : ''}${u.cliente_cronograma ? '<br><small>👤 cliente do Cronograma</small>' : ''}</td>
+      <td><span style="color:${s.cor};font-weight:600;">● ${s.rotulo}</span></td>
+      <td>${dataHoraCurta(u.criado_em)}</td>
+      <td>${tempoDeUso(u.criado_em)}</td>
+      <td>${dataHoraCurta(u.ultimo_acesso || u.ultimo_login)}<br><small style="color:var(--gray-text)">${(() => { const d = diasDesde(u.ultimo_acesso || u.ultimo_login); return d === null ? '' : d < 1 ? 'hoje' : 'há ' + d + (d === 1 ? ' dia' : ' dias'); })()}</small></td>
+      <td>${dataHoraCurta(u.ultima_movimentacao)}</td>
+      <td>${u.workspaces} <small style="color:var(--gray-text)">${(u.perfis || []).join(', ')}</small></td>
+      <td>${u.atividades} / ${u.agendamentos}</td>
+      <td>${u.assessor_mensagens_mes} uso${u.assessor_mensagens_mes === 1 ? '' : 's'} · US$ ${Number(u.assessor_custo_mes_usd || 0).toFixed(2)}${u.telegram ? '<br><small>📱 Telegram</small>' : ''}${u.emails_conectados ? `<small> 📧 ${u.emails_conectados}</small>` : ''}</td>
+    </tr>`).join('') + `</tbody></table>
+    <p style="color:var(--gray-text);font-size:12px;margin-top:10px;">Ativo = acessou nos últimos 7 dias. "Último acesso" vem da sessão de login (renova enquanto a pessoa mantém o app aberto); "Última movimentação" é a última atividade ou compromisso criado nos workspaces dela (inclui o que outros membros criaram). Workspaces e contagens são dos workspaces em que a pessoa é membro ativo.</p>`;
+}
+
 function renderBuscar() {
   document.getElementById('buscar-sub').textContent = temAba('entidades')
     ? 'Procure nas notas, atividades e pendências deste workspace. Dá pra escrever uma pergunta normal, ex.: "quando foi feito o treinamento do ' + (entidadeLabel().slice(0, -1).toLowerCase() || 'cliente') + ' X?"'
@@ -3885,7 +3966,15 @@ async function withLock(btn, asyncFn) {
   btn.disabled = true; btn.style.opacity = '0.6';
   try { await asyncFn(); } finally { btn.disabled = false; btn.style.opacity = ''; }
 }
-function abasAtivas() { return activeWorkspace ? PERFIL_ABAS[activeWorkspace.perfilTipo] : []; }
+// Conta master (dono do app): só ela vê "Buscar" (uso pago, gasta tokens) e "Usuários". A checagem de verdade
+// dos dados é no servidor (eh_master / master_usuarios); aqui é só para esconder o botão.
+const MASTER_EMAIL = 'ejnascimento@hotmail.com';
+function souMaster() { return !!currentUser && (currentUser.email || '').toLowerCase() === MASTER_EMAIL; }
+function abasAtivas() {
+  if (!activeWorkspace) return [];
+  const abas = PERFIL_ABAS[activeWorkspace.perfilTipo].filter(a => a !== 'buscar' || souMaster());
+  return souMaster() ? abas.concat('usuarios') : abas;
+}
 function temAba(aba) { return abasAtivas().includes(aba); }
 function entidadeLabel() { return (activeWorkspace && activeWorkspace.entidadeLabel) || 'Entidades'; }
 function souSolo() { return activeWorkspace && activeWorkspace.perfilTipo === 'pessoal'; }
@@ -4193,7 +4282,7 @@ function setTab(tab) {
   if (tab !== 'configuracoes' && tab !== 'ajuda' && !temAba(tab)) tab = abasAtivas()[0] || 'configuracoes';
   if (tab === 'agenda' && activeTab !== 'agenda') { const chk = document.getElementById('show-concluidos-agenda'); if (chk) chk.checked = false; }
   activeTab = tab;
-  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','configuracoes','ajuda'].forEach(t => {
+  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','usuarios','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
     if (navBtn) navBtn.classList.toggle('active', t===tab);
     const view = document.getElementById('view-'+t);
@@ -4220,6 +4309,7 @@ function render() {
   else if (activeTab === 'indicadores') renderIndicadores();
   else if (activeTab === 'buscar') renderBuscar();
   else if (activeTab === 'emails') renderEmails();
+  else if (activeTab === 'usuarios') renderUsuarios();
   else if (activeTab === 'lamina') renderLamina();
   else if (activeTab === 'cronograma') renderCronograma();
   else if (activeTab === 'treinamentos') renderTreinamentos();

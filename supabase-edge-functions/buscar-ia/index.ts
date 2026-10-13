@@ -53,6 +53,9 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) return jsonResponse({ error: "Sessão inválida." }, 401);
 
+    // Uso pago, ainda em testes: só a conta master pode usar (evita gastar os tokens do dono do app).
+    if ((user.email || "").toLowerCase() !== "ejnascimento@hotmail.com") return jsonResponse({ error: "A busca com IA ainda não está liberada para a sua conta." }, 403);
+
     const { workspace_id, pergunta, termo_busca } = await req.json();
     if (!workspace_id || !pergunta || typeof pergunta !== "string") return jsonResponse({ error: "Informe workspace_id e pergunta." }, 400);
     if (pergunta.length > MAX_PERGUNTA) return jsonResponse({ error: "Pergunta muito longa." }, 400);
