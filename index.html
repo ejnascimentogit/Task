@@ -5492,7 +5492,9 @@ async function carregarBomDia(forcar) {
       sb.functions.invoke('bom-dia-noticias', { body: { cidade: c.cidade, estado: c.estado, pais: c.pais } }).then(r => r.error ? { erro: r.error.message } : r.data).catch(e => ({ erro: e.message })),
     ]);
     bomDiaDados = { tempo, noticias };
-    bomDiaChave = chave; bomDiaQuando = Date.now();
+    // Manchetes vazias (falha passageira da fonte) não ficam em cache por 30 min: tenta de novo em ~5 min.
+    const semManchetes = !noticias.erro && ['mundo', 'pais', 'estado', 'cidade'].every(k => !(noticias[k] || []).length);
+    bomDiaChave = chave; bomDiaQuando = semManchetes ? Date.now() - 25 * 60 * 1000 : Date.now();
   } finally { bomDiaCarregando = false; renderBomDia(); }
 }
 function renderBomDia() {
