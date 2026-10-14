@@ -14,26 +14,32 @@ Objetivo: ter um servidor do WuzAPI no ar para testar o WhatsApp do Taskfull com
 ## Na sua máquina pessoal
 
 **Antes:** Docker instalado e funcionando (`docker --version` e `docker compose version` mostram versão). Máquina com 2 GB de memória livres ou mais. Ela precisa **ficar ligada e sem dormir** enquanto você testa.
+- **Memória do Docker Desktop:** compilar o WuzAPI na primeira vez pede cerca de 2 GB livres dentro do Docker. Se o Docker Desktop estiver limitado a ~3,7 GB e já houver outros contêineres rodando (por exemplo `supabase-cli`), **pare-os antes** de subir (`docker stop <nome>`), ou aumente o limite em *Docker Desktop → Settings → Resources*. Se a compilação falhar com "killed" ou "out of memory", é isso.
+- **Docker Desktop desatualizado:** o aviso de versão não impede o teste, mas atualizar ajuda se algo se comportar de forma estranha.
+- **Porta 8080 ocupada:** se outro programa já usa a 8080, edite `WUZAPI_PORT` no `.env` (por exemplo `8081`) e use essa porta no endereço do teste local.
 
-1. Baixe o repositório (`git clone https://github.com/ejnascimentogit/Task.git`) ou o ZIP dele pelo GitHub, e entre na pasta `docs/whatsapp/servidor-teste`.
-2. Gere os segredos (Linux, Mac ou Git Bash/WSL no Windows):
-   ```bash
-   ./gerar-env.sh
-   ```
-   Ele cria o `.env` (ignorado pelo Git) e mostra **uma vez** o `WUZAPI_ADMIN_TOKEN`. Copie-o. (No Windows sem Git Bash/WSL, avise o Claude, que prepara o equivalente em PowerShell.)
+1. **Baixe os arquivos.** Enquanto a branch não for para a `master`, eles estão na branch `claude/optimistic-pasteur-62v455` (um `git clone` simples **não** os traz):
+   - Com Git: `git clone -b claude/optimistic-pasteur-62v455 https://github.com/ejnascimentogit/Task.git`
+   - Sem Git: baixe o ZIP em `https://github.com/ejnascimentogit/Task/archive/refs/heads/claude/optimistic-pasteur-62v455.zip`, extraia, e abra a pasta `docs/whatsapp/servidor-teste`.
+2. **Gere os segredos**, dentro da pasta `docs/whatsapp/servidor-teste`:
+   - **Windows (PowerShell):** `powershell -ExecutionPolicy Bypass -File .\gerar-env.ps1`
+   - Linux, Mac ou Git Bash/WSL: `./gerar-env.sh`
+
+   Ele cria o `.env` (ignorado pelo Git) e mostra **uma vez** o `WUZAPI_ADMIN_TOKEN`. Copie-o.
 3. Suba tudo:
    ```bash
    docker compose up -d --build
    docker compose ps            # wuzapi, db e tunel em "running"
    docker compose logs wuzapi   # procure por erros
    ```
-4. Pegue o endereço público do túnel:
-   ```bash
-   docker compose logs tunel | grep trycloudflare
-   ```
+4. **Teste local primeiro** (sem o Taskfull): abra no navegador `http://localhost:8080/dashboard`. Se a página do WuzAPI aparecer, o servidor está de pé. (Pede o token de admin; é o do passo 2.)
+5. Pegue o endereço público do túnel:
+   - Windows PowerShell: `docker compose logs tunel | Select-String trycloudflare`
+   - Linux, Mac ou Git Bash: `docker compose logs tunel | grep trycloudflare`
+
    Aparece algo como `https://palavras-aleatorias.trycloudflare.com`. Esse é o `WUZAPI_URL`.
-5. No Supabase (projeto `painel-workspaces`) → **Edge Functions → Secrets**: crie `WUZAPI_URL` (o endereço do passo 4, sem barra no fim) e `WUZAPI_ADMIN_TOKEN` (o do passo 2). **Não cole o token no chat.**
-6. No Taskfull (usuário master): aba **WhatsApp** → aceitar o aviso → **Conectar WhatsApp** → ler o QR no celular (*WhatsApp → Aparelhos conectados → Conectar um aparelho*; aparece como "Taskfull") → enviar uma mensagem **para o seu próprio número** e uma programada para daqui a 2 minutos.
+6. No Supabase (projeto `painel-workspaces`) → **Edge Functions → Secrets**: crie `WUZAPI_URL` (o endereço do passo 4, sem barra no fim) e `WUZAPI_ADMIN_TOKEN` (o do passo 2). **Não cole o token no chat.**
+7. No Taskfull (usuário master): aba **WhatsApp** → aceitar o aviso → **Conectar WhatsApp** → ler o QR no celular (*WhatsApp → Aparelhos conectados → Conectar um aparelho*; aparece como "Taskfull") → enviar uma mensagem **para o seu próprio número** e uma programada para daqui a 2 minutos.
 
 ## Cuidados
 
