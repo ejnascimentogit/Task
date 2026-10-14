@@ -1888,6 +1888,23 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="wa-rel-modal-overlay" onclick="if(event.target===this) fecharRelatorioWa()">
+  <div class="modal-box" style="max-width:860px;">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+      <h2 style="margin:0;">Relatório de saúde do WhatsApp</h2>
+      <select id="wa-rel-dias" onchange="carregarRelatorioWa()" style="margin-left:auto;"><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select>
+    </div>
+    <div id="wa-rel-corpo" style="margin-top:10px;"></div>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="baixarCsvRelatorioWa()">⬇ Baixar CSV</button>
+        <button class="btn btn-primary" onclick="fecharRelatorioWa()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="wa-modal-overlay">
   <div class="modal-box" style="max-width:520px;">
     <h2>Nova mensagem de WhatsApp</h2>
@@ -3483,12 +3500,99 @@ function renderSaudeWhatsapp() {
   const est = waSaude.estados || [], ev = waSaude.eventos || [];
   const srv = est.find(e => e.chave === 'servidor');
   const sessoes = est.filter(e => e.chave.startsWith('sessao:'));
-  box.innerHTML = `<h3 style="font-size:15px;margin-bottom:8px;">Saúde do serviço <small style="font-weight:400;color:var(--gray-text)">(só você vê; o vigia confere a cada 10 min)</small></h3>
+  box.innerHTML = `<h3 style="font-size:15px;margin-bottom:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">Saúde do serviço <small style="font-weight:400;color:var(--gray-text)">(só você vê; o vigia confere a cada 10 min)</small><button class="btn btn-sm" style="margin-left:auto;" onclick="abrirRelatorioWa()">📊 Relatório</button></h3>
     <div style="font-size:13px;line-height:1.7;">
       <div>${!srv ? '⚪ Servidor: ainda sem verificação (precisa estar configurado)' : srv.ok ? '🟢 Servidor no ar' : '🔴 Servidor fora do ar: ' + escapeHtml(srv.detalhe || '')}${srv && srv.verificado_em ? ' <small style="color:var(--gray-text)">· verificado ' + formatDataHora(srv.verificado_em) + '</small>' : ''}</div>
       <div>${sessoes.length ? sessoes.map(s => (s.ok ? '🟢 ' : '🔴 ') + escapeHtml(s.email || 'pessoa') + ': ' + escapeHtml(s.detalhe || '')).join('<br>') : '<span style="color:var(--gray-text)">Nenhuma sessão com problema registrado.</span>'}</div>
     </div>
     ${ev.length ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;">Últimos eventos (${ev.length})</summary><div style="font-size:12.5px;line-height:1.7;margin-top:6px;">${ev.map(e => `${e.ok ? '🟢' : '🔴'} ${escapeHtml(formatDataHora(e.em))} · ${escapeHtml(waNomeDaChave(e))}: ${escapeHtml(e.detalhe || '')}`).join('<br>')}</div></details>` : ''}`;
+}
+
+// Relatório de saúde do WhatsApp (só master): incidentes montados a partir dos eventos do vigia (queda e volta de cada item).
+let waRel = null;
+function waDuracao(ms) {
+  if (ms == null) return '—';
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h < 48) return h + ' h' + (m ? ' ' + m + ' min' : '');
+  const d = Math.floor(h / 24);
+  return d + ' d' + (h % 24 ? ' ' + (h % 24) + ' h' : '');
+}
+// Cada item (servidor ou sessão de uma pessoa) tem eventos "caiu" e "voltou". O início do incidente é o momento do alerta
+// (já depois de 2 verificações com falha, ou seja, 10 a 20 min depois do início real).
+function waMontarIncidentes(rel) {
+  const agora = new Date(rel.agora).getTime(), ini = agora - rel.dias * 86400000;
+  const porChave = {};
+  (rel.eventos || []).forEach(e => { (porChave[e.chave] = porChave[e.chave] || []).push(e); });
+  const lista = [];
+  const nome = (e) => e.chave === 'servidor' ? 'Servidor' : 'Sessão de ' + (e.email || 'pessoa');
+  Object.entries(porChave).forEach(([chave, evs]) => {
+    let aberto = null;
+    evs.sort((a, b) => new Date(a.em) - new Date(b.em)).forEach(e => {
+      if (!e.ok) { if (!aberto) aberto = e; }
+      else if (aberto) { lista.push({ chave, item: nome(aberto), inicio: new Date(aberto.em).getTime(), fim: new Date(e.em).getTime(), causa: aberto.detalhe || '' }); aberto = null; }
+      else lista.push({ chave, item: nome(e), inicio: null, fim: new Date(e.em).getTime(), causa: 'Começou antes do período' });
+    });
+    if (aberto) lista.push({ chave, item: nome(aberto), inicio: new Date(aberto.em).getTime(), fim: null, causa: aberto.detalhe || '' });
+  });
+  // estado atual com problema mas sem evento no período (começou antes dele)
+  (rel.estados || []).filter(s => !s.ok && !lista.some(i => i.chave === s.chave && i.fim == null)).forEach(s =>
+    lista.push({ chave: s.chave, item: s.chave === 'servidor' ? 'Servidor' : 'Sessão de ' + (s.email || 'pessoa'), inicio: new Date(s.desde).getTime(), fim: null, causa: s.detalhe || '' }));
+  lista.sort((a, b) => (b.inicio ?? b.fim) - (a.inicio ?? a.fim));
+  const duracao = (i) => i.inicio == null ? null : (i.fim ?? agora) - Math.max(i.inicio, ini);
+  lista.forEach(i => { i.duracao = duracao(i); });
+  const obsDesde = Math.max(ini, rel.vigia_desde ? new Date(rel.vigia_desde).getTime() : agora);
+  const srv = lista.filter(i => i.chave === 'servidor');
+  const fora = srv.reduce((t, i) => t + (i.duracao || 0), 0);
+  const observado = Math.max(agora - obsDesde, 1);
+  return { lista, observadoMs: agora - obsDesde, obsDesde, incSrv: srv.length, foraMs: fora,
+    disponibilidade: rel.vigia_desde ? Math.max(0, 100 - fora / observado * 100) : null,
+    incSessao: lista.filter(i => i.chave !== 'servidor').length, pessoas: new Set(lista.filter(i => i.chave !== 'servidor').map(i => i.item)).size };
+}
+async function abrirRelatorioWa() {
+  document.getElementById('wa-rel-corpo').innerHTML = '<p class="config-hint">Carregando...</p>';
+  document.getElementById('wa-rel-modal-overlay').classList.add('open');
+  await carregarRelatorioWa();
+}
+function fecharRelatorioWa() { document.getElementById('wa-rel-modal-overlay').classList.remove('open'); }
+async function carregarRelatorioWa() {
+  const dias = parseInt(document.getElementById('wa-rel-dias').value, 10) || 30;
+  const { data, error } = await sb.rpc('master_whatsapp_relatorio', { p_dias: dias });
+  if (error) { document.getElementById('wa-rel-corpo').innerHTML = '<p class="config-hint">⚠️ ' + escapeHtml(error.message) + '</p>'; return; }
+  waRel = data; renderRelatorioWa();
+}
+function renderRelatorioWa() {
+  const box = document.getElementById('wa-rel-corpo');
+  if (!waRel) { box.innerHTML = ''; return; }
+  if (!waRel.vigia_desde) { box.innerHTML = '<p class="config-hint">O vigia ainda não fez nenhuma verificação. Assim que o servidor do WhatsApp estiver configurado, os registros aparecem aqui.</p>'; return; }
+  const r = waMontarIncidentes(waRel);
+  const card = (titulo, valor, sub, cor) => `<div style="flex:1 1 150px;border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:12px 14px;"><div style="font-size:12px;color:var(--gray-text);">${titulo}</div><div style="font-size:22px;font-weight:700;${cor ? 'color:' + cor : ''}">${valor}</div><div style="font-size:12px;color:var(--gray-text);">${sub}</div></div>`;
+  const disp = r.disponibilidade == null ? '—' : r.disponibilidade.toFixed(2).replace('.', ',') + '%';
+  box.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;">
+      ${card('Disponibilidade do servidor', disp, 'observada desde ' + formatDataHora(new Date(r.obsDesde).toISOString()), r.disponibilidade != null && r.disponibilidade < 99 ? '#EF4444' : '#10B981')}
+      ${card('Quedas do servidor', r.incSrv, 'fora do ar por ' + waDuracao(r.incSrv ? r.foraMs : 0), r.incSrv ? '#F59E0B' : '')}
+      ${card('Sessões que caíram', r.incSessao, r.pessoas + (r.pessoas === 1 ? ' pessoa afetada' : ' pessoas afetadas'), r.incSessao ? '#F59E0B' : '')}
+    </div>
+    <p style="font-size:12px;color:var(--gray-text);margin:8px 0 12px;">Última verificação: ${waRel.ultima_verificacao ? formatDataHora(waRel.ultima_verificacao) : '—'}. O início de cada incidente é o momento do alerta, que sai depois de 2 verificações seguidas com falha (cerca de 10 a 20 min depois do início real). A disponibilidade só conta o tempo em que o vigia já estava ativo.</p>
+    ${r.lista.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:var(--gray-text);"><th style="padding:8px 12px;">Item</th><th style="padding:8px 12px;white-space:nowrap;">Começou</th><th style="padding:8px 12px;white-space:nowrap;">Terminou</th><th style="padding:8px 12px;">Duração</th><th style="padding:8px 12px;">Causa</th></tr></thead><tbody>` +
+      r.lista.map(i => `<tr style="border-top:1px solid var(--border,#e5e7eb);"><td style="padding:10px 12px;">${escapeHtml(i.item)}</td><td style="padding:10px 12px;white-space:nowrap;">${i.inicio ? formatDataHora(new Date(i.inicio).toISOString()) : 'antes do período'}</td><td style="padding:10px 12px;white-space:nowrap;">${i.fim ? formatDataHora(new Date(i.fim).toISOString()) : '<b style="color:#EF4444">em andamento</b>'}</td><td style="padding:10px 12px;white-space:nowrap;">${waDuracao(i.duracao)}</td><td style="padding:10px 12px;">${escapeHtml(i.causa)}</td></tr>`).join('') + '</tbody></table></div>'
+      : '<p style="padding:16px 0;">✅ Nenhum incidente neste período.</p>'}`;
+}
+function waCsvRelatorio(rel) {
+  const r = waMontarIncidentes(rel);
+  const fmt = (ms) => ms ? new Date(ms).toLocaleString('pt-BR') : '';
+  const cel = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const linhas = [['Item', 'Começou', 'Terminou', 'Duração (min)', 'Situação', 'Causa']];
+  r.lista.forEach(i => linhas.push([i.item, i.inicio ? fmt(i.inicio) : 'antes do período', fmt(i.fim), i.duracao == null ? '' : Math.max(1, Math.round(i.duracao / 60000)), i.fim ? 'Resolvido' : 'Em andamento', i.causa]));
+  return '﻿' + linhas.map(l => l.map(cel).join(';')).join('\r\n');
+}
+function baixarCsvRelatorioWa() {
+  if (!waRel) return;
+  const blob = new Blob([waCsvRelatorio(waRel)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'whatsapp-saude-' + todayStr() + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 // ══════════════════════════════════════════════════════════════

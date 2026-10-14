@@ -1474,3 +1474,20 @@ end $$;
 --   url := 'https://dubbmmjtbunzmdmfbbja.supabase.co/functions/v1/whatsapp-agendadas',
 --   headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <anon key>'),
 --   body := '{}'::jsonb, timeout_milliseconds := 120000); $c$);
+
+-- Vigia de saúde do WhatsApp e relatório (2026-10-14). Aplicado no Supabase; as Edge Functions do vigia ainda NÃO foram publicadas (ver CLAUDE.md).
+create table if not exists public.whatsapp_saude_estado (
+  chave text primary key, user_id uuid references auth.users(id) on delete cascade, ok boolean not null default true,
+  falhas_seguidas integer not null default 0, detalhe text, desde timestamptz not null default now(),
+  verificado_em timestamptz, alertado_em timestamptz, criado_em timestamptz not null default now());
+create table if not exists public.whatsapp_saude_eventos (
+  id bigint generated always as identity primary key, em timestamptz not null default now(), chave text not null,
+  user_id uuid references auth.users(id) on delete cascade, ok boolean not null, detalhe text);
+create index if not exists whatsapp_saude_eventos_em_idx on public.whatsapp_saude_eventos (em desc);
+alter table public.whatsapp_saude_estado enable row level security;
+alter table public.whatsapp_saude_eventos enable row level security;
+revoke all on public.whatsapp_saude_estado from anon, authenticated;
+revoke all on public.whatsapp_saude_eventos from anon, authenticated;
+-- Funções (corpo completo em supabase-edge-functions/whatsapp-agendadas/vigia.ts e nas migrações aplicadas):
+--   whatsapp_saude_registrar(chave, user, ok, detalhe, falhas_para_alertar=2, lembrete_horas=6) -> 'alertar' | 'lembrar' | 'recuperou' | null  (service_role)
+--   master_whatsapp_saude() e master_whatsapp_relatorio(dias) (só master), whatsapp_chat_master() e whatsapp_chat_usuario(uuid) (service_role)
