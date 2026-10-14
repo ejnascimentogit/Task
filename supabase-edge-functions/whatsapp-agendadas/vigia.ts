@@ -51,7 +51,7 @@ export async function rodarVigia(sb: any, env: Env) {
       if (!token) continue;
       const st = await wz.status(cfg, token);
       if (!st.ok) continue;   // erro do servidor não prova que a sessão caiu; o toque do servidor acima cuida disso
-      const logado = st.json?.data?.LoggedIn === true;
+      const logado = (st.json?.data?.loggedIn ?? st.json?.data?.LoggedIn) === true;
       const acao = await registrar("sessao:" + c.user_id, c.user_id, logado, logado ? "Conectada" : "Sessão desconectada: precisa ler o QR de novo");
       if (acao === "alertar") {
         await sb.from("whatsapp_contas").update({ status: "desconectada", ultimo_erro: "A sessão do WhatsApp caiu (o servidor reiniciou ou o WhatsApp desconectou). Leia o QR de novo para continuar.", atualizado_em: new Date().toISOString() }).eq("user_id", c.user_id);

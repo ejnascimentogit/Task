@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
           if (t) {
             const st = await wz.status(cfg, t);
             if (st.ok) {
-              const logado = st.json?.data?.LoggedIn === true;
+              const logado = (st.json?.data?.loggedIn ?? st.json?.data?.LoggedIn) === true;
               const novo = logado ? "conectada" : (c.status === "aguardando_qr" ? "aguardando_qr" : "desconectada");
               if (novo !== c.status) { await marcar({ status: novo }); c = { ...c, status: novo }; if (novo === "conectada") await reconectou(); }
             }
@@ -75,13 +75,13 @@ Deno.serve(async (req) => {
         const t = await token();
         if (!t) return resp({ ok: false, erro: "Conecte primeiro." });
         const st = await wz.status(cfg, t);
-        if (st.ok && st.json?.data?.LoggedIn === true) {
+        if (st.ok && (st.json?.data?.loggedIn ?? st.json?.data?.LoggedIn) === true) {
           const jid = st.json?.data?.jid ?? st.json?.data?.Jid ?? st.json?.data?.JID ?? null;
           await marcar({ status: "conectada", jid, telefone: numeroDoJid(jid), ultimo_erro: null });
           await reconectou();
           return resp({ ok: true, conectada: true, telefone: numeroDoJid(jid) });
         }
-        if (st.ok && st.json?.data?.Connected !== true) await wz.conectar(cfg, t);   // sessão caiu: reabre para gerar um QR novo
+        if (st.ok && (st.json?.data?.connected ?? st.json?.data?.Connected) !== true) await wz.conectar(cfg, t);   // sessão caiu: reabre para gerar um QR novo
         const q = await wz.qr(cfg, t);
         const qr = q.json?.data?.QRCode ?? q.json?.data?.qrcode ?? null;
         return resp({ ok: true, conectada: false, qr: qr || null });
