@@ -3642,6 +3642,7 @@ function renderWhatsapp(semRecarregar) {
       <button class="btn btn-primary btn-sm" onclick="abrirNovaMensagemWa()">+ Nova mensagem</button>
       <button class="btn btn-sm" onclick="withLock(this, waDesconectar)">Desconectar</button></div>`;
   } else if (c && c.status === 'aguardando_qr') {
+    waVigiarQr();
     html = `<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
       <div style="width:230px;height:230px;border:1px solid var(--border,#e5e7eb);border-radius:12px;display:flex;align-items:center;justify-content:center;background:#fff;">${waQr ? `<img src="${escapeHtml(waQr)}" alt="QR code do WhatsApp" style="width:210px;height:210px;">` : '<span style="color:#6b7280;font-size:13px;">Gerando o QR code...</span>'}</div>
       <div style="max-width:380px;"><b>Leia o QR code com o seu celular</b>
@@ -3674,7 +3675,11 @@ async function waConectar() {
   if (!r.ok) { alert(r.erro || 'Não foi possível conectar.'); return; }
   waQr = null;
   await carregarWhatsapp();
-  clearInterval(waTimer);
+  waVigiarQr();
+}
+// Confere a cada 3 s se o QR foi lido (e atualiza o QR, que expira). Também religa depois de Atualizar/recarregar a página.
+function waVigiarQr() {
+  if (waTimer) return;
   let tentativas = 0;
   waTimer = setInterval(async () => {
     if (activeTab !== 'whatsapp' || ++tentativas > 50) { clearInterval(waTimer); waTimer = null; return; }
