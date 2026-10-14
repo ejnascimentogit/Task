@@ -1284,3 +1284,87 @@ begin
 end $$;
 revoke all on function public.master_usuarios() from public, anon;
 grant execute on function public.master_usuarios() to authenticated;
+
+-- ══════════════════════════════════════════════════════════════
+-- Recursos pagos liberados pelo master (Buscar, assessor no Telegram, leitura de e-mail), 2026-10-14
+-- Tudo travado por padrão; só o master (ejnascimento@hotmail.com) libera, pela aba Usuários.
+-- A trava é no banco: triggers recusam conectar Telegram/e-mail sem liberação, e a Edge Function buscar-ia confere tem_recurso.
+-- Revogar desconecta (apaga vínculo/conversas do Telegram; contas de e-mail e segredos do Vault).
+-- ══════════════════════════════════════════════════════════════
+create table if not exists public.recursos_liberados (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  recurso text not null check (recurso in ('buscar','assessor_telegram','assessor_email')),
+  liberado_por uuid references auth.users(id) on delete set null,
+  liberado_em timestamptz not null default now(),
+  primary key (user_id, recurso)
+);
+alter table public.recursos_liberados enable row level security;
+revoke all on public.recursos_liberados from anon, authenticated;   -- sem policy: só pelas funções abaixo
+
+create or replace function public.tem_recurso(p_user uuid, p_recurso text)
+returns boolean language sql stable security definer set search_path = public, auth as $$
+  select exists (select 1 from auth.users u where u.id = p_user and lower(u.email) = 'ejnascimento@hotmail.com' and u.email_confirmed_at is not null)
+      or exists (select 1 from public.recursos_liberados r where r.user_id = p_user and r.recurso = p_recurso);
+$$;
+revoke all on function public.tem_recurso(uuid, text) from public, anon, authenticated;
+grant execute on function public.tem_recurso(uuid, text) to service_role;
+
+create or replace function public.meus_recursos()
+returns text[] language sql stable security definer set search_path = public, auth as $$
+  select coalesce(array_agg(r), '{}') from unnest(array['buscar','assessor_telegram','assessor_email']) r where public.tem_recurso(auth.uid(), r);
+$$;
+revoke all on function public.meus_recursos() from public, anon;
+grant execute on function public.meus_recursos() to authenticated;
+
+create or replace function public.exigir_recurso_liberado()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if not public.tem_recurso(new.user_id, tg_argv[0]) then
+    raise exception 'Este recurso é pago e ainda não foi liberado para a sua conta. Peça a liberação ao administrador do Taskfull.';
+  end if;
+  return new;
+end $$;
+revoke all on function public.exigir_recurso_liberado() from public, anon, authenticated;
+create or replace trigger exigir_liberacao_telegram before insert on public.assessor_vinculos
+  for each row execute function public.exigir_recurso_liberado('assessor_telegram');
+create or replace trigger exigir_liberacao_email_estado before insert on public.assessor_email_estados
+  for each row execute function public.exigir_recurso_liberado('assessor_email');
+create or replace trigger exigir_liberacao_email_conta before insert on public.assessor_email_contas
+  for each row execute function public.exigir_recurso_liberado('assessor_email');
+
+create or replace function public.limpar_email_usuario(p_user uuid) returns void language sql security definer set search_path = public, vault as $$
+  with d as (delete from public.assessor_email_contas where user_id = p_user returning segredo_id)
+  delete from vault.secrets where id in (select segredo_id from d where segredo_id is not null) $$;
+create or replace function public.limpar_telegram_usuario(p_user uuid) returns void language sql security definer set search_path = public as $$
+  with m as (delete from public.assessor_mensagens where user_id = p_user and canal = 'telegram' returning 1)
+  delete from public.assessor_vinculos where user_id = p_user and canal = 'telegram' $$;
+create or replace function public.remover_liberacao(p_user uuid, p_recurso text) returns void language sql security definer set search_path = public as $$
+  with d as (delete from public.recursos_liberados where user_id = p_user and recurso = p_recurso returning 1) select count(*) from d $$;
+revoke all on function public.limpar_email_usuario(uuid) from public, anon, authenticated;
+revoke all on function public.limpar_telegram_usuario(uuid) from public, anon, authenticated;
+revoke all on function public.remover_liberacao(uuid, text) from public, anon, authenticated;
+
+create or replace function public.master_definir_liberacao(p_user uuid, p_recurso text, p_ativo boolean)
+returns void language plpgsql security definer set search_path = public, auth as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  if p_recurso not in ('buscar','assessor_telegram','assessor_email') then raise exception 'Recurso inválido'; end if;
+  if p_ativo then
+    insert into public.recursos_liberados (user_id, recurso, liberado_por) values (p_user, p_recurso, auth.uid()) on conflict do nothing;
+    return;
+  end if;
+  perform public.remover_liberacao(p_user, p_recurso);
+  if p_recurso = 'assessor_telegram' then perform public.limpar_telegram_usuario(p_user);
+  elsif p_recurso = 'assessor_email' then perform public.limpar_email_usuario(p_user);
+  end if;
+end $$;
+revoke all on function public.master_definir_liberacao(uuid, text, boolean) from public, anon;
+grant execute on function public.master_definir_liberacao(uuid, text, boolean) to authenticated;
+
+create or replace function public.master_recursos() returns table (user_id uuid, recursos text[]) language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  return query select r.user_id, array_agg(r.recurso order by r.recurso) from public.recursos_liberados r group by r.user_id;
+end $$;
+revoke all on function public.master_recursos() from public, anon;
+grant execute on function public.master_recursos() to authenticated;
