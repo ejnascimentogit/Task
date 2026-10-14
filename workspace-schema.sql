@@ -1368,3 +1368,109 @@ begin
 end $$;
 revoke all on function public.master_recursos() from public, anon;
 grant execute on function public.master_recursos() to authenticated;
+
+-- ══════════════════════════════════════════════════════════════
+-- WhatsApp (WuzAPI): conectar o número da pessoa e enviar/programar mensagens para qualquer número, 2026-10-14
+-- Serviço pago liberado pelo master (recurso 'whatsapp'). O navegador só LÊ (RLS); toda escrita passa pelas Edge Functions
+-- whatsapp-api (tela) e whatsapp-agendadas (cron a cada minuto), com a chave de serviço. O token de cada pessoa no WuzAPI fica no Vault.
+-- ══════════════════════════════════════════════════════════════
+do $t$ begin
+  execute 'alter table public.recursos_liberados drop constraint if exists recursos_liberados_recurso_check';
+  execute 'alter table public.recursos_liberados add constraint recursos_liberados_recurso_check check (recurso in (''buscar'',''assessor_telegram'',''assessor_email'',''whatsapp''))';
+end $t$;
+
+create table if not exists public.whatsapp_contas (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  workspace_id uuid references public.workspaces(id) on delete set null,
+  token_segredo_id uuid,                       -- token do usuário no WuzAPI (Vault)
+  status text not null default 'desconectada' check (status in ('desconectada','aguardando_qr','conectada','erro')),
+  jid text, telefone text,
+  consentimento_em timestamptz,                -- aceite do aviso de uso não oficial
+  limite_diario integer not null default 50,   -- proteção contra bloqueio; só o master altera (SQL Editor)
+  ultimo_erro text,
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+alter table public.whatsapp_contas enable row level security;
+drop policy if exists whatsapp_contas_select on public.whatsapp_contas;
+create policy whatsapp_contas_select on public.whatsapp_contas for select using (user_id = auth.uid());
+revoke all on public.whatsapp_contas from anon;
+revoke insert, update, delete on public.whatsapp_contas from authenticated;
+
+create table if not exists public.whatsapp_mensagens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  conta_id uuid references public.whatsapp_contas(id) on delete cascade,
+  telefone text not null,
+  nome text not null default '',
+  texto text not null check (char_length(texto) between 1 and 1500),
+  enviar_em timestamptz not null default now(),
+  status text not null default 'agendada' check (status in ('agendada','enviando','enviada','erro','cancelada')),
+  tentativas integer not null default 0,
+  reservada_em timestamptz,
+  enviado_em timestamptz,
+  erro text,
+  origem text not null default 'manual',       -- manual | agenda | atividade (de onde veio o texto sugerido)
+  origem_id uuid,
+  criado_em timestamptz not null default now()
+);
+create index if not exists whatsapp_mensagens_fila_idx on public.whatsapp_mensagens (status, enviar_em);
+create index if not exists whatsapp_mensagens_user_idx on public.whatsapp_mensagens (user_id, criado_em desc);
+alter table public.whatsapp_mensagens enable row level security;
+drop policy if exists whatsapp_mensagens_select on public.whatsapp_mensagens;
+create policy whatsapp_mensagens_select on public.whatsapp_mensagens for select using (user_id = auth.uid());
+revoke all on public.whatsapp_mensagens from anon;
+revoke insert, update, delete on public.whatsapp_mensagens from authenticated;
+
+create or replace function public.whatsapp_salvar_token(p_user uuid, p_workspace uuid, p_token text) returns uuid language sql security definer set search_path = public, vault as $$
+  with s as (select vault.create_secret(p_token, 'whatsapp_' || p_user::text || '_' || extract(epoch from clock_timestamp())::bigint::text) as id)
+  insert into public.whatsapp_contas (user_id, workspace_id, token_segredo_id) select p_user, p_workspace, s.id from s
+  on conflict (user_id) do update set token_segredo_id = excluded.token_segredo_id, workspace_id = excluded.workspace_id, atualizado_em = now() returning id $$;
+create or replace function public.whatsapp_token(p_user uuid) returns text language sql stable security definer set search_path = public, vault as $$
+  select ds.decrypted_secret from public.whatsapp_contas c join vault.decrypted_secrets ds on ds.id = c.token_segredo_id where c.user_id = p_user $$;
+create or replace function public.whatsapp_enviadas_hoje(p_user uuid) returns integer language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.whatsapp_mensagens where user_id = p_user and status in ('enviada','enviando')
+    and coalesce(enviado_em, reservada_em) >= (date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo') $$;
+-- Pega até p_limite mensagens vencidas e as marca "enviando" (skip locked: duas rodadas nunca pegam a mesma; reserva travada há 10 min volta para a fila; máx. 3 tentativas)
+create or replace function public.whatsapp_reservar(p_limite integer) returns setof public.whatsapp_mensagens language sql security definer set search_path = public as $$
+  update public.whatsapp_mensagens m set status = 'enviando', tentativas = m.tentativas + 1, reservada_em = now()
+  where m.id in (select x.id from public.whatsapp_mensagens x where x.tentativas < 3 and x.enviar_em <= now()
+    and (x.status = 'agendada' or (x.status = 'enviando' and x.reservada_em < now() - interval '10 minutes'))
+    order by x.enviar_em limit p_limite for update skip locked) returning m.* $$;
+create or replace function public.whatsapp_cancelar_usuario(p_user uuid) returns void language sql security definer set search_path = public as $$
+  update public.whatsapp_mensagens set status = 'cancelada', erro = 'Serviço removido pelo administrador' where user_id = p_user and status in ('agendada','enviando') $$;
+revoke all on function public.whatsapp_salvar_token(uuid, uuid, text) from public, anon, authenticated;
+revoke all on function public.whatsapp_token(uuid) from public, anon, authenticated;
+revoke all on function public.whatsapp_enviadas_hoje(uuid) from public, anon, authenticated;
+revoke all on function public.whatsapp_reservar(integer) from public, anon, authenticated;
+revoke all on function public.whatsapp_cancelar_usuario(uuid) from public, anon, authenticated;
+grant execute on function public.whatsapp_salvar_token(uuid, uuid, text) to service_role;
+grant execute on function public.whatsapp_token(uuid) to service_role;
+grant execute on function public.whatsapp_enviadas_hoje(uuid) to service_role;
+grant execute on function public.whatsapp_reservar(integer) to service_role;
+grant execute on function public.whatsapp_cancelar_usuario(uuid) to service_role;
+
+-- 'whatsapp' entra na lista de serviços pagos (versões finais, substituem as anteriores)
+create or replace function public.meus_recursos() returns text[] language sql stable security definer set search_path = public, auth as $$
+  select coalesce(array_agg(r), '{}') from unnest(array['buscar','assessor_telegram','assessor_email','whatsapp']) r where public.tem_recurso(auth.uid(), r) $$;
+create or replace function public.master_definir_liberacao(p_user uuid, p_recurso text, p_ativo boolean) returns void language plpgsql security definer set search_path = public, auth as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  if p_recurso not in ('buscar','assessor_telegram','assessor_email','whatsapp') then raise exception 'Recurso inválido'; end if;
+  if p_ativo then
+    insert into public.recursos_liberados (user_id, recurso, liberado_por) values (p_user, p_recurso, auth.uid()) on conflict do nothing;
+    return;
+  end if;
+  perform public.remover_liberacao(p_user, p_recurso);
+  if p_recurso = 'assessor_telegram' then perform public.limpar_telegram_usuario(p_user);
+  elsif p_recurso = 'assessor_email' then perform public.limpar_email_usuario(p_user);
+  elsif p_recurso = 'whatsapp' then perform public.whatsapp_cancelar_usuario(p_user);
+  end if;
+end $$;
+
+-- Cron do envio programado (já criado; a chave é a anon/publishable, pública):
+-- select cron.schedule('whatsapp-agendadas', '* * * * *', $c$ select net.http_post(
+--   url := 'https://dubbmmjtbunzmdmfbbja.supabase.co/functions/v1/whatsapp-agendadas',
+--   headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <anon key>'),
+--   body := '{}'::jsonb, timeout_milliseconds := 120000); $c$);
