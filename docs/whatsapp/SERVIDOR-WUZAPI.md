@@ -4,6 +4,10 @@ O Taskfull já está pronto para falar com o WuzAPI. Falta **uma máquina sempre
 
 > **Aviso importante.** O WuzAPI usa o protocolo do WhatsApp Web de forma **não oficial**. Isso viola os termos do WhatsApp: o número pode ser restringido ou bloqueado, principalmente se enviar muito ou para quem não espera. O Taskfull tem proteções (limite diário de 50 por pessoa, intervalo de 4 a 9 s entre envios, checagem se o número tem WhatsApp, aviso de consentimento), mas elas **diminuem** o risco, não o eliminam. Para clientes pagantes e escala, o caminho seguro é a API oficial da Meta (precisa de CNPJ). Usar com números de teste primeiro.
 
+> **Para testar hoje, de graça e sem nada na máquina da empresa:** use os arquivos prontos em [`servidor-teste/`](servidor-teste/LEIA-ME.md) (Codespace). O que segue abaixo é o caminho para um servidor que fica ligado.
+
+> **Fato confirmado no modelo oficial do WuzAPI:** ele usa **PostgreSQL** (as sessões do WhatsApp ficam no banco, num volume), e o `docker-compose.yml` oficial constrói o programa a partir do código-fonte (Go) e traz também o RabbitMQ (opcional). Numa VM de 1 GB (Google Cloud e2-micro) esse modelo completo é pesado: lá, usar o compose de `servidor-teste/` (sem RabbitMQ) e **construir a imagem em outro lugar** (por exemplo, num Codespace) em vez de compilar na própria VM. Ainda **não verificado**: se há imagem pronta publicada e se o WuzAPI aceita usar o PostgreSQL do Supabase (nesse caso, schema separado, nunca exposto na API).
+
 ## 1. Máquina
 
 - Uma VPS pequena basta (1 vCPU, 1 GB de RAM, Linux), por exemplo Hetzner, Contabo, DigitalOcean ou Oracle Cloud (camada gratuita). Custo típico: US$ 4 a 6 por mês.
