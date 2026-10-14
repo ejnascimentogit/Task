@@ -1783,6 +1783,7 @@
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-delete-agendamento" onclick="withLock(this, deleteAgendamento)" style="display:none">Excluir</button>
       <button class="btn btn-sm" id="btn-criar-atividade" onclick="withLock(this, criarAtividadeDoAgendamento)">✅ Criar Atividade</button>
+      <button class="btn btn-sm" id="btn-compartilhar-wa" onclick="withLock(this, compartilharAgendamentoWa)" style="display:none">📲 Compartilhar no WhatsApp</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="closeAgendamentoModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveAgendamento)">Salvar</button>
@@ -3707,7 +3708,7 @@ function waTipoQuando() {
   if (prog && !q.value) { const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0); q.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
   document.getElementById('wa-btn-enviar').textContent = prog ? 'Programar' : 'Enviar';
 }
-function abrirNovaMensagemWa() {
+function abrirNovaMensagemWa(agId) {
   const hoje = todayStr();
   const futuros = agendamentos.filter(a => !a.feito && a.data >= hoje).sort((x, y) => (x.data + (x.hora || '')).localeCompare(y.data + (y.hora || ''))).slice(0, 30);
   const abertas = atividades.filter(a => !a.cancelado && a.coluna !== 'concluida').slice(0, 30);
@@ -3715,10 +3716,30 @@ function abrirNovaMensagemWa() {
     (futuros.length ? '<optgroup label="Compromissos">' + futuros.map(a => `<option value="ag:${a.id}">${escapeHtml(formatDate(a.data) + (a.hora ? ' ' + a.hora.slice(0, 5) : '') + ' · ' + a.titulo)}</option>`).join('') + '</optgroup>' : '') +
     (abertas.length ? '<optgroup label="Atividades em aberto">' + abertas.map(a => `<option value="at:${a.id}">${escapeHtml(a.titulo)}</option>`).join('') + '</optgroup>' : '');
   ['wa-telefone', 'wa-nome', 'wa-texto'].forEach(i => { document.getElementById(i).value = ''; });
+  if (agId) {   // vindo da Agenda: o compromisso já vem escolhido e a pessoa só digita o telefone
+    const sel = document.getElementById('wa-modelo');
+    if (![...sel.options].some(o => o.value === 'ag:' + agId)) {
+      const a = agendamentos.find(x => x.id === agId);
+      if (a) sel.insertAdjacentHTML('beforeend', `<option value="ag:${a.id}">${escapeHtml(formatDate(a.data) + (a.hora ? ' ' + a.hora.slice(0, 5) : '') + ' · ' + a.titulo)}</option>`);
+    }
+    sel.value = 'ag:' + agId;
+    waAplicarModelo();
+  }
   document.getElementById('wa-quando-tipo').value = 'agora';
   document.getElementById('wa-quando').value = '';
   waTipoQuando(); waContar();
   document.getElementById('wa-modal-overlay').classList.add('open');
+  if (agId) setTimeout(() => document.getElementById('wa-telefone')?.focus(), 50);
+}
+// Botão do compromisso (Agenda): abre o envio do WhatsApp com o compromisso preenchido. Não envia nada sozinho.
+async function compartilharAgendamentoWa() {
+  const id = editingAgendamentoId;
+  if (!id) return;
+  if (!waEstado) await carregarWhatsapp();
+  const c = waEstado && waEstado.conta;
+  if (!c || c.status !== 'conectada') { alert('Conecte o seu WhatsApp primeiro: aba WhatsApp → Conectar WhatsApp.'); return; }
+  closeAgendamentoModal();
+  abrirNovaMensagemWa(id);
 }
 function fecharNovaMensagemWa() { document.getElementById('wa-modal-overlay').classList.remove('open'); }
 function waAplicarModelo() {
@@ -5389,6 +5410,7 @@ function openAgendamentoModal(id) {
   document.getElementById('ag-hora').value = a ? a.hora : '';
   document.getElementById('ag-obs').value = a ? a.observacao : '';
   document.getElementById('btn-delete-agendamento').style.display = a ? '' : 'none';
+  document.getElementById('btn-compartilhar-wa').style.display = a && temRecurso('whatsapp') ? '' : 'none';
   const btnAtividade = document.getElementById('btn-criar-atividade');
   if (a && a.atividadeId) {
     btnAtividade.textContent = '✅ Atividade já criada';
