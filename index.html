@@ -1062,6 +1062,15 @@
   #usuarios-lista th, #usuarios-lista td { padding: 14px 16px; text-align: left; vertical-align: middle; white-space: nowrap; }
   #usuarios-lista th { font-weight: 600; }
 
+  /* Faixa de alerta do WhatsApp (sessão caída / servidor fora do ar) */
+  #alerta-whatsapp { margin: 12px 32px 0; max-width: 1136px; }
+  .wa-alerta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 16px; border-radius: 12px; font-size: 13.5px; background: #FEF3C7; color: #78350F; border: 1px solid #F59E0B; }
+  .wa-alerta.ruim { background: #FEE2E2; color: #7F1D1D; border-color: #EF4444; }
+  .wa-alerta b { font-weight: 700; }
+  .wa-alerta .btn { margin-left: auto; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-alerta { background: #422006; color: #FDE68A; border-color: #B45309; } :root:not([data-theme="light"]) .wa-alerta.ruim { background: #450A0A; color: #FECACA; border-color: #B91C1C; } }
+  @media (max-width: 860px) { #alerta-whatsapp { margin: 10px 14px 0; } }
+
   /* ── Versão mobile (2026-10-13): barra de abas embaixo, topo enxuto, menu "☰" para o resto.
         Só estilo + um botão; nenhuma função muda. Vale até 860px de largura. ── */
   .btn-menu-mobile { display: none; }
@@ -1233,6 +1242,8 @@
       <button class="btn btn-sm" id="btn-atualizar" title="Recarregar os dados do banco (sem sair da aba)" onclick="withLock(this, refreshDados)">🔄 Atualizar</button>
       <div class="stats-row" id="stats-row"></div>
     </div>
+
+    <div id="alerta-whatsapp" style="display:none;"></div>
 
     <main>
       <section id="view-entidades" style="display:none">
@@ -1427,8 +1438,10 @@
         <div class="resumo-box">
           <h2 class="view-titulo">WhatsApp</h2>
           <div class="resumo-sub">Envie ou programe mensagens do seu WhatsApp para qualquer número: agora, ou na data e hora que você escolher.</div>
+          <div id="wa-servico" style="margin-top:14px;"></div>
           <div id="wa-conexao" style="margin-top:14px;"></div>
           <div id="wa-lista" style="margin-top:14px;overflow-x:auto;"></div>
+          <div id="wa-saude" style="margin-top:20px;"></div>
         </div>
       </section>
 
@@ -3426,6 +3439,58 @@ function renderUsuarios(semRecarregar) {
     <p style="color:var(--gray-text);font-size:12px;margin-top:10px;">Ativo = acessou nos últimos 7 dias. "Último acesso" vem da sessão de login (renova enquanto a pessoa mantém o app aberto); "Última movimentação" é a última atividade ou compromisso criado nos workspaces dela (inclui o que outros membros criaram). Workspaces e contagens são dos workspaces em que a pessoa é membro ativo. <b>Liberações</b>: Buscar, assessor no Telegram e leitura de e-mail gastam tokens da sua conta e ficam travados para todo mundo; use o botão ⚙️ Gerenciar para liberar uma pessoa (a trava é no banco, não só na tela). Remover um serviço desconecta o Telegram/e-mail dela.</p>`;
 }
 
+// Alertas do WhatsApp: a própria conta do usuário (sessão caiu) e, só para o master, a saúde do serviço (servidor e sessões de todos).
+// O vigia (Edge Function whatsapp-agendadas, a cada 10 min) grava; aqui só se lê.
+let waSaude = null, waMinhaConta = null, waAlertaTimer = null;
+async function carregarAlertasWhatsapp() {
+  if (!sb || !currentUser) return;
+  if (temRecurso('whatsapp')) {
+    const { data } = await sb.from('whatsapp_contas').select('status, ultimo_erro, consentimento_em').eq('user_id', currentUser.id).maybeSingle();
+    waMinhaConta = data || null;
+  } else waMinhaConta = null;
+  if (souMaster()) { const { data } = await sb.rpc('master_whatsapp_saude'); waSaude = data || null; }
+  renderAlertaWhatsapp();
+  if (activeTab === 'whatsapp') renderWhatsapp(true);
+}
+function iniciarAlertasWhatsapp() {
+  clearInterval(waAlertaTimer); waAlertaTimer = null;
+  carregarAlertasWhatsapp();
+  waAlertaTimer = setInterval(() => { if (!document.hidden) carregarAlertasWhatsapp(); }, 5 * 60 * 1000);
+}
+function waNomeDaChave(e) { return e.chave === 'servidor' ? 'Servidor do WhatsApp' : 'Sessão de ' + (e.email || 'uma pessoa'); }
+function renderAlertaWhatsapp() {
+  const box = document.getElementById('alerta-whatsapp');
+  if (!box) return;
+  const linhas = [];
+  if (waMinhaConta && waMinhaConta.status === 'desconectada' && waMinhaConta.consentimento_em && waMinhaConta.ultimo_erro)
+    linhas.push({ ruim: true, texto: '<b>Seu WhatsApp desconectou.</b> ' + escapeHtml(waMinhaConta.ultimo_erro) + ' As mensagens programadas esperam você reconectar.', botao: true });
+  if (souMaster() && waSaude)
+    (waSaude.estados || []).filter(e => !e.ok).forEach(e => {
+      if (e.chave.startsWith('sessao:') && e.email === currentUser.email) return;   // a sua própria já aparece acima
+      linhas.push({ ruim: e.chave === 'servidor', texto: '<b>' + escapeHtml(waNomeDaChave(e)) + ':</b> ' + escapeHtml(e.detalhe || 'com problema') + ' (desde ' + formatDataHora(e.desde) + ')', botao: true });
+    });
+  box.style.display = linhas.length ? '' : 'none';
+  box.innerHTML = linhas.map(l => `<div class="wa-alerta ${l.ruim ? 'ruim' : ''}" role="alert" style="margin-bottom:8px;"><span>⚠️ ${l.texto}</span>${l.botao ? '<button class="btn btn-sm" onclick="setTab(\'whatsapp\')">Abrir WhatsApp</button>' : ''}</div>`).join('');
+}
+function renderSaudeWhatsapp() {
+  const sv = document.getElementById('wa-servico'), box = document.getElementById('wa-saude');
+  if (sv) {   // aviso para qualquer pessoa: o serviço está fora do ar (vem do estado)
+    const s = waEstado && waEstado.servico;
+    sv.innerHTML = s && s.ok === false ? `<div class="wa-alerta" role="alert">⚠️ <span><b>O serviço de WhatsApp está instável desde ${escapeHtml(formatDataHora(s.desde))}.</b> As mensagens programadas ficam na fila e saem quando ele voltar.</span></div>` : '';
+  }
+  if (!box) return;
+  if (!souMaster() || !waSaude) { box.innerHTML = ''; return; }
+  const est = waSaude.estados || [], ev = waSaude.eventos || [];
+  const srv = est.find(e => e.chave === 'servidor');
+  const sessoes = est.filter(e => e.chave.startsWith('sessao:'));
+  box.innerHTML = `<h3 style="font-size:15px;margin-bottom:8px;">Saúde do serviço <small style="font-weight:400;color:var(--gray-text)">(só você vê; o vigia confere a cada 10 min)</small></h3>
+    <div style="font-size:13px;line-height:1.7;">
+      <div>${!srv ? '⚪ Servidor: ainda sem verificação (precisa estar configurado)' : srv.ok ? '🟢 Servidor no ar' : '🔴 Servidor fora do ar: ' + escapeHtml(srv.detalhe || '')}${srv && srv.verificado_em ? ' <small style="color:var(--gray-text)">· verificado ' + formatDataHora(srv.verificado_em) + '</small>' : ''}</div>
+      <div>${sessoes.length ? sessoes.map(s => (s.ok ? '🟢 ' : '🔴 ') + escapeHtml(s.email || 'pessoa') + ': ' + escapeHtml(s.detalhe || '')).join('<br>') : '<span style="color:var(--gray-text)">Nenhuma sessão com problema registrado.</span>'}</div>
+    </div>
+    ${ev.length ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;">Últimos eventos (${ev.length})</summary><div style="font-size:12.5px;line-height:1.7;margin-top:6px;">${ev.map(e => `${e.ok ? '🟢' : '🔴'} ${escapeHtml(formatDataHora(e.em))} · ${escapeHtml(waNomeDaChave(e))}: ${escapeHtml(e.detalhe || '')}`).join('<br>')}</div></details>` : ''}`;
+}
+
 // ══════════════════════════════════════════════════════════════
 // WHATSAPP (WuzAPI): conectar por QR e enviar/programar mensagens. Serviço pago: só aparece para quem o master liberou.
 // Tudo passa pela Edge Function whatsapp-api (o navegador só lê a lista de mensagens, pela RLS).
@@ -3454,6 +3519,7 @@ async function carregarWhatsapp() {
     if (!lista.error) waMensagens = lista.data || [];
   } finally { waCarregando = false; }
   if (activeTab === 'whatsapp') renderWhatsapp(true);
+  carregarAlertasWhatsapp();
 }
 function renderWhatsapp(semRecarregar) {
   const box = document.getElementById('wa-conexao');
@@ -3487,6 +3553,7 @@ function renderWhatsapp(semRecarregar) {
       <button class="btn btn-primary" onclick="withLock(this, waConectar)">Conectar WhatsApp</button></div>`;
   }
   box.innerHTML = html;
+  renderSaudeWhatsapp();
   const nomesStatus = { agendada: ['🕒 Programada', '#2563EB'], enviando: ['⏳ Enviando', '#F59E0B'], enviada: ['✅ Enviada', '#10B981'], erro: ['⚠️ Erro', '#EF4444'], cancelada: ['⛔ Cancelada', '#6B7280'] };
   document.getElementById('wa-lista').innerHTML = !waMensagens.length ? '' : `<h3 style="font-size:15px;margin-bottom:8px;">Mensagens</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:var(--gray-text);"><th style="padding:10px 14px;">Para</th><th style="padding:10px 14px;">Mensagem</th><th style="padding:10px 14px;white-space:nowrap;">Quando</th><th style="padding:10px 14px;">Situação</th><th></th></tr></thead><tbody>` +
@@ -4337,7 +4404,7 @@ async function entrarComCodigoPendente() {
 }
 async function doLogout() {
   await sb.auth.signOut();
-  currentUser = null; recursosLiberados = []; workspaces = []; activeWorkspace = null;
+  currentUser = null; recursosLiberados = []; waSaude = null; waMinhaConta = null; clearInterval(waAlertaTimer); waAlertaTimer = null; workspaces = []; activeWorkspace = null;
   aplicarCorDestaque(DEFAULT_COR_DESTAQUE);
   aplicarCorFundo(DEFAULT_COR_FUNDO);
   document.getElementById('app-shell').style.display = 'none';
@@ -4358,6 +4425,7 @@ async function afterAuth() {
   await sb.rpc('accept_pending_invites');
   await entrarComCodigoPendente();
   await carregarRecursos();
+  iniciarAlertasWhatsapp();
   await loadWorkspaces();
 }
 

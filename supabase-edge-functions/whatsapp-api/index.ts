@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
   const cfg = cfgDoAmbiente(Deno.env);
   const conta = async () => (await admin.from("whatsapp_contas").select("id, status, telefone, jid, limite_diario, consentimento_em, ultimo_erro").eq("user_id", user.id).maybeSingle()).data;
   const token = async () => (await admin.rpc("whatsapp_token", { p_user: user.id })).data as string | null;
+  const reconectou = () => admin.rpc("whatsapp_saude_registrar", { p_chave: "sessao:" + user.id, p_user: user.id, p_ok: true, p_detalhe: "Reconectada" });   // fecha o alerta de sessão caída
   const marcar = (campos: Record<string, unknown>) => admin.from("whatsapp_contas").update({ ...campos, atualizado_em: new Date().toISOString() }).eq("user_id", user.id);
 
   try {
@@ -42,12 +43,13 @@ Deno.serve(async (req) => {
             if (st.ok) {
               const logado = st.json?.data?.LoggedIn === true;
               const novo = logado ? "conectada" : (c.status === "aguardando_qr" ? "aguardando_qr" : "desconectada");
-              if (novo !== c.status) { await marcar({ status: novo }); c = { ...c, status: novo }; }
+              if (novo !== c.status) { await marcar({ status: novo }); c = { ...c, status: novo }; if (novo === "conectada") await reconectou(); }
             }
           }
         }
         const { data: hoje } = await admin.rpc("whatsapp_enviadas_hoje", { p_user: user.id });
-        return resp({ ok: true, configurado: !!cfg, conta: c, enviadas_hoje: hoje ?? 0 });
+        const { data: srv } = await admin.from("whatsapp_saude_estado").select("ok, desde").eq("chave", "servidor").maybeSingle();
+        return resp({ ok: true, configurado: !!cfg, conta: c, enviadas_hoje: hoje ?? 0, servico: srv ? { ok: srv.ok, desde: srv.desde } : { ok: true } });
       }
 
       case "conectar": {
@@ -76,6 +78,7 @@ Deno.serve(async (req) => {
         if (st.ok && st.json?.data?.LoggedIn === true) {
           const jid = st.json?.data?.jid ?? st.json?.data?.Jid ?? st.json?.data?.JID ?? null;
           await marcar({ status: "conectada", jid, telefone: numeroDoJid(jid), ultimo_erro: null });
+          await reconectou();
           return resp({ ok: true, conectada: true, telefone: numeroDoJid(jid) });
         }
         if (st.ok && st.json?.data?.Connected !== true) await wz.conectar(cfg, t);   // sessão caiu: reabre para gerar um QR novo

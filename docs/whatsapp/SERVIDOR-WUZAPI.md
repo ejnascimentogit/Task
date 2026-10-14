@@ -75,3 +75,23 @@ Pronto: a aba WhatsApp deixa de mostrar "servidor não configurado".
 - Atualizar o WuzAPI de tempos em tempos (`docker compose pull && docker compose up -d`): o WhatsApp muda e versões antigas deixam de conectar.
 - Se uma pessoa não consegue mais enviar e a tela diz "foi desconectado", é só conectar de novo (novo QR).
 - Limite diário por pessoa: coluna `whatsapp_contas.limite_diario` (padrão 50), alterada pelo SQL Editor.
+
+## 8. Vigia e alertas (o Taskfull avisa quando algo cai)
+
+O Taskfull tem um vigia que roda **a cada 10 minutos** (cron `whatsapp-vigia`, na função `whatsapp-agendadas` com corpo `{"tarefa":"vigia"}`):
+
+- "Toca" o servidor do WuzAPI. Isso também **impede hospedagem grátis de dormir** por falta de acesso. Não manda mensagem de WhatsApp nenhuma.
+- Confere se cada sessão marcada como conectada continua logada.
+- Só alerta depois de **2 falhas seguidas** (20 min), lembra a cada 6 h enquanto o problema durar e avisa quando volta.
+- **Onde aparece o alerta:** (1) faixa vermelha/amarela no topo do Taskfull, para o master (servidor e sessões de todos) e para a própria pessoa (a sessão dela); (2) caixa "Saúde do serviço" com os últimos eventos, na aba WhatsApp, só para o master; (3) mensagem no Telegram do master (uma só, mesmo que várias sessões caiam juntas) e no Telegram de cada pessoa afetada, se ela tiver conectado; (4) registro em `whatsapp_saude_estado` e `whatsapp_saude_eventos` (eventos com mais de 90 dias são apagados).
+- **Reinício do servidor:** se a hospedagem reiniciar e o WuzAPI perder as sessões, todas caem juntas. O vigia marca cada conta como desconectada com a explicação, avisa cada pessoa para ler o QR de novo, e as **mensagens programadas esperam** (até 3 tentativas de 30 em 30 min) em vez de virar erro.
+
+## 9. Limpeza: no servidor, nunca nas mensagens do Supabase
+
+Decisão do Edimilson (2026-10-14): **o Taskfull não apaga mensagens do Supabase** (`whatsapp_mensagens` guarda tudo, para não se perder nada importante das pessoas). Cada mensagem ocupa menos de 2 KB. Se o espaço do Supabase um dia apertar, decidir com ele antes de apagar qualquer coisa.
+
+A limpeza vale para o **servidor de hospedagem** (o WuzAPI):
+- Não ativar sincronização de histórico (`days_to_sync_history` = 0, o padrão) e assinar só os eventos necessários (o Taskfull usa só `ReadReceipt`). Assim o WuzAPI quase não acumula mensagens.
+- Limitar o tamanho dos logs do Docker (no `docker-compose.yml`, `logging: driver: json-file`, `max-size: 10m`, `max-file: "3"`).
+- Limpeza semanal do Docker (`docker system prune -f`, em um agendador do próprio servidor) para não acumular imagens antigas.
+- Acompanhar o espaço em disco da máquina de vez em quando. Ainda **não sabemos o que mais acumula** no WuzAPI real (tabelas internas da biblioteca do WhatsApp): conferir depois do primeiro mês de uso.

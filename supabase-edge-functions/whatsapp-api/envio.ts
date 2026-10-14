@@ -31,6 +31,7 @@ async function chamar(cfg: Cfg, caminho: string, o: { metodo?: string; token?: s
 const msgErro = (r: Resp) => String(r.json?.error ?? r.json?.message ?? r.json?.data?.Details ?? ("HTTP " + r.status)).slice(0, 200);
 
 export const wz = {
+  saude: (c: Cfg) => chamar(c, "/admin/users", { admin: true }),   // toque de saúde: responde se o servidor está no ar e o token de admin vale
   criarUsuario: (c: Cfg, nome: string, token: string) => chamar(c, "/admin/users", { admin: true, corpo: { name: nome, token, events: "ReadReceipt" } }),
   conectar: (c: Cfg, token: string) => chamar(c, "/session/connect", { token, corpo: { Subscribe: ["ReadReceipt"], Immediate: true } }),
   status: (c: Cfg, token: string) => chamar(c, "/session/status", { token }),
@@ -71,7 +72,10 @@ export async function enviarMensagem(sb: any, cfg: Cfg, m: any): Promise<{ statu
   if (liberado !== true) return fecha({ status: "cancelada", erro: "Serviço não liberado para esta conta" });
 
   const { data: conta } = await sb.from("whatsapp_contas").select("id, status, limite_diario").eq("user_id", m.user_id).maybeSingle();
-  if (!conta || conta.status !== "conectada") return fecha({ status: "erro", erro: "O WhatsApp não está conectado. Conecte de novo e reenvie." });
+  if (!conta || conta.status !== "conectada") {   // sessão caiu (ex.: servidor reiniciou): a mensagem programada espera a pessoa reconectar, em vez de se perder
+    if ((m.tentativas ?? 1) < 3) return fecha({ status: "agendada", enviar_em: new Date(Date.now() + 30 * 60_000).toISOString(), erro: "Aguardando você reconectar o WhatsApp (leia o QR de novo na aba WhatsApp)" });
+    return fecha({ status: "erro", erro: "O WhatsApp continuou desconectado. Conecte de novo e reenvie." });
+  }
 
   const { data: hoje } = await sb.rpc("whatsapp_enviadas_hoje", { p_user: m.user_id });
   // a própria mensagem já conta como "enviando"; o limite vale para as de antes dela
