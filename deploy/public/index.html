@@ -3374,12 +3374,11 @@ function renderUsuarios(semRecarregar) {
     .sort((a, b) => new Date(b.u.ultimo_acesso || 0) - new Date(a.u.ultimo_acesso || 0));
   lista.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:1000px;">
     <thead><tr style="text-align:left;color:var(--gray-text);">
-      <th style="padding:8px;">Usuário</th><th>Situação</th><th>Liberações (uso pago)</th><th>Primeiro acesso</th><th>Tempo de uso</th><th>Último acesso</th><th>Última movimentação</th><th>Workspaces</th><th>Atividades / Agenda</th><th>Assessor (mês)</th>
+      <th style="padding:8px;">Usuário</th><th>Situação</th><th>Primeiro acesso</th><th>Tempo de uso</th><th>Último acesso</th><th>Última movimentação</th><th>Workspaces</th><th>Atividades / Agenda</th><th>Assessor (mês)</th><th>Liberações</th>
     </tr></thead><tbody>` + rows.map(({ u, s }) => `
     <tr style="border-top:1px solid var(--border,#e5e7eb);">
       <td style="padding:8px;"><b>${escapeHtml(u.nome || u.email)}</b>${u.nome ? `<br><small style="color:var(--gray-text)">${escapeHtml(u.email)}</small>` : ''}${u.cliente_cronograma ? '<br><small>👤 cliente do Cronograma</small>' : ''}</td>
       <td><span style="color:${s.cor};font-weight:600;">● ${s.rotulo}</span></td>
-      <td>${u.user_id === currentUser.id ? '<small style="color:var(--gray-text)">Master: tudo liberado</small>' : `${(u.recursos || []).length ? (u.recursos || []).map(r => `<span style="display:inline-block;font-size:11px;background:var(--light-bg);border-radius:100px;padding:1px 8px;margin:0 4px 4px 0;">${(RECURSOS_PAGOS.find(x => x[0] === r) || [r, r])[1]}</span>`).join('') : '<small style="color:var(--gray-text)">Nenhum</small>'}<br><button class="btn btn-sm" onclick="abrirLiberacoes('${u.user_id}')">⚙️ Gerenciar</button>`}</td>
       <td>${dataHoraCurta(u.criado_em)}</td>
       <td>${tempoDeUso(u.criado_em)}</td>
       <td>${dataHoraCurta(u.ultimo_acesso || u.ultimo_login)}<br><small style="color:var(--gray-text)">${(() => { const d = diasDesde(u.ultimo_acesso || u.ultimo_login); return d === null ? '' : d < 1 ? 'hoje' : 'há ' + d + (d === 1 ? ' dia' : ' dias'); })()}</small></td>
@@ -3387,6 +3386,7 @@ function renderUsuarios(semRecarregar) {
       <td>${u.workspaces} <small style="color:var(--gray-text)">${(u.perfis || []).join(', ')}</small></td>
       <td>${u.atividades} / ${u.agendamentos}</td>
       <td>${u.assessor_mensagens_mes} uso${u.assessor_mensagens_mes === 1 ? '' : 's'} · US$ ${Number(u.assessor_custo_mes_usd || 0).toFixed(2)}${u.telegram ? '<br><small>📱 Telegram</small>' : ''}${u.emails_conectados ? `<small> 📧 ${u.emails_conectados}</small>` : ''}</td>
+      <td>${u.user_id === currentUser.id ? '<small style="color:var(--gray-text)">Master: tudo liberado</small>' : `<button class="btn btn-sm" onclick="abrirLiberacoes('${u.user_id}')" title="Liberar ou remover serviços pagos">⚙️ Gerenciar</button>${(u.recursos || []).length ? '<div style="margin-top:4px;">' + (u.recursos || []).map(r => `<span style="display:inline-block;font-size:11px;background:var(--light-bg);border-radius:100px;padding:1px 8px;margin:0 4px 2px 0;white-space:nowrap;">${(RECURSOS_PAGOS.find(x => x[0] === r) || [r, r])[1]}</span>`).join('') + '</div>' : ''}`}</td>
     </tr>`).join('') + `</tbody></table>
     <p style="color:var(--gray-text);font-size:12px;margin-top:10px;">Ativo = acessou nos últimos 7 dias. "Último acesso" vem da sessão de login (renova enquanto a pessoa mantém o app aberto); "Última movimentação" é a última atividade ou compromisso criado nos workspaces dela (inclui o que outros membros criaram). Workspaces e contagens são dos workspaces em que a pessoa é membro ativo. <b>Liberações</b>: Buscar, assessor no Telegram e leitura de e-mail gastam tokens da sua conta e ficam travados para todo mundo; use o botão ⚙️ Gerenciar para liberar uma pessoa (a trava é no banco, não só na tela). Remover um serviço desconecta o Telegram/e-mail dela.</p>`;
 }
