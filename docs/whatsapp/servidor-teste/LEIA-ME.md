@@ -51,6 +51,14 @@ Objetivo: ter um servidor do WuzAPI no ar para testar o WhatsApp do Taskfull com
 - O número é seu e a conexão é **não oficial**: envie só para você mesmo no primeiro teste.
 - **Parar tudo:** `docker compose down` (mantém as sessões) ou `docker compose down -v` (apaga tudo, inclusive as sessões). Depois do teste, remova os segredos do Supabase se não for continuar.
 
+## Se algo não funcionar: diagnóstico para colar no chat
+
+Rode (dentro desta pasta) e cole o resultado no chat com o Claude. É **somente leitura**: não altera nada, não mostra o `.env` e esconde automaticamente tokens, chaves e o endereço do túnel. Confira o arquivo `diagnostico.txt` antes de colar.
+- Windows: `powershell -ExecutionPolicy Bypass -File .\diagnostico.ps1`
+- Linux, Mac ou Git Bash/WSL: `./diagnostico.sh`
+
+(O `diagnostico.ps1` não foi testado: não há PowerShell no ambiente do Claude. O `.sh` foi testado, inclusive o mascaramento.)
+
 ## Alternativa: Codespace (nuvem do GitHub, grátis)
 
 Serve para um teste curto, sem usar a sua máquina. Abra um Codespace no repositório (conta pessoal), rode os mesmos passos 2 e 3 na pasta `docs/whatsapp/servidor-teste`, e use o endereço do túnel (passo 4) como `WUZAPI_URL`. O Codespace desliga sozinho após 30 minutos sem uso; não serve para deixar ligado.
