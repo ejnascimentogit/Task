@@ -7,7 +7,8 @@
 services:
   wuzapi:
     build:
-      context: https://github.com/asternic/wuzapi.git#main
+      # Código do WuzAPI baixado para a pasta ./wuzapi-src (ver LEIA-ME, passo 2). Contexto por URL do Git falha no Docker do Windows.
+      context: ./wuzapi-src
       dockerfile: Dockerfile
     env_file: .env
     ports:
