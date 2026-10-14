@@ -434,6 +434,8 @@
   .rv-pessoa { font-size:11px; font-weight:700; color:#5e6c84; margin-top:16px; margin-bottom:2px; text-transform:uppercase; letter-spacing:.04em; }
   .rv-tarefa { font-size:13px; line-height:1.5; margin:0 0 8px; padding:9px 12px 9px 30px; position:relative; color:#1a2029; background:#f6f8fb; border:1px solid #e3e6ee; border-left:3px solid #1f9d63; border-radius:8px; white-space:pre-wrap; }
   .rv-tarefa::before { content:"✓"; color:#1f9d63; position:absolute; left:11px; top:9px; font-weight:bold; }
+  .rv-tarefa.rv-aberta { border-left-color:#5e6c84; }
+  .rv-tarefa.rv-aberta::before { content:"•"; color:#5e6c84; }
   .rv-resolucao { font-size:11.5px; color:#5e6c84; margin-top:5px; font-style:italic; white-space:pre-wrap; }
   .rv-empty { text-align:center; color:#7a8399; font-size:13px; padding:10px 0; }
 
@@ -1783,6 +1785,7 @@
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-delete-agendamento" onclick="withLock(this, deleteAgendamento)" style="display:none">Excluir</button>
       <button class="btn btn-sm" id="btn-criar-atividade" onclick="withLock(this, criarAtividadeDoAgendamento)">✅ Criar Atividade</button>
+      <button class="btn btn-sm" id="btn-compartilhar-wa" onclick="withLock(this, compartilharAgendamentoWa)" style="display:none">📲 Compartilhar no WhatsApp</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="closeAgendamentoModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveAgendamento)">Salvar</button>
@@ -1810,6 +1813,22 @@
         <button class="btn btn-primary" onclick="withLock(this, baixarRelatorioImagem)">📸 Baixar Imagem</button>
       </div>
       <button class="btn" onclick="closeRelatorioModal()" style="margin-left:auto;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ativ-share-modal-overlay">
+  <div class="modal-box" style="max-width:640px;">
+    <h2>Compartilhar atividade</h2>
+    <div id="ativ-share-visual" class="relatorio-visual"></div>
+    <div class="modal-footer">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" onclick="baixarAtividadeTexto()">📄 Baixar Texto</button>
+        <button class="btn" onclick="withLock(this, copiarAtividadeImagem)">📋 Copiar Imagem</button>
+        <button class="btn btn-primary" onclick="withLock(this, baixarAtividadeImagem)">📸 Baixar Imagem</button>
+        <button class="btn" id="ativ-share-wa" onclick="withLock(this, enviarAtividadeWa)" style="display:none">📲 Enviar texto por WhatsApp</button>
+      </div>
+      <button class="btn" onclick="fecharCompartilharAtividade()" style="margin-left:auto;">Fechar</button>
     </div>
   </div>
 </div>
@@ -1860,6 +1879,7 @@
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-delete-atividade" onclick="withLock(this, deleteAtividade)" style="display:none">Excluir</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn btn-sm" id="btn-compartilhar-wa-at" onclick="abrirCompartilharAtividade()" style="display:none">📤 Compartilhar</button>
         <button class="btn" onclick="closeAtividadeModal()">Fechar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveAtividade)">Salvar</button>
       </div>
@@ -1910,6 +1930,7 @@
     <h2>Nova mensagem de WhatsApp</h2>
     <div class="form-grid">
       <div class="form-field full"><label>Preencher a partir de (opcional)</label><select id="wa-modelo" onchange="waAplicarModelo()"></select></div>
+      <div class="form-field full"><label>Escolher um contato (opcional)</label><select id="wa-contato" onchange="waAplicarContato()"></select></div>
       <div class="form-field"><label>Número (com DDD)</label><input type="text" id="wa-telefone" placeholder="(81) 99999-0000" inputmode="tel" autocomplete="off"></div>
       <div class="form-field"><label>Nome (opcional)</label><input type="text" id="wa-nome" maxlength="80" placeholder="Para lembrar quem é"></div>
       <div class="form-field full"><label>Mensagem <span id="wa-contagem" style="color:var(--gray-text);font-weight:400;"></span></label><textarea id="wa-texto" rows="5" maxlength="1500" oninput="waContar()" placeholder="Escreva a mensagem..."></textarea></div>
@@ -3642,6 +3663,7 @@ function renderWhatsapp(semRecarregar) {
       <button class="btn btn-primary btn-sm" onclick="abrirNovaMensagemWa()">+ Nova mensagem</button>
       <button class="btn btn-sm" onclick="withLock(this, waDesconectar)">Desconectar</button></div>`;
   } else if (c && c.status === 'aguardando_qr') {
+    waVigiarQr();
     html = `<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
       <div style="width:230px;height:230px;border:1px solid var(--border,#e5e7eb);border-radius:12px;display:flex;align-items:center;justify-content:center;background:#fff;">${waQr ? `<img src="${escapeHtml(waQr)}" alt="QR code do WhatsApp" style="width:210px;height:210px;">` : '<span style="color:#6b7280;font-size:13px;">Gerando o QR code...</span>'}</div>
       <div style="max-width:380px;"><b>Leia o QR code com o seu celular</b>
@@ -3674,7 +3696,11 @@ async function waConectar() {
   if (!r.ok) { alert(r.erro || 'Não foi possível conectar.'); return; }
   waQr = null;
   await carregarWhatsapp();
-  clearInterval(waTimer);
+  waVigiarQr();
+}
+// Confere a cada 3 s se o QR foi lido (e atualiza o QR, que expira). Também religa depois de Atualizar/recarregar a página.
+function waVigiarQr() {
+  if (waTimer) return;
   let tentativas = 0;
   waTimer = setInterval(async () => {
     if (activeTab !== 'whatsapp' || ++tentativas > 50) { clearInterval(waTimer); waTimer = null; return; }
@@ -3702,7 +3728,28 @@ function waTipoQuando() {
   if (prog && !q.value) { const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0); q.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
   document.getElementById('wa-btn-enviar').textContent = prog ? 'Programar' : 'Enviar';
 }
-function abrirNovaMensagemWa() {
+// Contatos para escolher o número: os das fichas de clientes/projetos e os últimos números para quem já se enviou.
+let waContatos = [];
+function waMontarContatos() {
+  const vistos = new Set(), lista = [];
+  const add = (nome, tel, extra) => {
+    const d = String(tel || '').replace(/\D/g, ''); if (d.length < 10 || vistos.has(d)) return;
+    vistos.add(d); lista.push({ nome: nome || '', tel: String(tel).trim(), extra });
+  };
+  for (const e of (state.entidades || [])) for (const c of (e.contatos || [])) add(c.nome, c.telefone, e.nome);
+  for (const m of waMensagens) add(m.nome, m.telefone, 'enviado antes');
+  waContatos = lista.slice(0, 200);
+  document.getElementById('wa-contato').innerHTML = '<option value="">— digitar o número —</option>' + waContatos.map((c, i) =>
+    `<option value="${i}">${escapeHtml((c.nome || c.tel) + (c.nome ? ' · ' + c.tel : '') + (c.extra ? ' (' + c.extra + ')' : ''))}</option>`).join('');
+}
+function waAplicarContato() {
+  const i = document.getElementById('wa-contato').value; if (i === '') return;
+  const c = waContatos[+i]; if (!c) return;
+  document.getElementById('wa-telefone').value = c.tel;
+  if (c.nome) document.getElementById('wa-nome').value = c.nome;
+}
+function abrirNovaMensagemWa(agId, atId) {
+  waMontarContatos();
   const hoje = todayStr();
   const futuros = agendamentos.filter(a => !a.feito && a.data >= hoje).sort((x, y) => (x.data + (x.hora || '')).localeCompare(y.data + (y.hora || ''))).slice(0, 30);
   const abertas = atividades.filter(a => !a.cancelado && a.coluna !== 'concluida').slice(0, 30);
@@ -3710,10 +3757,102 @@ function abrirNovaMensagemWa() {
     (futuros.length ? '<optgroup label="Compromissos">' + futuros.map(a => `<option value="ag:${a.id}">${escapeHtml(formatDate(a.data) + (a.hora ? ' ' + a.hora.slice(0, 5) : '') + ' · ' + a.titulo)}</option>`).join('') + '</optgroup>' : '') +
     (abertas.length ? '<optgroup label="Atividades em aberto">' + abertas.map(a => `<option value="at:${a.id}">${escapeHtml(a.titulo)}</option>`).join('') + '</optgroup>' : '');
   ['wa-telefone', 'wa-nome', 'wa-texto'].forEach(i => { document.getElementById(i).value = ''; });
+  if (atId) {   // vindo de Atividades
+    const sel = document.getElementById('wa-modelo');
+    if (![...sel.options].some(o => o.value === 'at:' + atId)) {
+      const a = atividades.find(x => x.id === atId);
+      if (a) sel.insertAdjacentHTML('beforeend', `<option value="at:${a.id}">${escapeHtml(a.titulo)}</option>`);
+    }
+    sel.value = 'at:' + atId;
+    waAplicarModelo();
+  }
+  if (agId) {   // vindo da Agenda: o compromisso já vem escolhido e a pessoa só digita o telefone
+    const sel = document.getElementById('wa-modelo');
+    if (![...sel.options].some(o => o.value === 'ag:' + agId)) {
+      const a = agendamentos.find(x => x.id === agId);
+      if (a) sel.insertAdjacentHTML('beforeend', `<option value="ag:${a.id}">${escapeHtml(formatDate(a.data) + (a.hora ? ' ' + a.hora.slice(0, 5) : '') + ' · ' + a.titulo)}</option>`);
+    }
+    sel.value = 'ag:' + agId;
+    waAplicarModelo();
+  }
   document.getElementById('wa-quando-tipo').value = 'agora';
   document.getElementById('wa-quando').value = '';
   waTipoQuando(); waContar();
   document.getElementById('wa-modal-overlay').classList.add('open');
+  if (agId || atId) setTimeout(() => document.getElementById('wa-telefone')?.focus(), 50);
+}
+// Compartilhar uma atividade (mesmo formato do relatório de concluídas, só desta atividade): texto, imagem ou WhatsApp.
+let compartilharAtividadeId = null;
+function textoAtividade(a) {
+  const col = (colunasAtivas().find(c => c.id === a.coluna) || {}).nome || a.coluna;
+  const linhas = ['📝 ' + a.titulo];
+  linhas.push('Situação: ' + (a.cancelado ? 'Cancelada' : col));
+  if (a.responsavel) linhas.push('Responsável: ' + a.responsavel);
+  if (a.entidadeNome) linhas.push(entidadeLabel().slice(0, -1) + ': ' + a.entidadeNome);
+  if (a.concluidoEm) linhas.push('Concluída em: ' + formatDate(a.concluidoEm));
+  if (a.descricao) linhas.push('', a.descricao);
+  if (a.resolucao) linhas.push('', 'Resolução: ' + a.resolucao);
+  return linhas.join('\n');
+}
+function abrirCompartilharAtividade() {
+  const a = atividades.find(x => x.id === editingAtividadeId); if (!a) return;
+  compartilharAtividadeId = a.id;
+  const col = (colunasAtivas().find(c => c.id === a.coluna) || {}).nome || a.coluna;
+  const meta = [a.cancelado ? 'Cancelada' : col, a.responsavel ? 'Responsável: ' + a.responsavel : '', a.entidadeNome || '', a.concluidoEm ? 'Concluída em ' + formatDate(a.concluidoEm) : ''].filter(Boolean).join(' · ');
+  document.getElementById('ativ-share-visual').innerHTML = `<div class="rv-header"><h3>${escapeHtml(activeWorkspace.nome)} — Atividade</h3><p>${escapeHtml(meta)}</p></div>
+    <div class="rv-tarefa ${a.coluna === 'concluida' && !a.cancelado ? '' : 'rv-aberta'}">${escapeHtml(a.titulo)}${a.descricao ? `<div class="rv-resolucao" style="font-style:normal">${escapeHtml(a.descricao)}</div>` : ''}${a.resolucao ? `<div class="rv-resolucao">Resolução: ${escapeHtml(a.resolucao)}</div>` : ''}</div>`;
+  document.getElementById('ativ-share-wa').style.display = temRecurso('whatsapp') ? '' : 'none';
+  closeAtividadeModal();
+  document.getElementById('ativ-share-modal-overlay').classList.add('open');
+}
+function fecharCompartilharAtividade() { document.getElementById('ativ-share-modal-overlay').classList.remove('open'); }
+function nomeArquivoAtividade(ext) {
+  const a = atividades.find(x => x.id === compartilharAtividadeId);
+  return 'atividade-' + String((a && a.titulo) || 'atividade').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '.' + ext;
+}
+function baixarAtividadeTexto() {
+  const a = atividades.find(x => x.id === compartilharAtividadeId); if (!a) return;
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([textoAtividade(a)], { type: 'text/plain' }));
+  link.download = nomeArquivoAtividade('txt');
+  link.click();
+}
+async function canvasAtividade() { return await html2canvas(document.getElementById('ativ-share-visual'), { backgroundColor: '#ffffff', scale: 2 }); }
+async function baixarAtividadeImagem() {
+  const canvas = await canvasAtividade();
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = nomeArquivoAtividade('png');
+  link.click();
+}
+async function copiarAtividadeImagem() {
+  const canvas = await canvasAtividade();
+  canvas.toBlob(async (blob) => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      alert('Imagem copiada! Já pode colar (Ctrl+V) onde quiser.');
+    } catch (e) {
+      alert('Não foi possível copiar automaticamente nesse navegador. Use "Baixar Imagem" e anexe o arquivo.');
+    }
+  });
+}
+async function enviarAtividadeWa() {
+  const id = compartilharAtividadeId; if (!id) return;
+  if (!waEstado) await carregarWhatsapp();
+  const c = waEstado && waEstado.conta;
+  if (!c || c.status !== 'conectada') { alert('Conecte o seu WhatsApp primeiro: aba WhatsApp → Conectar WhatsApp.'); return; }
+  fecharCompartilharAtividade();
+  abrirNovaMensagemWa(null, id);
+}
+// Botão do compromisso (Agenda): abre o envio do WhatsApp com o compromisso preenchido. Não envia nada sozinho.
+async function compartilharAgendamentoWa() {
+  const id = editingAgendamentoId;
+  if (!id) return;
+  if (!waEstado) await carregarWhatsapp();
+  const c = waEstado && waEstado.conta;
+  if (!c || c.status !== 'conectada') { alert('Conecte o seu WhatsApp primeiro: aba WhatsApp → Conectar WhatsApp.'); return; }
+  closeAgendamentoModal();
+  abrirNovaMensagemWa(id);
 }
 function fecharNovaMensagemWa() { document.getElementById('wa-modal-overlay').classList.remove('open'); }
 function waAplicarModelo() {
@@ -5384,6 +5523,7 @@ function openAgendamentoModal(id) {
   document.getElementById('ag-hora').value = a ? a.hora : '';
   document.getElementById('ag-obs').value = a ? a.observacao : '';
   document.getElementById('btn-delete-agendamento').style.display = a ? '' : 'none';
+  document.getElementById('btn-compartilhar-wa').style.display = a && temRecurso('whatsapp') ? '' : 'none';
   const btnAtividade = document.getElementById('btn-criar-atividade');
   if (a && a.atividadeId) {
     btnAtividade.textContent = '✅ Atividade já criada';
@@ -5580,6 +5720,7 @@ function openAtividadeModal(id, colunaForcada) {
   onAtColunaChange();
   renderLabelSwatches();
   renderAtividadeImagens();
+  document.getElementById('btn-compartilhar-wa-at').style.display = a ? '' : 'none';
   document.getElementById('btn-delete-atividade').style.display = a ? '' : 'none';
   document.getElementById('atividade-modal-overlay').classList.add('open');
   if (colunaForcada === 'concluida') setTimeout(()=>document.getElementById('at-resolucao').focus(), 50);
