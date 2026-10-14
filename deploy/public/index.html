@@ -1861,6 +1861,7 @@
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-delete-atividade" onclick="withLock(this, deleteAtividade)" style="display:none">Excluir</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn btn-sm" id="btn-compartilhar-wa-at" onclick="withLock(this, compartilharAtividadeWa)" style="display:none">📲 Compartilhar no WhatsApp</button>
         <button class="btn" onclick="closeAtividadeModal()">Fechar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveAtividade)">Salvar</button>
       </div>
@@ -1911,6 +1912,7 @@
     <h2>Nova mensagem de WhatsApp</h2>
     <div class="form-grid">
       <div class="form-field full"><label>Preencher a partir de (opcional)</label><select id="wa-modelo" onchange="waAplicarModelo()"></select></div>
+      <div class="form-field full"><label>Escolher um contato (opcional)</label><select id="wa-contato" onchange="waAplicarContato()"></select></div>
       <div class="form-field"><label>Número (com DDD)</label><input type="text" id="wa-telefone" placeholder="(81) 99999-0000" inputmode="tel" autocomplete="off"></div>
       <div class="form-field"><label>Nome (opcional)</label><input type="text" id="wa-nome" maxlength="80" placeholder="Para lembrar quem é"></div>
       <div class="form-field full"><label>Mensagem <span id="wa-contagem" style="color:var(--gray-text);font-weight:400;"></span></label><textarea id="wa-texto" rows="5" maxlength="1500" oninput="waContar()" placeholder="Escreva a mensagem..."></textarea></div>
@@ -3708,7 +3710,28 @@ function waTipoQuando() {
   if (prog && !q.value) { const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0); q.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
   document.getElementById('wa-btn-enviar').textContent = prog ? 'Programar' : 'Enviar';
 }
-function abrirNovaMensagemWa(agId) {
+// Contatos para escolher o número: os das fichas de clientes/projetos e os últimos números para quem já se enviou.
+let waContatos = [];
+function waMontarContatos() {
+  const vistos = new Set(), lista = [];
+  const add = (nome, tel, extra) => {
+    const d = String(tel || '').replace(/\D/g, ''); if (d.length < 10 || vistos.has(d)) return;
+    vistos.add(d); lista.push({ nome: nome || '', tel: String(tel).trim(), extra });
+  };
+  for (const e of (state.entidades || [])) for (const c of (e.contatos || [])) add(c.nome, c.telefone, e.nome);
+  for (const m of waMensagens) add(m.nome, m.telefone, 'enviado antes');
+  waContatos = lista.slice(0, 200);
+  document.getElementById('wa-contato').innerHTML = '<option value="">— digitar o número —</option>' + waContatos.map((c, i) =>
+    `<option value="${i}">${escapeHtml((c.nome || c.tel) + (c.nome ? ' · ' + c.tel : '') + (c.extra ? ' (' + c.extra + ')' : ''))}</option>`).join('');
+}
+function waAplicarContato() {
+  const i = document.getElementById('wa-contato').value; if (i === '') return;
+  const c = waContatos[+i]; if (!c) return;
+  document.getElementById('wa-telefone').value = c.tel;
+  if (c.nome) document.getElementById('wa-nome').value = c.nome;
+}
+function abrirNovaMensagemWa(agId, atId) {
+  waMontarContatos();
   const hoje = todayStr();
   const futuros = agendamentos.filter(a => !a.feito && a.data >= hoje).sort((x, y) => (x.data + (x.hora || '')).localeCompare(y.data + (y.hora || ''))).slice(0, 30);
   const abertas = atividades.filter(a => !a.cancelado && a.coluna !== 'concluida').slice(0, 30);
@@ -3716,6 +3739,15 @@ function abrirNovaMensagemWa(agId) {
     (futuros.length ? '<optgroup label="Compromissos">' + futuros.map(a => `<option value="ag:${a.id}">${escapeHtml(formatDate(a.data) + (a.hora ? ' ' + a.hora.slice(0, 5) : '') + ' · ' + a.titulo)}</option>`).join('') + '</optgroup>' : '') +
     (abertas.length ? '<optgroup label="Atividades em aberto">' + abertas.map(a => `<option value="at:${a.id}">${escapeHtml(a.titulo)}</option>`).join('') + '</optgroup>' : '');
   ['wa-telefone', 'wa-nome', 'wa-texto'].forEach(i => { document.getElementById(i).value = ''; });
+  if (atId) {   // vindo de Atividades
+    const sel = document.getElementById('wa-modelo');
+    if (![...sel.options].some(o => o.value === 'at:' + atId)) {
+      const a = atividades.find(x => x.id === atId);
+      if (a) sel.insertAdjacentHTML('beforeend', `<option value="at:${a.id}">${escapeHtml(a.titulo)}</option>`);
+    }
+    sel.value = 'at:' + atId;
+    waAplicarModelo();
+  }
   if (agId) {   // vindo da Agenda: o compromisso já vem escolhido e a pessoa só digita o telefone
     const sel = document.getElementById('wa-modelo');
     if (![...sel.options].some(o => o.value === 'ag:' + agId)) {
@@ -3729,7 +3761,17 @@ function abrirNovaMensagemWa(agId) {
   document.getElementById('wa-quando').value = '';
   waTipoQuando(); waContar();
   document.getElementById('wa-modal-overlay').classList.add('open');
-  if (agId) setTimeout(() => document.getElementById('wa-telefone')?.focus(), 50);
+  if (agId || atId) setTimeout(() => document.getElementById('wa-telefone')?.focus(), 50);
+}
+// Botão da atividade: mesmo caminho, com a atividade já escolhida.
+async function compartilharAtividadeWa() {
+  const id = editingAtividadeId;
+  if (!id) return;
+  if (!waEstado) await carregarWhatsapp();
+  const c = waEstado && waEstado.conta;
+  if (!c || c.status !== 'conectada') { alert('Conecte o seu WhatsApp primeiro: aba WhatsApp → Conectar WhatsApp.'); return; }
+  closeAtividadeModal();
+  abrirNovaMensagemWa(null, id);
 }
 // Botão do compromisso (Agenda): abre o envio do WhatsApp com o compromisso preenchido. Não envia nada sozinho.
 async function compartilharAgendamentoWa() {
@@ -5607,6 +5649,7 @@ function openAtividadeModal(id, colunaForcada) {
   onAtColunaChange();
   renderLabelSwatches();
   renderAtividadeImagens();
+  document.getElementById('btn-compartilhar-wa-at').style.display = a && temRecurso('whatsapp') ? '' : 'none';
   document.getElementById('btn-delete-atividade').style.display = a ? '' : 'none';
   document.getElementById('atividade-modal-overlay').classList.add('open');
   if (colunaForcada === 'concluida') setTimeout(()=>document.getElementById('at-resolucao').focus(), 50);
