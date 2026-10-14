@@ -1862,6 +1862,22 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="usuario-lib-modal-overlay" onclick="if(event.target===this) fecharLiberacoes()">
+  <div class="modal-box" style="max-width:520px;">
+    <h2>Liberar serviços</h2>
+    <div id="usuario-lib-quem" style="color:var(--gray-text);font-size:13px;margin:-4px 0 14px;"></div>
+    <div id="usuario-lib-lista"></div>
+    <p style="font-size:12px;color:var(--gray-text);margin-top:12px;">Estes serviços gastam tokens da sua conta quando a pessoa usa. Desmarcar um serviço desconecta o que ela tinha conectado nele.</p>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharLiberacoes()">Cancelar</button>
+        <button class="btn btn-primary" onclick="withLock(this, salvarLiberacoes)">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="nova-pend-modal-overlay">
   <div class="modal-box" style="max-width:480px;">
     <h2>Nova pendência</h2>
@@ -3292,16 +3308,46 @@ function tempoDeUso(iso) {
   return Math.floor(d / 30) + ' meses';
 }
 function dataHoraCurta(iso) { return iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'; }
-const RECURSOS_PAGOS = [['buscar', '🔎 Buscar'], ['assessor_telegram', '🤖 Telegram'], ['assessor_email', '📧 E-mail']];
-async function alternarLiberacao(userId, recurso, ativar) {
+const RECURSOS_PAGOS = [
+  ['buscar', '🔎 Buscar', 'Busca com IA nas notas, atividades e pendências'],
+  ['assessor_telegram', '🤖 Assessor no Telegram', 'Conversa por texto e áudio, cria agenda e tarefas, avisa antes dos compromissos'],
+  ['assessor_email', '📧 Leitura de e-mail', 'Conecta Gmail, Outlook ou Yahoo; resume e classifica os e-mails dos remetentes liberados'],
+];
+let liberacoesUsuarioId = null;
+function abrirLiberacoes(userId) {
   const u = usuariosMaster.find(x => x.user_id === userId);
-  const nome = RECURSOS_PAGOS.find(r => r[0] === recurso)[1];
-  const quem = u ? (u.nome || u.email) : 'esta pessoa';
-  if (!ativar && !confirm('Remover "' + nome + '" de ' + quem + '?' + (recurso === 'assessor_telegram' ? '\n\nO Telegram dela será desconectado e as conversas apagadas.' : recurso === 'assessor_email' ? '\n\nOs e-mails conectados dela serão desconectados.' : ''))) { renderUsuarios(true); return; }
-  if (ativar && !confirm('Liberar "' + nome + '" para ' + quem + '?\n\nIsso passa a gastar tokens da sua conta quando ela usar.')) { renderUsuarios(true); return; }
-  const { error } = await sb.rpc('master_definir_liberacao', { p_user: userId, p_recurso: recurso, p_ativo: ativar });
-  if (error) { alert('Não foi possível salvar a liberação: ' + error.message); renderUsuarios(true); return; }
-  if (u) u.recursos = ativar ? [...new Set([...(u.recursos || []), recurso])] : (u.recursos || []).filter(r => r !== recurso);
+  if (!u) return;
+  liberacoesUsuarioId = userId;
+  document.getElementById('usuario-lib-quem').textContent = (u.nome ? u.nome + ' · ' : '') + u.email;
+  document.getElementById('usuario-lib-lista').innerHTML = RECURSOS_PAGOS.map(([r, nome, desc]) => `
+    <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-top:1px solid var(--border,#e5e7eb);cursor:pointer;">
+      <input type="checkbox" data-recurso="${r}" ${(u.recursos || []).includes(r) ? 'checked' : ''} style="margin-top:3px;width:18px;height:18px;">
+      <span><b>${nome}</b><br><small style="color:var(--gray-text)">${desc}</small></span>
+    </label>`).join('');
+  document.getElementById('usuario-lib-modal-overlay').classList.add('open');
+}
+function fecharLiberacoes() { liberacoesUsuarioId = null; document.getElementById('usuario-lib-modal-overlay').classList.remove('open'); }
+async function salvarLiberacoes() {
+  const u = usuariosMaster.find(x => x.user_id === liberacoesUsuarioId);
+  if (!u) { fecharLiberacoes(); return; }
+  const marcados = [...document.querySelectorAll('#usuario-lib-lista input[data-recurso]')].filter(i => i.checked).map(i => i.dataset.recurso);
+  const antes = u.recursos || [];
+  const liberar = marcados.filter(r => !antes.includes(r)), remover = antes.filter(r => !marcados.includes(r));
+  if (!liberar.length && !remover.length) { fecharLiberacoes(); return; }
+  const nomeDe = r => RECURSOS_PAGOS.find(x => x[0] === r)[1];
+  const quem = u.nome || u.email;
+  let aviso = '';
+  if (liberar.length) aviso += 'Liberar para ' + quem + ':\n' + liberar.map(r => ' • ' + nomeDe(r)).join('\n') + '\n(passa a gastar tokens da sua conta quando ela usar)\n\n';
+  if (remover.length) aviso += 'Remover de ' + quem + ':\n' + remover.map(r => ' • ' + nomeDe(r) + (r === 'assessor_telegram' ? ' (desconecta o Telegram e apaga as conversas)' : r === 'assessor_email' ? ' (desconecta os e-mails)' : '')).join('\n') + '\n\n';
+  if (!confirm(aviso + 'Confirmar?')) return;
+  for (const [recs, ativar] of [[liberar, true], [remover, false]]) {
+    for (const r of recs) {
+      const { error } = await sb.rpc('master_definir_liberacao', { p_user: u.user_id, p_recurso: r, p_ativo: ativar });
+      if (error) { alert('Não foi possível salvar "' + nomeDe(r) + '": ' + error.message); await carregarUsuarios(); return; }
+      u.recursos = ativar ? [...new Set([...(u.recursos || []), r])] : (u.recursos || []).filter(x => x !== r);
+    }
+  }
+  fecharLiberacoes();
   renderUsuarios(true);
 }
 function setUsuariosFiltro(f) { usuariosFiltro = f; renderUsuarios(true); }
@@ -3333,7 +3379,7 @@ function renderUsuarios(semRecarregar) {
     <tr style="border-top:1px solid var(--border,#e5e7eb);">
       <td style="padding:8px;"><b>${escapeHtml(u.nome || u.email)}</b>${u.nome ? `<br><small style="color:var(--gray-text)">${escapeHtml(u.email)}</small>` : ''}${u.cliente_cronograma ? '<br><small>👤 cliente do Cronograma</small>' : ''}</td>
       <td><span style="color:${s.cor};font-weight:600;">● ${s.rotulo}</span></td>
-      <td>${u.user_id === currentUser.id ? '<small style="color:var(--gray-text)">Master: tudo liberado</small>' : RECURSOS_PAGOS.map(([r, nome]) => `<label style="display:block;white-space:nowrap;cursor:pointer;"><input type="checkbox" ${(u.recursos || []).includes(r) ? 'checked' : ''} onchange="alternarLiberacao('${u.user_id}','${r}',this.checked)"> ${nome}</label>`).join('')}</td>
+      <td>${u.user_id === currentUser.id ? '<small style="color:var(--gray-text)">Master: tudo liberado</small>' : `${(u.recursos || []).length ? (u.recursos || []).map(r => `<span style="display:inline-block;font-size:11px;background:var(--light-bg);border-radius:100px;padding:1px 8px;margin:0 4px 4px 0;">${(RECURSOS_PAGOS.find(x => x[0] === r) || [r, r])[1]}</span>`).join('') : '<small style="color:var(--gray-text)">Nenhum</small>'}<br><button class="btn btn-sm" onclick="abrirLiberacoes('${u.user_id}')">⚙️ Gerenciar</button>`}</td>
       <td>${dataHoraCurta(u.criado_em)}</td>
       <td>${tempoDeUso(u.criado_em)}</td>
       <td>${dataHoraCurta(u.ultimo_acesso || u.ultimo_login)}<br><small style="color:var(--gray-text)">${(() => { const d = diasDesde(u.ultimo_acesso || u.ultimo_login); return d === null ? '' : d < 1 ? 'hoje' : 'há ' + d + (d === 1 ? ' dia' : ' dias'); })()}</small></td>
@@ -3342,7 +3388,7 @@ function renderUsuarios(semRecarregar) {
       <td>${u.atividades} / ${u.agendamentos}</td>
       <td>${u.assessor_mensagens_mes} uso${u.assessor_mensagens_mes === 1 ? '' : 's'} · US$ ${Number(u.assessor_custo_mes_usd || 0).toFixed(2)}${u.telegram ? '<br><small>📱 Telegram</small>' : ''}${u.emails_conectados ? `<small> 📧 ${u.emails_conectados}</small>` : ''}</td>
     </tr>`).join('') + `</tbody></table>
-    <p style="color:var(--gray-text);font-size:12px;margin-top:10px;">Ativo = acessou nos últimos 7 dias. "Último acesso" vem da sessão de login (renova enquanto a pessoa mantém o app aberto); "Última movimentação" é a última atividade ou compromisso criado nos workspaces dela (inclui o que outros membros criaram). Workspaces e contagens são dos workspaces em que a pessoa é membro ativo. <b>Liberações</b>: Buscar, assessor no Telegram e leitura de e-mail gastam tokens da sua conta e ficam travados para todo mundo; marque aqui para liberar uma pessoa (a trava é no banco, não só na tela). Desmarcar desconecta o Telegram/e-mail dela.</p>`;
+    <p style="color:var(--gray-text);font-size:12px;margin-top:10px;">Ativo = acessou nos últimos 7 dias. "Último acesso" vem da sessão de login (renova enquanto a pessoa mantém o app aberto); "Última movimentação" é a última atividade ou compromisso criado nos workspaces dela (inclui o que outros membros criaram). Workspaces e contagens são dos workspaces em que a pessoa é membro ativo. <b>Liberações</b>: Buscar, assessor no Telegram e leitura de e-mail gastam tokens da sua conta e ficam travados para todo mundo; use o botão ⚙️ Gerenciar para liberar uma pessoa (a trava é no banco, não só na tela). Remover um serviço desconecta o Telegram/e-mail dela.</p>`;
 }
 
 function renderBuscar() {
