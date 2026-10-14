@@ -1058,6 +1058,10 @@
   .kanban-nova-raia button:hover { border-color:var(--accent-ink); color:var(--accent-ink); }
   @media (hover:none) { .kanban-col-tools { opacity:1; } }
 
+  /* Tabela da aba Usuários: células com respiro */
+  #usuarios-lista th, #usuarios-lista td { padding: 14px 16px; text-align: left; vertical-align: middle; white-space: nowrap; }
+  #usuarios-lista th { font-weight: 600; }
+
   /* ── Versão mobile (2026-10-13): barra de abas embaixo, topo enxuto, menu "☰" para o resto.
         Só estilo + um botão; nenhuma função muda. Vale até 860px de largura. ── */
   .btn-menu-mobile { display: none; }
@@ -3372,19 +3376,16 @@ function renderUsuarios(semRecarregar) {
     `<button class="pessoa-filter-btn ${usuariosFiltro === id ? 'active' : ''}" onclick="setUsuariosFiltro('${id}')">${nome}</button>`).join('');
   const rows = comSit.filter(x => usuariosFiltro === 'todos' || x.s.id === usuariosFiltro)
     .sort((a, b) => new Date(b.u.ultimo_acesso || 0) - new Date(a.u.ultimo_acesso || 0));
-  lista.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:1000px;">
+  lista.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead><tr style="text-align:left;color:var(--gray-text);">
-      <th style="padding:8px;">Usuário</th><th>Situação</th><th>Primeiro acesso</th><th>Tempo de uso</th><th>Último acesso</th><th>Última movimentação</th><th>Workspaces</th><th>Atividades / Agenda</th><th>Assessor (mês)</th><th>Liberações</th>
+      <th>Usuário</th><th>Situação</th><th>Primeiro acesso</th><th>Último acesso</th><th>Workspaces e uso</th><th>Assessor (mês)</th><th>Liberações</th>
     </tr></thead><tbody>` + rows.map(({ u, s }) => `
     <tr style="border-top:1px solid var(--border,#e5e7eb);">
-      <td style="padding:8px;"><b>${escapeHtml(u.nome || u.email)}</b>${u.nome ? `<br><small style="color:var(--gray-text)">${escapeHtml(u.email)}</small>` : ''}${u.cliente_cronograma ? '<br><small>👤 cliente do Cronograma</small>' : ''}</td>
+      <td><b>${escapeHtml(u.nome || u.email)}</b>${u.nome ? `<br><small style="color:var(--gray-text)">${escapeHtml(u.email)}</small>` : ''}${u.cliente_cronograma ? '<br><small>👤 cliente do Cronograma</small>' : ''}</td>
       <td><span style="color:${s.cor};font-weight:600;">● ${s.rotulo}</span></td>
-      <td>${dataHoraCurta(u.criado_em)}</td>
-      <td>${tempoDeUso(u.criado_em)}</td>
-      <td>${dataHoraCurta(u.ultimo_acesso || u.ultimo_login)}<br><small style="color:var(--gray-text)">${(() => { const d = diasDesde(u.ultimo_acesso || u.ultimo_login); return d === null ? '' : d < 1 ? 'hoje' : 'há ' + d + (d === 1 ? ' dia' : ' dias'); })()}</small></td>
-      <td>${dataHoraCurta(u.ultima_movimentacao)}</td>
-      <td>${u.workspaces} <small style="color:var(--gray-text)">${(u.perfis || []).join(', ')}</small></td>
-      <td>${u.atividades} / ${u.agendamentos}</td>
+      <td>${dataHoraCurta(u.criado_em)}<br><small style="color:var(--gray-text)">${tempoDeUso(u.criado_em) === 'hoje' ? 'começou hoje' : tempoDeUso(u.criado_em) + ' de uso'}</small></td>
+      <td>${dataHoraCurta(u.ultimo_acesso || u.ultimo_login)}<br><small style="color:var(--gray-text)">${(() => { const d = diasDesde(u.ultimo_acesso || u.ultimo_login); return d === null ? '' : d < 1 ? 'hoje' : 'há ' + d + (d === 1 ? ' dia' : ' dias'); })()}${u.ultima_movimentacao ? ' · mov. ' + dataHoraCurta(u.ultima_movimentacao) : ''}</small></td>
+      <td>${u.workspaces} <small style="color:var(--gray-text)">${(u.perfis || []).join(', ')}</small><br><small style="color:var(--gray-text)">${u.atividades} atividades · ${u.agendamentos} na agenda</small></td>
       <td>${u.assessor_mensagens_mes} uso${u.assessor_mensagens_mes === 1 ? '' : 's'} · US$ ${Number(u.assessor_custo_mes_usd || 0).toFixed(2)}${u.telegram ? '<br><small>📱 Telegram</small>' : ''}${u.emails_conectados ? `<small> 📧 ${u.emails_conectados}</small>` : ''}</td>
       <td>${u.user_id === currentUser.id ? '<small style="color:var(--gray-text)">Master: tudo liberado</small>' : `<button class="btn btn-sm" onclick="abrirLiberacoes('${u.user_id}')" title="Liberar ou remover serviços pagos">⚙️ Gerenciar</button>${(u.recursos || []).length ? '<div style="margin-top:4px;">' + (u.recursos || []).map(r => `<span style="display:inline-block;font-size:11px;background:var(--light-bg);border-radius:100px;padding:1px 8px;margin:0 4px 2px 0;white-space:nowrap;">${(RECURSOS_PAGOS.find(x => x[0] === r) || [r, r])[1]}</span>`).join('') + '</div>' : ''}`}</td>
     </tr>`).join('') + `</tbody></table>
