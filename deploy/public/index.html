@@ -1626,6 +1626,14 @@
           </div>
         </div>
 
+        <div class="resumo-box config-section" id="section-clientes-pessoal" style="display:none">
+          <div class="config-section-header" onclick="toggleConfigSection('clientes-pessoal')"><h2>👥 Aba de Clientes</h2><span class="config-chevron" id="chevron-clientes-pessoal">▸</span></div>
+          <div class="config-section-body" id="body-clientes-pessoal" style="display:none">
+            <p class="config-hint">No perfil Pessoal a aba de Clientes vem desligada. Ligue se você também atende clientes: aparecem a aba <b>Clientes</b> (com ficha, contatos e etapas) e o campo de cliente nos compromissos e atividades. Se desligar de novo, nada é apagado: os clientes ficam guardados e voltam quando você ligar.</p>
+            <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;"><input type="checkbox" id="wcfg-usa-clientes" onchange="withLock(this, () => salvarUsaClientes(this.checked))"> Usar a aba de Clientes neste espaço</label>
+          </div>
+        </div>
+
         <div class="resumo-box config-section" id="section-bomdia" style="display:none">
           <div class="config-section-header" onclick="toggleConfigSection('bomdia')"><h2>📍 Localização (tempo e notícias)</h2><span class="config-chevron" id="chevron-bomdia">▸</span></div>
           <div class="config-section-body" id="body-bomdia" style="display:none"><div id="bomdia-config"></div></div>
@@ -4581,7 +4589,9 @@ async function carregarRecursos() {
 function souMaster() { return !!currentUser && (currentUser.email || '').toLowerCase() === MASTER_EMAIL; }
 function abasAtivas() {
   if (!activeWorkspace) return [];
-  const abas = PERFIL_ABAS[activeWorkspace.perfilTipo].filter(a => (a !== 'buscar' || temRecurso('buscar')) && (a !== 'emails' || temRecurso('assessor_email')) && (a !== 'whatsapp' || temRecurso('whatsapp')));
+  // Perfil Pessoal pode ligar a aba de Clientes em Configurações (workspaces.usa_clientes); os outros perfis já têm.
+  const base = (activeWorkspace.perfilTipo === 'pessoal' && activeWorkspace.usaClientes) ? ['entidades'].concat(PERFIL_ABAS.pessoal) : PERFIL_ABAS[activeWorkspace.perfilTipo];
+  const abas = base.filter(a => (a !== 'buscar' || temRecurso('buscar')) && (a !== 'emails' || temRecurso('assessor_email')) && (a !== 'whatsapp' || temRecurso('whatsapp')));
   return souMaster() ? abas.concat('usuarios') : abas;
 }
 function temAba(aba) { return abasAtivas().includes(aba); }
@@ -4687,7 +4697,7 @@ async function loadWorkspaces() {
   workspaces = wsRows.map(w => ({
     id: w.id, nome: w.nome, perfilTipo: w.perfil_tipo, ownerId: w.owner_id,
     inviteCode: w.invite_code, entidadeLabel: w.entidade_label, corDestaque: w.cor_destaque || DEFAULT_COR_DESTAQUE,
-    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico,
+    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes,
     role: membrosRows.find(m => m.workspace_id === w.id).role,
   }));
   const savedId = localStorage.getItem('ws_active_id');
@@ -6411,6 +6421,10 @@ function renderConfiguracoes() {
   document.getElementById('section-treinamentos-padrao').style.display = temAba('treinamentos') ? '' : 'none';
   document.getElementById('section-assessor').style.display = souSolo() ? '' : 'none';
   document.getElementById('section-bomdia').style.display = souSolo() ? '' : 'none';
+  document.getElementById('section-clientes-pessoal').style.display = souSolo() ? '' : 'none';
+  const chkClientes = document.getElementById('wcfg-usa-clientes');
+  chkClientes.checked = !!activeWorkspace.usaClientes;
+  chkClientes.disabled = !souAdmin;
   if (souSolo()) renderBomDiaConfig();
   if (souSolo()) { renderAssessorConfig(); renderAssessorEmailConfig(); }
   renderMembrosList();
@@ -6419,6 +6433,24 @@ function renderConfiguracoes() {
   renderTiposAgendaList();
   renderFeriadosDatasList();
   renderTreinamentosPadraoList();
+}
+async function salvarUsaClientes(ligar) {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  const campos = { usa_clientes: ligar };
+  if (ligar && !activeWorkspace.entidadeLabel) campos.entidade_label = 'Clientes';
+  const { error } = await sb.from('workspaces').update(campos).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  if (ligar && !STAGES.length) {   // espaço Pessoal nasce sem as etapas de cliente: cria as padrão uma vez
+    const { error: e2 } = await sb.from('etapas').insert(DEFAULT_ETAPAS.map(e => ({ ...e, workspace_id: activeWorkspace.id })));
+    if (e2) { alert('Ligado, mas não consegui criar as etapas padrão: ' + e2.message); }
+  }
+  activeWorkspace.usaClientes = ligar;
+  if (campos.entidade_label) activeWorkspace.entidadeLabel = campos.entidade_label;
+  const w = workspaces.find(x => x.id === activeWorkspace.id);
+  if (w) { w.usaClientes = ligar; if (campos.entidade_label) w.entidadeLabel = campos.entidade_label; }
+  buildSidebarNav();
+  await refreshDados();
+  setTab('configuracoes');
 }
 async function salvarWorkspaceInfo() {
   const nome = document.getElementById('wcfg-nome').value.trim();
