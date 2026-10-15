@@ -1626,6 +1626,15 @@
           </div>
         </div>
 
+        <div class="resumo-box config-section" id="section-recontato" style="display:none">
+          <div class="config-section-header" onclick="toggleConfigSection('recontato')"><h2>🔁 Re-contato automático</h2><span class="config-chevron" id="chevron-recontato">▸</span></div>
+          <div class="config-section-body" id="body-recontato" style="display:none">
+            <p class="config-hint">Quando chega o dia do <b>Próximo contato</b> de um cliente, o Taskfull cria um card na raia <b>RE CONTATO</b> do quadro de Atividades ("Re-contato: nome do cliente"), todo dia por volta das 6h. Cliente sem data de próximo contato não gera card, e enquanto o card estiver aberto não nasce outro. Ao <b>registrar o contato</b> (na ficha do cliente) o card é concluído; ao <b>concluir o card</b> o Taskfull pergunta a data do próximo contato. Para parar de lembrar de um cliente, apague a data dele.</p>
+            <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;"><input type="checkbox" id="wcfg-recontato" onchange="withLock(this, () => salvarRecontatoAuto(this.checked))"> Criar card automático de re-contato neste espaço</label>
+            <div style="margin-top:10px;"><button class="btn btn-sm" id="btn-gerar-recontato" onclick="withLock(this, gerarRecontatosAgora)">▶ Gerar os cards de hoje agora</button></div>
+          </div>
+        </div>
+
         <div class="resumo-box config-section" id="section-clientes-pessoal" style="display:none">
           <div class="config-section-header" onclick="toggleConfigSection('clientes-pessoal')"><h2>👥 Aba de Clientes</h2><span class="config-chevron" id="chevron-clientes-pessoal">▸</span></div>
           <div class="config-section-body" id="body-clientes-pessoal" style="display:none">
@@ -1855,6 +1864,20 @@
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="fecharCamposCliente()">Cancelar</button>
         <button class="btn btn-primary" onclick="withLock(this, salvarCamposCliente)">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="proximo-contato-overlay">
+  <div class="modal-box" style="max-width:440px;">
+    <h2>Próximo contato</h2>
+    <p class="config-hint" id="proximo-contato-texto"></p>
+    <div class="form-field" style="margin:10px 0;"><label>Data do próximo contato</label><input type="date" id="proximo-contato-data"></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="withLock(this, () => salvarProximoContato(false))">Sem próximo contato</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn btn-primary" onclick="withLock(this, () => salvarProximoContato(true))">Salvar</button>
       </div>
     </div>
   </div>
@@ -4728,7 +4751,7 @@ async function loadWorkspaces() {
   workspaces = wsRows.map(w => ({
     id: w.id, nome: w.nome, perfilTipo: w.perfil_tipo, ownerId: w.owner_id,
     inviteCode: w.invite_code, entidadeLabel: w.entidade_label, corDestaque: w.cor_destaque || DEFAULT_COR_DESTAQUE,
-    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null,
+    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato',
     role: membrosRows.find(m => m.workspace_id === w.id).role,
   }));
   const savedId = localStorage.getItem('ws_active_id');
@@ -5259,6 +5282,7 @@ async function registrarContatoModal() {
   const c = state.entidades.find(x=>x.id===editingEntidadeId);
   c.historico.unshift({ id:histRow.id, data:today, texto });
   c.ultimoContato = today; c.proximoContato = proximo;
+  await concluirCardsRecontato(c.nome);
   document.getElementById('f-nota-contato').value = '';
   document.getElementById('f-proximo').value = proximo;
   renderHistoricoList();
@@ -5864,6 +5888,7 @@ async function saveAtividade() {
   const participantes = [...document.querySelectorAll('#at-participantes-list input:checked')].map(i=>i.value);
   const old = editingAtividadeId ? atividades.find(a=>a.id===editingAtividadeId) : null;
   const mudouRelevante = !old || old.entidadeNome !== entidadeNome || old.resolucao !== resolucao;
+  const colunaAntes = old ? old.coluna : null;
   const payload = {
     workspace_id: activeWorkspace.id,
     entidade_nome: entidadeNome,
@@ -5899,6 +5924,10 @@ async function saveAtividade() {
   }
   closeAtividadeModal();
   renderAtividades();
+  if (coluna === 'concluida' && (payload.titulo || '').startsWith(PREFIXO_RECONTATO) && colunaAntes !== 'concluida') {
+    const cli = state.entidades.find(e => e.nome.toLowerCase() === entidadeNome.toLowerCase());
+    if (cli) perguntarProximoContato(cli);
+  }
 }
 async function deleteAtividade() { if (editingAtividadeId) await deleteAtividadeCard(editingAtividadeId, true); }
 async function deleteAtividadeCard(id, fecharModal) {
@@ -6479,6 +6508,9 @@ function renderConfiguracoes() {
   document.getElementById('section-assessor').style.display = souSolo() ? '' : 'none';
   document.getElementById('section-bomdia').style.display = souSolo() ? '' : 'none';
   document.getElementById('section-clientes-pessoal').style.display = souSolo() ? '' : 'none';
+  document.getElementById('section-recontato').style.display = temAba('entidades') ? '' : 'none';
+  document.getElementById('wcfg-recontato').checked = !!activeWorkspace.recontatoAuto;
+  document.getElementById('wcfg-recontato').disabled = !souAdmin;
   const chkClientes = document.getElementById('wcfg-usa-clientes');
   chkClientes.checked = !!activeWorkspace.usaClientes;
   chkClientes.disabled = !souAdmin;
@@ -6512,6 +6544,60 @@ async function salvarCamposCliente() {
   activeWorkspace.camposCliente = marcados;
   const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.camposCliente = marcados;
   fecharCamposCliente();
+  renderEntidades();
+}
+// ── Re-contato automático ──
+const PREFIXO_RECONTATO = 'Re-contato: ';
+async function salvarRecontatoAuto(ligar) {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  let coluna = activeWorkspace.recontatoColuna || 're_contato';
+  if (ligar && !KANBAN_COLUNAS.some(c => c.id === coluna)) {   // cria a raia "RE CONTATO" uma vez (o nome pode ser trocado depois)
+    const ordem = KANBAN_COLUNAS.length + 1;
+    const { error: e1 } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+    if (e1) { alert('Não consegui criar a raia: ' + e1.message); renderConfiguracoes(); return; }
+    KANBAN_COLUNAS.push({ id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+  }
+  const { error } = await sb.from('workspaces').update({ recontato_auto: ligar, recontato_coluna: coluna }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  activeWorkspace.recontatoAuto = ligar; activeWorkspace.recontatoColuna = coluna;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) { w.recontatoAuto = ligar; w.recontatoColuna = coluna; }
+  if (ligar) await gerarRecontatosAgora(true); else renderConfiguracoes();
+}
+async function gerarRecontatosAgora(silencioso) {
+  if (!activeWorkspace.recontatoAuto) { alert('Ligue o re-contato automático primeiro.'); return; }
+  const { data, error } = await sb.rpc('gerar_recontatos_ws', { p_ws: activeWorkspace.id });
+  if (error) { alert('Não foi possível gerar os cards: ' + error.message); return; }
+  await refreshDados();
+  setTab('configuracoes');
+  if (!silencioso || data > 0) alert(data > 0 ? (data + (data === 1 ? ' card criado' : ' cards criados') + ' na raia RE CONTATO.') : 'Nenhum cliente com próximo contato vencido: nada a criar.');
+}
+// Ao registrar contato na ficha do cliente, os cards de re-contato abertos dele são concluídos.
+async function concluirCardsRecontato(nomeCliente) {
+  const abertos = atividades.filter(a => a.entidadeNome === nomeCliente && !a.cancelado && a.coluna !== 'concluida' && (a.titulo || '').startsWith(PREFIXO_RECONTATO));
+  for (const a of abertos) {
+    const resolucao = 'Contato registrado em ' + formatDate(todayStr());
+    const { error } = await sb.from('atividades').update({ coluna: 'concluida', concluido_em: todayStr(), resolucao }).eq('id', a.id);
+    if (error) { alert('Não consegui concluir o card de re-contato: ' + error.message); return; }
+    Object.assign(a, { coluna: 'concluida', concluidoEm: todayStr(), resolucao });
+  }
+}
+// Ao concluir um card de re-contato, pergunta a data do próximo contato (senão o card nasceria de novo amanhã).
+let proximoContatoEntidadeId = null;
+function perguntarProximoContato(entidade) {
+  proximoContatoEntidadeId = entidade.id;
+  document.getElementById('proximo-contato-texto').textContent = 'Você concluiu o re-contato com ' + entidade.nome + '. Quando é o próximo contato?';
+  document.getElementById('proximo-contato-data').value = addDays(todayStr(), 7);
+  document.getElementById('proximo-contato-overlay').classList.add('open');
+}
+async function salvarProximoContato(comData) {
+  const e = state.entidades.find(x => x.id === proximoContatoEntidadeId); if (!e) { document.getElementById('proximo-contato-overlay').classList.remove('open'); return; }
+  const data = comData ? (document.getElementById('proximo-contato-data').value || null) : null;
+  if (comData && !data) { alert('Escolha a data ou use "Sem próximo contato".'); return; }
+  const { error } = await sb.from('entidades').update({ ultimo_contato: todayStr(), proximo_contato: data }).eq('id', e.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); return; }
+  e.ultimoContato = todayStr(); e.proximoContato = data;
+  proximoContatoEntidadeId = null;
+  document.getElementById('proximo-contato-overlay').classList.remove('open');
   renderEntidades();
 }
 async function salvarUsaClientes(ligar) {

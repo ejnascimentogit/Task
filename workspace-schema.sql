@@ -1497,3 +1497,53 @@ alter table public.workspaces add column if not exists usa_clientes boolean not 
 
 -- Perfil Pessoal: campos do cadastro de cliente que a pessoa quer ver (lista de chaves; null = padrão). Aplicada em 2026-10-15.
 alter table public.workspaces add column if not exists campos_cliente jsonb;
+
+-- Re-contato automático (aplicado em 2026-10-15): quando chega o dia do próximo contato de um cliente, cria um card
+-- "Re-contato: <cliente>" na raia configurada (padrão 're_contato', criada pela tela). Um card aberto por cliente.
+alter table public.workspaces add column if not exists recontato_auto boolean not null default false;
+alter table public.workspaces add column if not exists recontato_coluna text not null default 're_contato';
+
+create or replace function public._gerar_recontatos(p_ws uuid default null)
+returns int language plpgsql security definer set search_path = public as $$
+declare hoje date := (now() at time zone 'America/Sao_Paulo')::date; n int := 0; r record; resp text;
+begin
+  for r in
+    select w.id as ws, w.recontato_coluna as col, e.nome, e.responsavel, e.proximo_contato, e.ultimo_contato
+    from public.workspaces w
+    join public.entidades e on e.workspace_id = w.id
+    where w.recontato_auto and (p_ws is null or w.id = p_ws)
+      and e.proximo_contato is not null and e.proximo_contato <= hoje
+      and exists (select 1 from public.kanban_colunas k where k.workspace_id = w.id and k.id = w.recontato_coluna)
+      and not exists (select 1 from public.atividades a where a.workspace_id = w.id and a.entidade_nome = e.nome
+                      and a.coluna <> 'concluida' and not a.cancelado and a.titulo like 'Re-contato:%')
+  loop
+    resp := coalesce(nullif(r.responsavel, ''),
+      (select m.nome from public.workspace_membros m where m.workspace_id = r.ws and m.role = 'admin' and coalesce(m.nome, '') <> '' order by m.created_at limit 1),
+      'Taskfull');
+    insert into public.atividades (workspace_id, responsavel, criado_por, titulo, descricao, entidade_nome, coluna, ordem)
+    values (r.ws, resp, 'Taskfull (automático)', 'Re-contato: ' || r.nome,
+      'Contato marcado para ' || to_char(r.proximo_contato, 'DD/MM/YYYY') ||
+      case when r.ultimo_contato is not null then '. Último contato: ' || to_char(r.ultimo_contato, 'DD/MM/YYYY') else '' end || '.',
+      r.nome, r.col,
+      coalesce((select max(a.ordem) + 1 from public.atividades a where a.workspace_id = r.ws and a.coluna = r.col), 0));
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+revoke all on function public._gerar_recontatos(uuid) from public, anon, authenticated;
+
+create or replace function public.gerar_recontatos()
+returns int language sql security definer set search_path = public as $$ select public._gerar_recontatos(null) $$;
+revoke all on function public.gerar_recontatos() from public, anon, authenticated;
+
+create or replace function public.gerar_recontatos_ws(p_ws uuid)
+returns int language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_member(p_ws) then raise exception 'sem acesso'; end if;
+  return public._gerar_recontatos(p_ws);
+end $$;
+revoke all on function public.gerar_recontatos_ws(uuid) from public, anon;
+grant execute on function public.gerar_recontatos_ws(uuid) to authenticated;
+
+-- Todo dia às 06:00 de Brasília (09:00 UTC):
+-- select cron.schedule('gerar-recontatos', '0 9 * * *', 'select public.gerar_recontatos()');
