@@ -70,6 +70,8 @@ Tabelas e nomes de coluna equivalentes ao Painel de Implantação, mas renomeado
 | `kanban_colunas` | `KANBAN_COLUMNS` (fixo no código, no sistema de referência) | **virou tabela editável por workspace** — cada workspace pode ter suas próprias raias além da fixa "Concluído" (`COLUNA_CONCLUIDA`, sempre reservada/fixa no app, nunca vive na tabela, por causa da regra de resolução obrigatória + histórico automático) |
 | `agendamentos.atividade_id` | não existe na referência | liga um agendamento à atividade criada a partir dele (botão "Criar Atividade" no modal), evita duplicar o mesmo assunto ao converter reunião em tarefa. Ao criar, um aviso (toast, `avisoToast`) informa a atividade e a coluna, com o botão "Ver no quadro" |
 
+**Agenda: próximo agendamento (2026-10-15).** No Calendário, passar o mouse num dia sem compromisso mostra "+ Novo agendamento" (clicar no dia já abria o modal; clicar num compromisso edita). No modal de Agendamento, quando a entidade digitada é cadastrada, aparece a caixa **Próximo agendamento** (data, hora e título opcional, padrão "Retorno: <título>"); ao Salvar ou Criar Atividade, cria um segundo agendamento para o cliente (mesmo tipo e responsável) e avisa com toast; a caixa também informa se já existe agendamento futuro. Não altera `entidades.proximo_contato` (nem todo agendamento é contato).
+
 Todas ganharam `workspace_id` (FK cascade) e entram nos `select` de `loadWorkspaceData()` sempre filtradas por `eq('workspace_id', wid)` — carregamento é 100% por workspace ativo, trocar de workspace refaz esse load inteiro (`selectWorkspace()`).
 
 ## 6. Regras de negócio específicas do Taskfull (sem equivalente na referência)

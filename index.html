@@ -981,6 +981,12 @@
   .cal-cel { min-height: 118px; padding: 8px; border-right: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 4px; min-width: 0; cursor: pointer; transition: background .12s; }
   .cal-cel:nth-child(7n) { border-right: 0; }
   .cal-cel:hover { background: var(--accent-soft); }
+  .cal-cel .cal-novo { display:none; margin-top:auto; font-size:11.5px; font-weight:700; color:var(--accent-ink); }
+  .cal-cel:not(.fora):hover .cal-novo { display:block; }
+  .ag-proximo { border:1px dashed var(--border-light); border-radius:12px; padding:10px 12px; }
+  .ag-proximo-dica { font-weight:400; color:var(--gray-text); font-size:12px; }
+  .ag-proximo-linha { display:grid; grid-template-columns:150px 110px 1fr; gap:8px; }
+  .ag-proximo-info { font-size:12px; color:var(--gray-text); margin-top:6px; }
   .cal-cel.fora { background: var(--light-bg); opacity: .55; cursor: default; } .cal-cel.fora:hover { background: var(--light-bg); }
   .cal-num { font-family: var(--font-display); font-weight: 700; font-size: 13px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-variant-numeric: tabular-nums; }
   .cal-cel.hoje .cal-num { background: var(--green); color: var(--navy); }
@@ -1721,6 +1727,15 @@
       <div class="form-field"><label>Data</label><input type="date" id="ag-data"></div>
       <div class="form-field"><label>Hora</label><input type="time" id="ag-hora"></div>
       <div class="form-field full"><label>Observação</label><textarea id="ag-obs"></textarea></div>
+      <div class="form-field full ag-proximo" id="ag-proximo-field" style="display:none">
+        <label>📆 Próximo agendamento <span class="ag-proximo-dica">(opcional, só para cadastrados)</span></label>
+        <div class="ag-proximo-linha">
+          <input type="date" id="ag-prox-data" aria-label="Data do próximo agendamento">
+          <input type="time" id="ag-prox-hora" aria-label="Hora do próximo agendamento">
+          <input type="text" id="ag-prox-titulo" placeholder="Título (padrão: Retorno)" aria-label="Título do próximo agendamento">
+        </div>
+        <div class="ag-proximo-info" id="ag-prox-info"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-delete-agendamento" onclick="withLock(this, deleteAgendamento)" style="display:none">Excluir</button>
@@ -2614,6 +2629,18 @@ function renderAgEntidadeContatos() {
   el.innerHTML = e && e.contatos.length
     ? e.contatos.map(c => `<div><b>${escapeHtml(c.nome)}</b>${c.cargo ? ' · ' + escapeHtml(c.cargo) : ''}${c.telefone ? ' · ' + escapeHtml(c.telefone) : ''}</div>`).join('')
     : '';
+  atualizarProximoAgendamento(e);
+}
+function atualizarProximoAgendamento(e) {
+  const box = document.getElementById('ag-proximo-field');
+  if (!box) return;
+  box.style.display = e ? '' : 'none';
+  const info = document.getElementById('ag-prox-info');
+  if (!e) { info.textContent = ''; return; }
+  const hoje = todayStr();
+  const fut = agendamentos.filter(a => a.entidadeId === e.id && !a.feito && a.id !== editingAgendamentoId && a.data >= hoje)
+    .sort((a, b) => (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')))[0];
+  info.textContent = fut ? 'Já agendado: ' + formatDate(fut.data) + (fut.hora ? ' às ' + fut.hora : '') + ' — ' + fut.titulo : 'Nenhum agendamento futuro para ' + e.nome + '.';
 }
 (function () {
   const orig = window.openAgendamentoModal;
@@ -4795,6 +4822,7 @@ function renderAgendaMensal(groups, dias, today) {
     const evs = fora ? [] : (groups[chave] || []);
     html += `<div class="cal-cel ${fora ? 'fora' : ''} ${chave === today ? 'hoje' : ''}" ${fora ? '' : `onclick="novoAgendamentoNoDia('${chave}')"`}>
       <span class="cal-num">${d.getDate()}</span>
+      ${fora || evs.some(a => !a.feriado) ? '' : '<span class="cal-novo">+ Novo agendamento</span>'}
       ${evs.map(a => a.feriado ? `<div class="cal-evento-chip cal-evento-feriado feriado-${a.tipo}" title="${escapeHtml(a.titulo)} (${a.tipo})" onclick="event.stopPropagation()">🎉 ${escapeHtml(a.titulo)}</div>` : `<div class="cal-evento-chip ${a.feito ? 'feito' : ''}" style="--c:${corDoTipo(a.tipo)}" title="${escapeHtml(a.titulo)}${a.entidadeNome ? ' — ' + escapeHtml(a.entidadeNome) : ''}" onclick="event.stopPropagation(); openAgendamentoModal('${a.id}')"><input type="checkbox" ${a.feito ? 'checked' : ''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))" aria-label="Marcar como feito">${a.hora ? `<span class="cal-evento-hora">${a.hora}</span>` : ''}${escapeHtml(a.titulo)}${a.entidadeNome ? ` — <span class="cal-evento-entidade">${escapeHtml(a.entidadeNome)}</span>` : ''}</div>`).join('')}
     </div>`;
   }
@@ -4839,6 +4867,7 @@ function openAgendamentoModal(id) {
   document.getElementById('ag-hora').value = a ? a.hora : '';
   document.getElementById('ag-obs').value = a ? a.observacao : '';
   document.getElementById('btn-delete-agendamento').style.display = a ? '' : 'none';
+  ['ag-prox-data','ag-prox-hora','ag-prox-titulo'].forEach(i => { document.getElementById(i).value = ''; });
   const btnAtividade = document.getElementById('btn-criar-atividade');
   if (a && a.atividadeId) {
     btnAtividade.textContent = '✅ Atividade já criada';
@@ -4886,16 +4915,41 @@ async function persistAgendamento() {
     return row.id;
   }
 }
+function lerProximoAgendamento() {
+  const box = document.getElementById('ag-proximo-field');
+  const data = document.getElementById('ag-prox-data').value;
+  if (!box || box.style.display === 'none' || !data) return null;
+  const hora = document.getElementById('ag-prox-hora').value;
+  if (!hora) { alert('Informe o horário do próximo agendamento.'); return false; }
+  return { data, hora, titulo: document.getElementById('ag-prox-titulo').value.trim() };
+}
+async function criarProximoAgendamento(baseId, prox) {
+  const base = agendamentos.find(a => a.id === baseId);
+  const titulo = prox.titulo || ('Retorno: ' + base.titulo);
+  const payload = { workspace_id: activeWorkspace.id, entidade_id: base.entidadeId, entidade_nome: base.entidadeNome, titulo, tipo: base.tipo,
+    data: prox.data, hora: prox.hora, observacao: '', responsavel: base.responsavel, participantes: base.participantes || [] };
+  const { data: row, error } = await sb.from('agendamentos').insert(payload).select().single();
+  if (error) { alert('O agendamento atual foi salvo, mas o próximo não: ' + error.message); return; }
+  agendamentos.push({ id:row.id, entidadeId:payload.entidade_id, entidadeNome:payload.entidade_nome, titulo, tipo:payload.tipo, data:prox.data, hora:prox.hora,
+    observacao:'', feito:false, responsavel:payload.responsavel, participantes:payload.participantes, reagendadoDe:null, atividadeId:null });
+  avisoToast('📆 Próximo agendamento criado: ' + formatDate(prox.data) + ' às ' + prox.hora + ' (' + base.entidadeNome + ').');
+}
 async function saveAgendamento() {
+  const prox = lerProximoAgendamento();
+  if (prox === false) return;
   const id = await persistAgendamento();
   if (!id) return;
+  if (prox) await criarProximoAgendamento(id, prox);
   if (emailParaCompromisso) await marcarEmail(emailParaCompromisso, 'compromisso');
   closeAgendamentoModal();
   renderAgenda(); updateAgendaCount();
 }
 async function criarAtividadeDoAgendamento() {
+  const prox = lerProximoAgendamento();
+  if (prox === false) return;
   const id = await persistAgendamento();
   if (!id) return;
+  if (prox) await criarProximoAgendamento(id, prox);
   if (emailParaCompromisso) await marcarEmail(emailParaCompromisso, 'compromisso');
   const ag = agendamentos.find(a=>a.id===id);
   if (ag.atividadeId) { alert('Já existe uma atividade criada a partir deste agendamento.'); return; }
@@ -5624,7 +5678,7 @@ const AJUDA_CONTEUDO = [
     { p: 'Etapa, Fase e Saúde são a mesma coisa?', r: 'Não — são três eixos independentes. Etapa é a posição no funil (Kickoff, Configuração...), editável em Configurações → Etapas. Fase é se está Ativo ou "na Base" (dormente). Saúde é o risco (verde/amarelo/vermelho).' },
   ]},
   { categoria: 'Agenda', itens: [
-    { p: 'Quais visualizações a Agenda tem?', r: 'Três: Lista (agrupada por dia), Cards e Calendário (grade mensal, mostrando só os dias que têm algum compromisso).' },
+    { p: 'Quais visualizações a Agenda tem?', r: 'Três: Lista (agrupada por dia), Cards e Calendário (grade mensal). No Calendário, passar o mouse num dia sem compromisso mostra "+ Novo agendamento"; clicar num compromisso abre a edição. Para clientes cadastrados, o modal de Agendamento tem a caixa "Próximo agendamento", que já cria o retorno na Agenda.' },
     { p: 'Como transformo um agendamento em atividade sem digitar tudo de novo?', r: 'No modal de Agendamento (ao criar ou editar), clique em "✅ Criar Atividade". O campo Assunto vira o Título da atividade e a Observação vira a Descrição, automaticamente. Depois de usado, o botão trava ("Atividade já criada") pra não duplicar, e um aviso no canto da tela diz qual atividade foi criada e em que coluna, com o botão "Ver no quadro".' },
   ]},
   { categoria: 'Atividades (Kanban)', itens: [
@@ -5986,6 +6040,7 @@ function avisoToast(texto, acao) {
     b.onclick = () => { el.remove(); acao.fn(); };
     el.appendChild(b);
   }
+  el.style.bottom = (28 + document.querySelectorAll('.raia-toast').length * 62) + 'px';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), acao ? 8000 : 4500);
 }
