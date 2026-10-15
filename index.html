@@ -1251,14 +1251,14 @@
       <section id="view-entidades" style="display:none">
         <div class="toolbar">
           <input type="text" id="search-input" placeholder="Buscar..." oninput="renderEntidades()">
-          <select id="filter-stage" onchange="renderEntidades()"><option value="">Todas as etapas</option></select>
-          <select id="filter-saude" onchange="renderEntidades()">
+          <select id="filter-stage" data-campo="etapa" onchange="renderEntidades()"><option value="">Todas as etapas</option></select>
+          <select id="filter-saude" data-campo="saude" onchange="renderEntidades()">
             <option value="">Todas as saúdes</option>
             <option value="verde">🟢 Verde</option>
             <option value="amarelo">🟡 Amarelo</option>
             <option value="vermelho">🔴 Vermelho</option>
           </select>
-          <select id="filter-fase" onchange="renderEntidades()">
+          <select id="filter-fase" data-campo="fase" onchange="renderEntidades()">
             <option value="implantacao" selected>Ativos</option>
             <option value="base">Na Base</option>
             <option value="">Todos</option>
@@ -1273,15 +1273,15 @@
         <div class="table-wrap" id="entidades-list-wrap">
         <table class="data-table">
           <thead><tr>
-            <th class="sortable" onclick="sortEntidades('codigo')">Código</th>
+            <th class="sortable" data-campo="codigo" onclick="sortEntidades('codigo')">Código</th>
             <th class="sortable" onclick="sortEntidades('nome')">Nome</th>
-            <th class="sortable" onclick="sortEntidades('fase')">Fase</th>
-            <th class="sortable" onclick="sortEntidades('etapa')">Etapa</th>
-            <th class="sortable" onclick="sortEntidades('saude')">Saúde</th>
-            <th class="sortable" onclick="sortEntidades('responsavel')">Responsável</th>
-            <th class="sortable" onclick="sortEntidades('analista')">Analista</th>
+            <th class="sortable" data-campo="fase" onclick="sortEntidades('fase')">Fase</th>
+            <th class="sortable" data-campo="etapa" onclick="sortEntidades('etapa')">Etapa</th>
+            <th class="sortable" data-campo="saude" onclick="sortEntidades('saude')">Saúde</th>
+            <th class="sortable" data-campo="responsavel" onclick="sortEntidades('responsavel')">Responsável</th>
+            <th class="sortable" data-campo="analista" onclick="sortEntidades('analista')">Analista</th>
             <th id="th-prazo" style="display:none">Prazo</th>
-            <th>Pendências</th>
+            <th data-campo="pendencias">Pendências</th>
           </tr></thead>
           <tbody id="entidades-tbody"></tbody>
         </table>
@@ -1631,6 +1631,10 @@
           <div class="config-section-body" id="body-clientes-pessoal" style="display:none">
             <p class="config-hint">No perfil Pessoal a aba de Clientes vem desligada. Ligue se você também atende clientes: aparecem a aba <b>Clientes</b> (com ficha, contatos e etapas) e o campo de cliente nos compromissos e atividades. Se desligar de novo, nada é apagado: os clientes ficam guardados e voltam quando você ligar.</p>
             <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;"><input type="checkbox" id="wcfg-usa-clientes" onchange="withLock(this, () => salvarUsaClientes(this.checked))"> Usar a aba de Clientes neste espaço</label>
+            <div id="wcfg-campos-cliente-box" style="margin-top:12px;display:none;">
+              <p class="config-hint" style="margin-bottom:8px;">Escolha quais campos aparecem no cadastro de cliente. Esconder um campo não apaga o que já foi preenchido.</p>
+              <button class="btn btn-sm" id="btn-campos-cliente" onclick="abrirCamposCliente()">⚙️ Escolher os campos do cadastro</button>
+            </div>
           </div>
         </div>
 
@@ -1837,6 +1841,21 @@
         <button class="btn" id="ativ-share-wa" onclick="withLock(this, enviarAtividadeWa)" style="display:none">📲 Enviar texto por WhatsApp</button>
       </div>
       <button class="btn" onclick="fecharCompartilharAtividade()" style="margin-left:auto;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="campos-cliente-overlay">
+  <div class="modal-box" style="max-width:520px;">
+    <h2>Campos do cadastro de cliente</h2>
+    <p class="config-hint">Marque o que você quer ver ao cadastrar e na lista. O <b>Nome</b> sempre aparece. Esconder um campo não apaga o que já foi preenchido: ele volta se você marcar de novo.</p>
+    <div id="campos-cliente-lista" style="display:grid;gap:8px;margin:12px 0;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="restaurarCamposCliente()">Voltar ao padrão</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharCamposCliente()">Cancelar</button>
+        <button class="btn btn-primary" onclick="withLock(this, salvarCamposCliente)">Salvar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -4709,7 +4728,7 @@ async function loadWorkspaces() {
   workspaces = wsRows.map(w => ({
     id: w.id, nome: w.nome, perfilTipo: w.perfil_tipo, ownerId: w.owner_id,
     inviteCode: w.invite_code, entidadeLabel: w.entidade_label, corDestaque: w.cor_destaque || DEFAULT_COR_DESTAQUE,
-    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes,
+    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null,
     role: membrosRows.find(m => m.workspace_id === w.id).role,
   }));
   const savedId = localStorage.getItem('ws_active_id');
@@ -5038,14 +5057,38 @@ function sortEntidades(col) {
 }
 function pendenciasAbertasDe(c) { return c.pendencias.filter(p => !p.feito); }
 
+// Campos do cadastro de cliente que aparecem. No perfil Pessoal a pessoa escolhe (Configurações → Aba de Clientes → Escolher os campos);
+// Equipe e Projeto mostram tudo. Esconder não apaga: o valor já gravado continua no banco e volta ao reativar o campo.
+const CAMPOS_CLIENTE = [
+  ['codigo', 'Código'], ['responsavel', 'Responsável'], ['analista', 'Analista responsável'], ['etapa', 'Etapa atual'], ['fase', 'Fase'],
+  ['inicio', 'Início'], ['proximo', 'Próximo contato'], ['saude', 'Saúde'], ['motivo', 'Motivo (se amarelo/vermelho)'],
+  ['observacao', 'Observação'], ['contatos', 'Contatos'], ['pendencias', 'Pendências'],
+];
+const CAMPOS_CLIENTE_PADRAO_PESSOAL = ['proximo', 'observacao', 'contatos', 'pendencias'];
+function campoCliente(k) {
+  if (!souSolo()) return true;
+  const sel = activeWorkspace.camposCliente || CAMPOS_CLIENTE_PADRAO_PESSOAL;
+  return sel.includes(k);
+}
+function aplicarCamposCliente() {
+  const mostra = (id, k) => { const el = document.getElementById(id); const f = el && (el.closest('.form-field') || el); if (f) f.style.display = campoCliente(k) ? '' : 'none'; };
+  mostra('f-codigo', 'codigo'); mostra('f-responsavel', 'responsavel'); mostra('f-analista', 'analista');
+  mostra('f-etapa', 'etapa'); mostra('f-fase', 'fase'); mostra('f-inicio', 'inicio'); mostra('f-proximo', 'proximo');
+  mostra('f-saude', 'saude'); mostra('f-saude-motivo', 'motivo'); mostra('f-observacao', 'observacao');
+  const sec = (id, k) => { const el = document.getElementById(id); const f = el && el.closest('.modal-section'); if (f) f.style.display = campoCliente(k) ? '' : 'none'; };
+  sec('contatos-list', 'contatos'); sec('pend-list-entidade', 'pendencias');
+  document.querySelectorAll('#view-entidades [data-campo]').forEach(el => { el.style.display = campoCliente(el.dataset.campo) ? '' : 'none'; });
+  if (!campoCliente('fase')) { const ff = document.getElementById('filter-fase'); if (ff) ff.value = ''; }   // sem Fase, o filtro "Ativos" não pode esconder ninguém
+}
 function renderEntidades() {
+  aplicarCamposCliente();
   const search = (document.getElementById('search-input').value||'').toLowerCase();
   const fStage = document.getElementById('filter-stage').value;
   const fSaude = document.getElementById('filter-saude').value;
-  const fFase = document.getElementById('filter-fase').value;
+  const fFase = campoCliente('fase') ? document.getElementById('filter-fase').value : '';
   let list = state.entidades.filter(c => {
-    if (fStage && c.etapa !== fStage) return false;
-    if (fSaude && c.saude !== fSaude) return false;
+    if (fStage && campoCliente('etapa') && c.etapa !== fStage) return false;
+    if (fSaude && campoCliente('saude') && c.saude !== fSaude) return false;
     if (fFase && (c.fase||'implantacao') !== fFase) return false;
     if (search && !(c.nome.toLowerCase().includes(search) || c.contatos.some(ct=>ct.nome.toLowerCase().includes(search)))) return false;
     return true;
@@ -5059,21 +5102,21 @@ function renderEntidades() {
   if (entidadesView === 'lista') {
     document.getElementById('entidades-tbody').innerHTML = list.map(c => `
       <tr onclick="openModal('${c.id}')">
-        <td>${escapeHtml(c.codigo)}</td>
+        ${campoCliente('codigo') ? `<td>${escapeHtml(c.codigo)}</td>` : ''}
         <td>${escapeHtml(c.nome)}</td>
-        <td><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></td>
-        <td><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span></td>
-        <td><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></td>
-        <td>${escapeHtml(c.responsavel)}</td>
-        <td>${escapeHtml(c.analista||'—')}</td>${prazoTd(c)}
-        <td>${pendenciasAbertasDe(c).length || '—'}</td>
-      </tr>`).join('') || `<tr><td colspan="7"><div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div></td></tr>`;
+        ${campoCliente('fase') ? `<td><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></td>` : ''}
+        ${campoCliente('etapa') ? `<td><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span></td>` : ''}
+        ${campoCliente('saude') ? `<td><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></td>` : ''}
+        ${campoCliente('responsavel') ? `<td>${escapeHtml(c.responsavel)}</td>` : ''}
+        ${campoCliente('analista') ? `<td>${escapeHtml(c.analista||'—')}</td>` : ''}${prazoTd(c)}
+        ${campoCliente('pendencias') ? `<td>${pendenciasAbertasDe(c).length || '—'}</td>` : ''}
+      </tr>`).join('') || `<tr><td colspan="9"><div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div></td></tr>`;
   } else {
     document.getElementById('entidades-cards-wrap').innerHTML = list.map(c => `
       <div class="entidade-card" onclick="openModal('${c.id}')">
-        <div class="cc-top"><div class="cc-quem"><span class="cc-ini">${inicialDe(c.nome)}</span><div class="cc-name">${escapeHtml(c.nome)}</div></div><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></div>
-        <div class="cc-meta">${escapeHtml(c.responsavel)||'—'}${c.analista ? ' · 👤 ' + escapeHtml(c.analista) : ''}</div>${prazoBadgeHtml(c)}
-        <div class="cc-badges"><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></div>
+        <div class="cc-top"><div class="cc-quem"><span class="cc-ini">${inicialDe(c.nome)}</span><div class="cc-name">${escapeHtml(c.nome)}</div></div>${campoCliente('saude') ? `<span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span>` : ''}</div>
+        ${(campoCliente('responsavel') || (campoCliente('analista') && c.analista)) ? `<div class="cc-meta">${campoCliente('responsavel') ? (escapeHtml(c.responsavel)||'—') : ''}${campoCliente('analista') && c.analista ? ' · 👤 ' + escapeHtml(c.analista) : ''}</div>` : ''}${prazoBadgeHtml(c)}
+        ${(campoCliente('etapa') || campoCliente('fase')) ? `<div class="cc-badges">${campoCliente('etapa') ? `<span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span>` : ''}${campoCliente('fase') ? `<span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span>` : ''}</div>` : ''}
       </div>`).join('') || `<div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div>`;
   }
 }
@@ -5085,8 +5128,9 @@ function openModal(id) {
   document.getElementById('modal-title').textContent = c ? c.nome : 'Novo(a) ' + entidadeLabel().slice(0,-1);
   document.getElementById('f-codigo').value = c ? c.codigo : (activeWorkspace.codigoAutomatico ? proximoCodigoAutomatico() : '');
   document.getElementById('f-codigo').readOnly = !!activeWorkspace.codigoAutomatico;
+  if (!c && !campoCliente('codigo')) document.getElementById('f-codigo').value = proximoCodigoAutomatico();   // código escondido: numera sozinho
   document.getElementById('f-nome').value = c ? c.nome : '';
-  document.getElementById('f-responsavel').value = c ? c.responsavel : '';
+  document.getElementById('f-responsavel').value = c ? c.responsavel : (campoCliente('responsavel') ? '' : meuNome());
   populateStageOptions();
   document.getElementById('f-etapa').value = c ? c.etapa : (STAGES[0] ? STAGES[0].id : '');
   document.getElementById('f-fase').value = c ? (c.fase||'implantacao') : 'implantacao';
@@ -5098,6 +5142,7 @@ function openModal(id) {
   document.getElementById('f-nota-contato').value = '';
   document.getElementById('f-nota-proximo').value = addDays(todayStr(),1);
   document.getElementById('btn-delete-entidade').style.display = c ? '' : 'none';
+  aplicarCamposCliente();
   renderContatosList(); renderPendenciasModal(); renderHistoricoList();
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -6437,6 +6482,8 @@ function renderConfiguracoes() {
   const chkClientes = document.getElementById('wcfg-usa-clientes');
   chkClientes.checked = !!activeWorkspace.usaClientes;
   chkClientes.disabled = !souAdmin;
+  document.getElementById('wcfg-campos-cliente-box').style.display = (souSolo() && activeWorkspace.usaClientes) ? '' : 'none';
+  document.getElementById('btn-campos-cliente').style.display = souAdmin ? '' : 'none';
   if (souSolo()) renderBomDiaConfig();
   if (souSolo()) { renderAssessorConfig(); renderAssessorEmailConfig(); }
   renderMembrosList();
@@ -6445,6 +6492,27 @@ function renderConfiguracoes() {
   renderTiposAgendaList();
   renderFeriadosDatasList();
   renderTreinamentosPadraoList();
+}
+function abrirCamposCliente() {
+  const sel = activeWorkspace.camposCliente || CAMPOS_CLIENTE_PADRAO_PESSOAL;
+  document.getElementById('campos-cliente-lista').innerHTML =
+    `<label style="display:flex;gap:8px;align-items:center;opacity:.6;"><input type="checkbox" checked disabled> Nome (sempre aparece)</label>` +
+    CAMPOS_CLIENTE.map(([k, nome]) => `<label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" data-campo-cli="${k}" ${sel.includes(k) ? 'checked' : ''}> ${escapeHtml(nome)}</label>`).join('');
+  document.getElementById('campos-cliente-overlay').classList.add('open');
+}
+function fecharCamposCliente() { document.getElementById('campos-cliente-overlay').classList.remove('open'); }
+function restaurarCamposCliente() {
+  document.querySelectorAll('#campos-cliente-lista input[data-campo-cli]').forEach(i => { i.checked = CAMPOS_CLIENTE_PADRAO_PESSOAL.includes(i.dataset.campoCli); });
+}
+async function salvarCamposCliente() {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); return; }
+  const marcados = [...document.querySelectorAll('#campos-cliente-lista input[data-campo-cli]')].filter(i => i.checked).map(i => i.dataset.campoCli);
+  const { error } = await sb.from('workspaces').update({ campos_cliente: marcados }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); return; }
+  activeWorkspace.camposCliente = marcados;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.camposCliente = marcados;
+  fecharCamposCliente();
+  renderEntidades();
 }
 async function salvarUsaClientes(ligar) {
   if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
