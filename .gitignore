@@ -15,3 +15,7 @@ Senhas*
 senha*
 *.pem
 *.key
+
+# diagnóstico do servidor de teste (pode conter detalhes da máquina)
+docs/whatsapp/servidor-teste/diagnostico.txt
+docs/whatsapp/servidor-teste/wuzapi-src/

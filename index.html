@@ -2,7 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#021F33">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TaskFull">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>TaskFull</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
@@ -427,6 +434,8 @@
   .rv-pessoa { font-size:11px; font-weight:700; color:#5e6c84; margin-top:16px; margin-bottom:2px; text-transform:uppercase; letter-spacing:.04em; }
   .rv-tarefa { font-size:13px; line-height:1.5; margin:0 0 8px; padding:9px 12px 9px 30px; position:relative; color:#1a2029; background:#f6f8fb; border:1px solid #e3e6ee; border-left:3px solid #1f9d63; border-radius:8px; white-space:pre-wrap; }
   .rv-tarefa::before { content:"✓"; color:#1f9d63; position:absolute; left:11px; top:9px; font-weight:bold; }
+  .rv-tarefa.rv-aberta { border-left-color:#5e6c84; }
+  .rv-tarefa.rv-aberta::before { content:"•"; color:#5e6c84; }
   .rv-resolucao { font-size:11.5px; color:#5e6c84; margin-top:5px; font-style:italic; white-space:pre-wrap; }
   .rv-empty { text-align:center; color:#7a8399; font-size:13px; padding:10px 0; }
 
@@ -1075,6 +1084,51 @@
   .raia-toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:300; max-width:90vw; padding:12px 18px; border-radius:14px; background:#0f2233; color:#fff; font-size:14px; box-shadow:0 10px 30px rgba(0,0,0,.3); }
   .raia-toast { display:flex; align-items:center; gap:14px; }
   .raia-toast .toast-acao { flex:none; border:0; border-radius:10px; padding:6px 12px; background:#fff; color:#0f2233; font-weight:600; font-size:13px; cursor:pointer; }
+  /* Tabela da aba Usuários: células com respiro */
+  #usuarios-lista th, #usuarios-lista td { padding: 14px 16px; text-align: left; vertical-align: middle; white-space: nowrap; }
+  #usuarios-lista th { font-weight: 600; }
+
+  /* Faixa de alerta do WhatsApp (sessão caída / servidor fora do ar) */
+  #alerta-whatsapp { margin: 12px 32px 0; max-width: 1136px; }
+  .wa-alerta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 16px; border-radius: 12px; font-size: 13.5px; background: #FEF3C7; color: #78350F; border: 1px solid #F59E0B; }
+  .wa-alerta.ruim { background: #FEE2E2; color: #7F1D1D; border-color: #EF4444; }
+  .wa-alerta b { font-weight: 700; }
+  .wa-alerta .btn { margin-left: auto; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wa-alerta { background: #422006; color: #FDE68A; border-color: #B45309; } :root:not([data-theme="light"]) .wa-alerta.ruim { background: #450A0A; color: #FECACA; border-color: #B91C1C; } }
+  @media (max-width: 860px) { #alerta-whatsapp { margin: 10px 14px 0; } }
+
+  /* ── Versão mobile (2026-10-13): barra de abas embaixo, topo enxuto, menu "☰" para o resto.
+        Só estilo + um botão; nenhuma função muda. Vale até 860px de largura. ── */
+  .btn-menu-mobile { display: none; }
+  @media (max-width: 860px) {
+    .app-shell { min-height: 100dvh; }
+    .sidebar { position: sticky; top: 0; z-index: 50; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 0; overflow: visible;
+      padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; border-right: 0; border-bottom: 1px solid var(--sb-line); }
+    .sidebar-brand { flex: 0 0 auto; padding: 0; }
+    .app-brand { margin: 0; font-size: 14px; color: var(--sb-fg-strong, #fff); opacity: .85; }
+    .ws-switcher { flex: 1 1 0; min-width: 0; }
+    .ws-switcher-btn { padding: 8px 12px; min-height: 40px; }
+    .btn-menu-mobile { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 40px; font-size: 20px; line-height: 1;
+      border-radius: 12px; border: 1px solid var(--sb-line); background: var(--sb-card); color: var(--sb-fg-strong, #fff); cursor: pointer; }
+    .sidebar-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; flex-direction: row; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      padding: 6px 6px calc(env(safe-area-inset-bottom) + 6px); background: var(--sb-bg); border-top: 1px solid var(--sb-line); scrollbar-width: none; }
+    .sidebar-nav::-webkit-scrollbar { display: none; }
+    .sidebar-nav .nav-item { flex: 0 0 auto; flex-direction: column; justify-content: center; gap: 3px; min-width: 66px; min-height: 52px; padding: 6px 8px; font-size: 11px; text-align: center; position: relative; }
+    .sidebar-nav .nav-item svg { width: 22px; height: 22px; }
+    .sidebar-nav .nav-item .badge-count { position: absolute; top: 2px; right: 8px; margin: 0; padding: 0 5px; font-size: 10px; }
+    .sidebar-footer { display: none; flex-basis: 100%; max-height: 65vh; overflow-y: auto; padding-top: 8px; margin-top: 0; }
+    .sidebar.menu-aberto .sidebar-footer { display: flex; }
+    .main-area { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+    .topbar { padding: 12px 14px 0; gap: 10px; }
+    main { padding: 12px 14px; }
+    .btn, .btn-sm { min-height: 40px; }
+    input, select, textarea { font-size: 16px; }   /* evita o zoom automático do iPhone ao tocar num campo */
+    .modal-overlay { padding: 0; align-items: flex-end; }
+    .modal-box { max-width: 100%; width: 100%; border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; overflow-y: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+    .toolbar { flex-wrap: wrap; }
+    .toolbar > input, .toolbar > select { flex: 1 1 140px; min-width: 0; }
+    .ws-dropdown { max-width: calc(100vw - 24px); }
+  }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1167,6 +1221,7 @@
       </button>
       <div class="ws-dropdown" id="ws-dropdown"></div>
     </div>
+    <button type="button" class="btn-menu-mobile" id="btn-menu-mobile" onclick="toggleMenuMobile()" aria-label="Abrir menu" aria-expanded="false">☰</button>
 
     <nav class="sidebar-nav" id="sidebar-nav"></nav>
 
@@ -1214,18 +1269,20 @@
       <div class="stats-row" id="stats-row"></div>
     </div>
 
+    <div id="alerta-whatsapp" style="display:none;"></div>
+
     <main>
       <section id="view-entidades" style="display:none">
         <div class="toolbar">
           <input type="text" id="search-input" placeholder="Buscar..." oninput="renderEntidades()">
-          <select id="filter-stage" onchange="renderEntidades()"><option value="">Todas as etapas</option></select>
-          <select id="filter-saude" onchange="renderEntidades()">
+          <select id="filter-stage" data-campo="etapa" onchange="renderEntidades()"><option value="">Todas as etapas</option></select>
+          <select id="filter-saude" data-campo="saude" onchange="renderEntidades()">
             <option value="">Todas as saúdes</option>
             <option value="verde">🟢 Verde</option>
             <option value="amarelo">🟡 Amarelo</option>
             <option value="vermelho">🔴 Vermelho</option>
           </select>
-          <select id="filter-fase" onchange="renderEntidades()">
+          <select id="filter-fase" data-campo="fase" onchange="renderEntidades()">
             <option value="implantacao" selected>Ativos</option>
             <option value="base">Na Base</option>
             <option value="">Todos</option>
@@ -1240,15 +1297,15 @@
         <div class="table-wrap" id="entidades-list-wrap">
         <table class="data-table">
           <thead><tr>
-            <th class="sortable" onclick="sortEntidades('codigo')">Código</th>
+            <th class="sortable" data-campo="codigo" onclick="sortEntidades('codigo')">Código</th>
             <th class="sortable" onclick="sortEntidades('nome')">Nome</th>
-            <th class="sortable" onclick="sortEntidades('fase')">Fase</th>
-            <th class="sortable" onclick="sortEntidades('etapa')">Etapa</th>
-            <th class="sortable" onclick="sortEntidades('saude')">Saúde</th>
-            <th class="sortable" onclick="sortEntidades('responsavel')">Responsável</th>
-            <th class="sortable" onclick="sortEntidades('analista')">Analista</th>
+            <th class="sortable" data-campo="fase" onclick="sortEntidades('fase')">Fase</th>
+            <th class="sortable" data-campo="etapa" onclick="sortEntidades('etapa')">Etapa</th>
+            <th class="sortable" data-campo="saude" onclick="sortEntidades('saude')">Saúde</th>
+            <th class="sortable" data-campo="responsavel" onclick="sortEntidades('responsavel')">Responsável</th>
+            <th class="sortable" data-campo="analista" onclick="sortEntidades('analista')">Analista</th>
             <th id="th-prazo" style="display:none">Prazo</th>
-            <th>Pendências</th>
+            <th data-campo="pendencias">Pendências</th>
           </tr></thead>
           <tbody id="entidades-tbody"></tbody>
         </table>
@@ -1390,6 +1447,27 @@
           </div>
           <div class="pessoa-filter" id="emails-filtro" style="margin-top:14px;"></div>
           <div id="emails-lista" style="margin-top:14px;"></div>
+        </div>
+      </section>
+
+      <section id="view-usuarios" style="display:none">
+        <div class="resumo-box">
+          <h2 class="view-titulo">Usuários</h2>
+          <div class="resumo-sub">Painel do master: todas as contas do Taskfull, desde quando usam e se ainda estão ativas. Só você vê esta aba.</div>
+          <div class="pessoa-filter" id="usuarios-filtro" style="margin-top:14px;"></div>
+          <div id="usuarios-resumo" style="margin-top:14px;"></div>
+          <div id="usuarios-lista" style="margin-top:14px;overflow-x:auto;"></div>
+        </div>
+      </section>
+
+      <section id="view-whatsapp" style="display:none">
+        <div class="resumo-box">
+          <h2 class="view-titulo">WhatsApp</h2>
+          <div class="resumo-sub">Envie ou programe mensagens do seu WhatsApp para qualquer número: agora, ou na data e hora que você escolher.</div>
+          <div id="wa-servico" style="margin-top:14px;"></div>
+          <div id="wa-conexao" style="margin-top:14px;"></div>
+          <div id="wa-lista" style="margin-top:14px;overflow-x:auto;"></div>
+          <div id="wa-saude" style="margin-top:20px;"></div>
         </div>
       </section>
 
@@ -1572,6 +1650,33 @@
           </div>
         </div>
 
+        <div class="resumo-box config-section" id="section-recontato" style="display:none">
+          <div class="config-section-header" onclick="toggleConfigSection('recontato')"><h2>🔁 Re-contato automático</h2><span class="config-chevron" id="chevron-recontato">▸</span></div>
+          <div class="config-section-body" id="body-recontato" style="display:none">
+            <p class="config-hint">O Taskfull cria um card no quadro de Atividades ("Re-contato: nome do cliente"), na raia que você escolher abaixo (a raia Concluído não entra) para lembrar de falar de novo com o cliente (você escolhe abaixo em qual raia ele nasce; a raia "concluída" não entra). A contagem parte do <b>último contato</b>, que vale quando você registra o contato na ficha do cliente, conclui uma atividade ou realiza um compromisso da Agenda desse cliente. Passados os dias abaixo, nasce o card. Se você marcar uma data de <b>Próximo contato</b> maior que o último contato, ela vale no lugar da contagem. Os cards são criados todo dia por volta das 6h e só um por cliente fica aberto. Ao <b>registrar o contato</b> na ficha o card é concluído, e ao <b>concluir o card</b> o Taskfull pergunta a data do próximo contato.</p>
+            <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;"><input type="checkbox" id="wcfg-recontato" onchange="withLock(this, () => salvarRecontatoAuto(this.checked))"> Criar card automático de re-contato neste espaço</label>
+            <div class="form-field" style="margin-top:12px;max-width:320px;"><label>Em qual raia o card nasce?</label>
+              <select id="wcfg-recontato-coluna" onchange="withLock(this, salvarRecontatoColuna)"></select>
+            </div>
+            <div class="form-field" style="margin-top:12px;max-width:320px;"><label>Gerar o card depois de quantos dias do último contato?</label>
+              <div style="display:flex;gap:8px;align-items:center;"><input type="number" id="wcfg-recontato-dias" min="0" max="365" style="width:100px;" onchange="withLock(this, salvarRecontatoDias)"> <span style="color:var(--gray-text);font-size:13px;">dias (0 = só pela data de Próximo contato)</span></div>
+            </div>
+            <div style="margin-top:10px;"><button class="btn btn-sm" id="btn-gerar-recontato" onclick="withLock(this, gerarRecontatosAgora)">▶ Gerar os cards de hoje agora</button></div>
+          </div>
+        </div>
+
+        <div class="resumo-box config-section" id="section-clientes-pessoal" style="display:none">
+          <div class="config-section-header" onclick="toggleConfigSection('clientes-pessoal')"><h2>👥 Aba de Clientes</h2><span class="config-chevron" id="chevron-clientes-pessoal">▸</span></div>
+          <div class="config-section-body" id="body-clientes-pessoal" style="display:none">
+            <p class="config-hint">No perfil Pessoal a aba de Clientes vem desligada. Ligue se você também atende clientes: aparecem a aba <b>Clientes</b> (com ficha, contatos e etapas) e o campo de cliente nos compromissos e atividades. Se desligar de novo, nada é apagado: os clientes ficam guardados e voltam quando você ligar.</p>
+            <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;"><input type="checkbox" id="wcfg-usa-clientes" onchange="withLock(this, () => salvarUsaClientes(this.checked))"> Usar a aba de Clientes neste espaço</label>
+            <div id="wcfg-campos-cliente-box" style="margin-top:12px;display:none;">
+              <p class="config-hint" style="margin-bottom:8px;">Escolha quais campos aparecem no cadastro de cliente. Esconder um campo não apaga o que já foi preenchido.</p>
+              <button class="btn btn-sm" id="btn-campos-cliente" onclick="abrirCamposCliente()">⚙️ Escolher os campos do cadastro</button>
+            </div>
+          </div>
+        </div>
+
         <div class="resumo-box config-section" id="section-bomdia" style="display:none">
           <div class="config-section-header" onclick="toggleConfigSection('bomdia')"><h2>📍 Localização (tempo e notícias)</h2><span class="config-chevron" id="chevron-bomdia">▸</span></div>
           <div class="config-section-body" id="body-bomdia" style="display:none"><div id="bomdia-config"></div></div>
@@ -1740,6 +1845,7 @@
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-delete-agendamento" onclick="withLock(this, deleteAgendamento)" style="display:none">Excluir</button>
       <button class="btn btn-sm" id="btn-criar-atividade" onclick="withLock(this, criarAtividadeDoAgendamento)">✅ Criar Atividade</button>
+      <button class="btn btn-sm" id="btn-compartilhar-wa" onclick="withLock(this, compartilharAgendamentoWa)" style="display:none">📲 Compartilhar no WhatsApp</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="closeAgendamentoModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveAgendamento)">Salvar</button>
@@ -1767,6 +1873,51 @@
         <button class="btn btn-primary" onclick="withLock(this, baixarRelatorioImagem)">📸 Baixar Imagem</button>
       </div>
       <button class="btn" onclick="closeRelatorioModal()" style="margin-left:auto;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ativ-share-modal-overlay">
+  <div class="modal-box" style="max-width:640px;">
+    <h2>Compartilhar atividade</h2>
+    <div id="ativ-share-visual" class="relatorio-visual"></div>
+    <div class="modal-footer">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" onclick="baixarAtividadeTexto()">📄 Baixar Texto</button>
+        <button class="btn" onclick="withLock(this, copiarAtividadeImagem)">📋 Copiar Imagem</button>
+        <button class="btn btn-primary" onclick="withLock(this, baixarAtividadeImagem)">📸 Baixar Imagem</button>
+        <button class="btn" id="ativ-share-wa" onclick="withLock(this, enviarAtividadeWa)" style="display:none">📲 Enviar texto por WhatsApp</button>
+      </div>
+      <button class="btn" onclick="fecharCompartilharAtividade()" style="margin-left:auto;">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="campos-cliente-overlay">
+  <div class="modal-box" style="max-width:520px;">
+    <h2>Campos do cadastro de cliente</h2>
+    <p class="config-hint">Marque o que você quer ver ao cadastrar e na lista. O <b>Nome</b> sempre aparece. Esconder um campo não apaga o que já foi preenchido: ele volta se você marcar de novo.</p>
+    <div id="campos-cliente-lista" style="display:grid;gap:8px;margin:12px 0;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="restaurarCamposCliente()">Voltar ao padrão</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharCamposCliente()">Cancelar</button>
+        <button class="btn btn-primary" onclick="withLock(this, salvarCamposCliente)">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="proximo-contato-overlay">
+  <div class="modal-box" style="max-width:440px;">
+    <h2>Próximo contato</h2>
+    <p class="config-hint" id="proximo-contato-texto"></p>
+    <div class="form-field" style="margin:10px 0;"><label>Data do próximo contato</label><input type="date" id="proximo-contato-data"></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="withLock(this, () => salvarProximoContato(false))">Sem próximo contato</button>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn btn-primary" onclick="withLock(this, () => salvarProximoContato(true))">Salvar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1817,6 +1968,7 @@
     <div class="modal-footer">
       <button class="btn btn-danger" id="btn-delete-atividade" onclick="withLock(this, deleteAtividade)" style="display:none">Excluir</button>
       <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn btn-sm" id="btn-compartilhar-wa-at" onclick="abrirCompartilharAtividade()" style="display:none">📤 Compartilhar</button>
         <button class="btn" onclick="closeAtividadeModal()">Fechar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveAtividade)">Salvar</button>
       </div>
@@ -1840,6 +1992,64 @@
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="closeTreinamentoModal()">Fechar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveTreinamentoEtapa)">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="wa-rel-modal-overlay" onclick="if(event.target===this) fecharRelatorioWa()">
+  <div class="modal-box" style="max-width:860px;">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
+      <h2 style="margin:0;">Relatório de saúde do WhatsApp</h2>
+      <select id="wa-rel-dias" onchange="carregarRelatorioWa()" style="margin-left:auto;"><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select>
+    </div>
+    <div id="wa-rel-corpo" style="margin-top:10px;"></div>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="baixarCsvRelatorioWa()">⬇ Baixar CSV</button>
+        <button class="btn btn-primary" onclick="fecharRelatorioWa()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="wa-modal-overlay">
+  <div class="modal-box" style="max-width:520px;">
+    <h2>Nova mensagem de WhatsApp</h2>
+    <div class="form-grid">
+      <div class="form-field full"><label>Preencher a partir de (opcional)</label><select id="wa-modelo" onchange="waAplicarModelo()"></select></div>
+      <div class="form-field full"><label>Escolher um contato (opcional)</label><select id="wa-contato" onchange="waAplicarContato()"></select></div>
+      <div class="form-field"><label>Número (com DDD)</label><input type="text" id="wa-telefone" placeholder="(81) 99999-0000" inputmode="tel" autocomplete="off"></div>
+      <div class="form-field"><label>Nome (opcional)</label><input type="text" id="wa-nome" maxlength="80" placeholder="Para lembrar quem é"></div>
+      <div class="form-field full"><label>Mensagem <span id="wa-contagem" style="color:var(--gray-text);font-weight:400;"></span></label><textarea id="wa-texto" rows="5" maxlength="1500" oninput="waContar()" placeholder="Escreva a mensagem..."></textarea></div>
+      <div class="form-field full">
+        <label>Quando enviar</label>
+        <select id="wa-quando-tipo" onchange="waTipoQuando()"><option value="agora">Agora</option><option value="programar">Programar para uma data e hora</option></select>
+        <input type="datetime-local" id="wa-quando" style="display:none;margin-top:8px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharNovaMensagemWa()">Cancelar</button>
+        <button class="btn btn-primary" id="wa-btn-enviar" onclick="withLock(this, enviarMensagemWa)">Enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="usuario-lib-modal-overlay" onclick="if(event.target===this) fecharLiberacoes()">
+  <div class="modal-box" style="max-width:520px;">
+    <h2>Liberar serviços</h2>
+    <div id="usuario-lib-quem" style="color:var(--gray-text);font-size:13px;margin:-4px 0 14px;"></div>
+    <div id="usuario-lib-lista"></div>
+    <p style="font-size:12px;color:var(--gray-text);margin-top:12px;">Estes serviços gastam tokens da sua conta quando a pessoa usa. Desmarcar um serviço desconecta o que ela tinha conectado nele.</p>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharLiberacoes()">Cancelar</button>
+        <button class="btn btn-primary" onclick="withLock(this, salvarLiberacoes)">Salvar</button>
       </div>
     </div>
   </div>
@@ -1953,9 +2163,9 @@ try {
 }
 
 const PERFIL_ABAS = {
-  pessoal: ['atividades', 'agenda', 'emails', 'resumo', 'indicadores', 'buscar'],
-  equipe:  ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'indicadores', 'lamina', 'buscar'],
-  projeto: ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'treinamentos', 'indicadores', 'lamina', 'cronograma', 'buscar'],
+  pessoal: ['atividades', 'agenda', 'emails', 'resumo', 'indicadores', 'whatsapp', 'buscar'],
+  equipe:  ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'indicadores', 'lamina', 'whatsapp', 'buscar'],
+  projeto: ['entidades', 'agenda', 'pendencias', 'atividades', 'resumo', 'treinamentos', 'indicadores', 'lamina', 'cronograma', 'whatsapp', 'buscar'],
 };
 const DEFAULT_COR_DESTAQUE = '#00FF7A';
 const DEFAULT_COR_FUNDO = '#F4F5F3';
@@ -2008,8 +2218,8 @@ const PERFIL_DESC = {
 };
 const ENTIDADE_LABEL_PADRAO = { pessoal: null, equipe: 'Clientes', projeto: 'Projetos' };
 const _ni = d => `<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
-const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7') };
-const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails' };
+const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7'), whatsapp: _ni('M21 12a8 8 0 0 1-11.8 7L3 21l2-5.7A8 8 0 1 1 21 12zM9 9c0 3 3 6 6 6l1.5-1.5-2-1-1 .7c-1-.4-2-1.4-2.4-2.4l.7-1-1-2z'), usuarios: _ni('M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8') };
+const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails', whatsapp: 'WhatsApp', usuarios: 'Usuários' };
 
 const DEFAULT_ETAPAS = [
   { id: 'kickoff', nome: 'Kickoff', cor: '#3B82F6', ordem: 1 },
@@ -2780,7 +2990,7 @@ async function renderUsoAssessor() {
   const wrap = document.getElementById('ind-assessor-wrap');
   const box = document.getElementById('ind-assessor');
   if (!wrap || !box) return;
-  if (!souSolo() || !sb || !currentUser || !activeWorkspace) { wrap.style.display = 'none'; return; }
+  if (!souSolo() || !sb || !currentUser || !activeWorkspace || !temRecurso('assessor_telegram')) { wrap.style.display = 'none'; return; }
   try {
     const [vincRes, usoRes] = await Promise.all([
       sb.from('assessor_vinculos').select('chat_id, telegram_usuario, limite_mensal_usd')
@@ -2824,9 +3034,11 @@ async function renderUsoAssessor() {
     console.warn('Uso do assessor indisponível:', e);
   }
 }
+const AVISO_RECURSO_PAGO = '<p class="config-hint">🔒 <b>Recurso pago, em fase de testes.</b> Ainda não está liberado para a sua conta. Peça a liberação ao administrador do Taskfull.</p>';
 async function renderAssessorConfig() {
   const box = document.getElementById('assessor-config');
   if (!box || !sb || !currentUser || !activeWorkspace) return;
+  if (!temRecurso('assessor_telegram')) { box.innerHTML = AVISO_RECURSO_PAGO; return; }
   const { data: v, error } = await sb.from('assessor_vinculos')
     .select('chat_id, telegram_usuario, codigo, codigo_expira_em, lembrete_minutos, vinculado_em, workspace_id')
     .eq('user_id', currentUser.id).eq('canal', 'telegram').maybeSingle();
@@ -2908,7 +3120,7 @@ function diaLocalDeIso(iso) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 async function carregarEmails() {
-  if (!souSolo() || !sb || !currentUser || !activeWorkspace) { emailsLista = []; emailConta = null; updateEmailsCount(); return; }
+  if (!souSolo() || !sb || !currentUser || !activeWorkspace || !temRecurso('assessor_email')) { emailsLista = []; emailConta = null; updateEmailsCount(); return; }
   const desde = new Date(Date.now() - 30 * 86400000).toISOString();
   const [lista, status] = await Promise.all([
     sb.from('assessor_emails').select('*').eq('workspace_id', activeWorkspace.id).gte('recebido_em', desde)
@@ -3059,6 +3271,7 @@ function renderResumoEmails() {
 async function renderAssessorEmailConfig() {
   const box = document.getElementById('assessor-email-config');
   if (!box || !sb || !currentUser) return;
+  if (!temRecurso('assessor_email')) { box.innerHTML = AVISO_RECURSO_PAGO; return; }
   const [st, rems] = await Promise.all([
     sb.rpc('assessor_email_status'),
     sb.from('assessor_email_remetentes').select('*').order('created_at'),
@@ -3265,6 +3478,540 @@ function escapeExcetoMarks(raw) {
 
 let buscaTimeout = null;
 let buscaSeq = 0;   // contador anti-corrida: uma busca antiga nunca sobrescreve a mais nova
+// ══════════════════════════════════════════════════════════════
+// USUÁRIOS (só master): quem tem conta, desde quando usa e se está ativo
+// ══════════════════════════════════════════════════════════════
+let usuariosMaster = [];
+let usuariosFiltro = 'todos';
+let usuariosCarregando = false;
+async function carregarUsuarios() {
+  if (!souMaster() || !sb) return;
+  usuariosCarregando = true;
+  const [{ data, error }, lib] = await Promise.all([sb.rpc('master_usuarios'), sb.rpc('master_recursos')]);
+  usuariosCarregando = false;
+  if (error) { alert('Não foi possível carregar os usuários: ' + error.message); return; }
+  if (lib.error) { alert('Não foi possível carregar as liberações: ' + lib.error.message); return; }
+  const mapa = {}; (lib.data || []).forEach(l => { mapa[l.user_id] = l.recursos || []; });
+  usuariosMaster = (data || []).map(u => ({ ...u, recursos: mapa[u.user_id] || [] }));
+  renderUsuarios(true);
+}
+function diasDesde(iso) { return iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null; }
+function situacaoUsuario(u) {
+  const d = diasDesde(u.ultimo_acesso || u.ultimo_login);
+  if (d === null) return { id: 'nunca', rotulo: 'Nunca entrou', cor: '#6B7280' };
+  if (d <= 7) return { id: 'ativo', rotulo: 'Ativo', cor: '#10B981' };
+  if (d <= 30) return { id: 'parado', rotulo: 'Parado', cor: '#F59E0B' };
+  return { id: 'inativo', rotulo: 'Inativo', cor: '#EF4444' };
+}
+function tempoDeUso(iso) {
+  const d = diasDesde(iso);
+  if (d === null) return '-';
+  if (d < 1) return 'hoje';
+  if (d < 60) return d + (d === 1 ? ' dia' : ' dias');
+  return Math.floor(d / 30) + ' meses';
+}
+function dataHoraCurta(iso) { return iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'; }
+const RECURSOS_PAGOS = [
+  ['buscar', '🔎 Buscar', 'Busca com IA nas notas, atividades e pendências'],
+  ['assessor_telegram', '🤖 Assessor no Telegram', 'Conversa por texto e áudio, cria agenda e tarefas, avisa antes dos compromissos'],
+  ['assessor_email', '📧 Leitura de e-mail', 'Conecta Gmail, Outlook ou Yahoo; resume e classifica os e-mails dos remetentes liberados'],
+  ['whatsapp', '💬 WhatsApp (envio)', 'Conecta o WhatsApp da pessoa e envia ou programa mensagens para qualquer número (conexão não oficial: risco de bloqueio do número)'],
+];
+let liberacoesUsuarioId = null;
+function abrirLiberacoes(userId) {
+  const u = usuariosMaster.find(x => x.user_id === userId);
+  if (!u) return;
+  liberacoesUsuarioId = userId;
+  document.getElementById('usuario-lib-quem').textContent = (u.nome ? u.nome + ' · ' : '') + u.email;
+  document.getElementById('usuario-lib-lista').innerHTML = RECURSOS_PAGOS.map(([r, nome, desc]) => `
+    <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-top:1px solid var(--border,#e5e7eb);cursor:pointer;">
+      <input type="checkbox" data-recurso="${r}" ${(u.recursos || []).includes(r) ? 'checked' : ''} style="margin-top:3px;width:18px;height:18px;">
+      <span><b>${nome}</b><br><small style="color:var(--gray-text)">${desc}</small></span>
+    </label>`).join('');
+  document.getElementById('usuario-lib-modal-overlay').classList.add('open');
+}
+function fecharLiberacoes() { liberacoesUsuarioId = null; document.getElementById('usuario-lib-modal-overlay').classList.remove('open'); }
+async function salvarLiberacoes() {
+  const u = usuariosMaster.find(x => x.user_id === liberacoesUsuarioId);
+  if (!u) { fecharLiberacoes(); return; }
+  const marcados = [...document.querySelectorAll('#usuario-lib-lista input[data-recurso]')].filter(i => i.checked).map(i => i.dataset.recurso);
+  const antes = u.recursos || [];
+  const liberar = marcados.filter(r => !antes.includes(r)), remover = antes.filter(r => !marcados.includes(r));
+  if (!liberar.length && !remover.length) { fecharLiberacoes(); return; }
+  const nomeDe = r => RECURSOS_PAGOS.find(x => x[0] === r)[1];
+  const quem = u.nome || u.email;
+  const LIBERA = {
+    buscar: 'usa IA e gasta tokens da sua conta Anthropic',
+    assessor_telegram: 'usa IA e gasta tokens da sua conta Anthropic (limite mensal por pessoa)',
+    assessor_email: 'usa IA e gasta tokens da sua conta Anthropic (mesmo limite mensal do assessor)',
+    whatsapp: 'não usa IA e não gasta tokens; usa o seu servidor do WhatsApp; limite de 50 mensagens por dia; conexão não oficial (risco de bloqueio do número)',
+  };
+  const REMOVE = {
+    assessor_telegram: 'desconecta o Telegram e apaga as conversas',
+    assessor_email: 'desconecta os e-mails',
+    whatsapp: 'desconecta o WhatsApp e cancela as mensagens programadas',
+  };
+  const linhas = [];
+  if (liberar.length) linhas.push('✅ LIBERAR para ' + quem + ':', ...liberar.map(r => '   • ' + nomeDe(r) + '\n      ' + LIBERA[r]), '');
+  if (remover.length) linhas.push('⛔ REMOVER de ' + quem + ':', ...remover.map(r => '   • ' + nomeDe(r) + (REMOVE[r] ? '\n      ' + REMOVE[r] : '')), '');
+  const aviso = linhas.join('\n') + '\n';
+  if (!confirm(aviso + 'Confirmar as alterações?')) return;
+  for (const [recs, ativar] of [[liberar, true], [remover, false]]) {
+    for (const r of recs) {
+      const { error } = await sb.rpc('master_definir_liberacao', { p_user: u.user_id, p_recurso: r, p_ativo: ativar });
+      if (error) { alert('Não foi possível salvar "' + nomeDe(r) + '": ' + error.message); await carregarUsuarios(); return; }
+      u.recursos = ativar ? [...new Set([...(u.recursos || []), r])] : (u.recursos || []).filter(x => x !== r);
+    }
+  }
+  fecharLiberacoes();
+  renderUsuarios(true);
+}
+function setUsuariosFiltro(f) { usuariosFiltro = f; renderUsuarios(true); }
+function renderUsuarios(semRecarregar) {
+  const lista = document.getElementById('usuarios-lista');
+  if (!lista) return;
+  if (!souMaster()) { lista.innerHTML = ''; return; }
+  if (!semRecarregar && !usuariosCarregando) { carregarUsuarios(); }
+  if (!usuariosMaster.length) { lista.innerHTML = '<p style="color:var(--gray-text);font-size:13px;">' + (usuariosCarregando ? 'Carregando...' : 'Nenhum usuário.') + '</p>'; return; }
+  const comSit = usuariosMaster.map(u => ({ u, s: situacaoUsuario(u) }));
+  const cont = id => comSit.filter(x => x.s.id === id).length;
+  document.getElementById('usuarios-resumo').innerHTML =
+    `<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;">
+      <span><b>${comSit.length}</b> contas</span><span>·</span>
+      <span style="color:#10B981"><b>${cont('ativo')}</b> ativas (7 dias)</span><span>·</span>
+      <span style="color:#F59E0B"><b>${cont('parado')}</b> paradas (8 a 30 dias)</span><span>·</span>
+      <span style="color:#EF4444"><b>${cont('inativo')}</b> inativas (mais de 30 dias)</span>
+      <button class="btn btn-sm" style="margin-left:auto;" onclick="carregarUsuarios()">🔄 Atualizar</button>
+    </div>`;
+  const filtros = [['todos', 'Todos'], ['ativo', 'Ativos'], ['parado', 'Parados'], ['inativo', 'Inativos']];
+  document.getElementById('usuarios-filtro').innerHTML = filtros.map(([id, nome]) =>
+    `<button class="pessoa-filter-btn ${usuariosFiltro === id ? 'active' : ''}" onclick="setUsuariosFiltro('${id}')">${nome}</button>`).join('');
+  const rows = comSit.filter(x => usuariosFiltro === 'todos' || x.s.id === usuariosFiltro)
+    .sort((a, b) => new Date(b.u.ultimo_acesso || 0) - new Date(a.u.ultimo_acesso || 0));
+  lista.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr style="text-align:left;color:var(--gray-text);">
+      <th>Usuário</th><th>Situação</th><th>Primeiro acesso</th><th>Último acesso</th><th>Workspaces e uso</th><th>Assessor (mês)</th><th>Liberações</th>
+    </tr></thead><tbody>` + rows.map(({ u, s }) => `
+    <tr style="border-top:1px solid var(--border,#e5e7eb);">
+      <td><b>${escapeHtml(u.nome || u.email)}</b>${u.nome ? `<br><small style="color:var(--gray-text)">${escapeHtml(u.email)}</small>` : ''}${u.cliente_cronograma ? '<br><small>👤 cliente do Cronograma</small>' : ''}</td>
+      <td><span style="color:${s.cor};font-weight:600;">● ${s.rotulo}</span></td>
+      <td>${dataHoraCurta(u.criado_em)}<br><small style="color:var(--gray-text)">${tempoDeUso(u.criado_em) === 'hoje' ? 'começou hoje' : tempoDeUso(u.criado_em) + ' de uso'}</small></td>
+      <td>${dataHoraCurta(u.ultimo_acesso || u.ultimo_login)}<br><small style="color:var(--gray-text)">${(() => { const d = diasDesde(u.ultimo_acesso || u.ultimo_login); return d === null ? '' : d < 1 ? 'hoje' : 'há ' + d + (d === 1 ? ' dia' : ' dias'); })()}${u.ultima_movimentacao ? ' · mov. ' + dataHoraCurta(u.ultima_movimentacao) : ''}</small></td>
+      <td>${u.workspaces} <small style="color:var(--gray-text)">${(u.perfis || []).join(', ')}</small><br><small style="color:var(--gray-text)">${u.atividades} atividades · ${u.agendamentos} na agenda</small></td>
+      <td>${u.assessor_mensagens_mes} uso${u.assessor_mensagens_mes === 1 ? '' : 's'} · US$ ${Number(u.assessor_custo_mes_usd || 0).toFixed(2)}${u.telegram ? '<br><small>📱 Telegram</small>' : ''}${u.emails_conectados ? `<small> 📧 ${u.emails_conectados}</small>` : ''}</td>
+      <td>${u.user_id === currentUser.id ? '<small style="color:var(--gray-text)">Master: tudo liberado</small>' : `<button class="btn btn-sm" onclick="abrirLiberacoes('${u.user_id}')" title="Liberar ou remover serviços pagos">⚙️ Gerenciar</button>${(u.recursos || []).length ? '<div style="margin-top:4px;">' + (u.recursos || []).map(r => `<span style="display:inline-block;font-size:11px;background:var(--light-bg);border-radius:100px;padding:1px 8px;margin:0 4px 2px 0;white-space:nowrap;">${(RECURSOS_PAGOS.find(x => x[0] === r) || [r, r])[1]}</span>`).join('') + '</div>' : ''}`}</td>
+    </tr>`).join('') + `</tbody></table>
+    <p style="color:var(--gray-text);font-size:12px;margin-top:10px;">Ativo = acessou nos últimos 7 dias. "Último acesso" vem da sessão de login (renova enquanto a pessoa mantém o app aberto); "Última movimentação" é a última atividade ou compromisso criado nos workspaces dela (inclui o que outros membros criaram). Workspaces e contagens são dos workspaces em que a pessoa é membro ativo. <b>Liberações</b>: Buscar, assessor no Telegram e leitura de e-mail gastam tokens da sua conta e ficam travados para todo mundo; use o botão ⚙️ Gerenciar para liberar uma pessoa (a trava é no banco, não só na tela). Remover um serviço desconecta o Telegram/e-mail dela.</p>`;
+}
+
+// Alertas do WhatsApp: a própria conta do usuário (sessão caiu) e, só para o master, a saúde do serviço (servidor e sessões de todos).
+// O vigia (Edge Function whatsapp-agendadas, a cada 10 min) grava; aqui só se lê.
+let waSaude = null, waMinhaConta = null, waAlertaTimer = null;
+async function carregarAlertasWhatsapp() {
+  if (!sb || !currentUser) return;
+  if (temRecurso('whatsapp')) {
+    const { data } = await sb.from('whatsapp_contas').select('status, ultimo_erro, consentimento_em').eq('user_id', currentUser.id).maybeSingle();
+    waMinhaConta = data || null;
+  } else waMinhaConta = null;
+  if (souMaster()) { const { data } = await sb.rpc('master_whatsapp_saude'); waSaude = data || null; }
+  renderAlertaWhatsapp();
+  if (activeTab === 'whatsapp') renderWhatsapp(true);
+}
+function iniciarAlertasWhatsapp() {
+  clearInterval(waAlertaTimer); waAlertaTimer = null;
+  carregarAlertasWhatsapp();
+  waAlertaTimer = setInterval(() => { if (!document.hidden) carregarAlertasWhatsapp(); }, 5 * 60 * 1000);
+}
+function waNomeDaChave(e) { return e.chave === 'servidor' ? 'Servidor do WhatsApp' : 'Sessão de ' + (e.email || 'uma pessoa'); }
+function renderAlertaWhatsapp() {
+  const box = document.getElementById('alerta-whatsapp');
+  if (!box) return;
+  const linhas = [];
+  if (waMinhaConta && waMinhaConta.status === 'desconectada' && waMinhaConta.consentimento_em && waMinhaConta.ultimo_erro)
+    linhas.push({ ruim: true, texto: '<b>Seu WhatsApp desconectou.</b> ' + escapeHtml(waMinhaConta.ultimo_erro) + ' As mensagens programadas esperam você reconectar.', botao: true });
+  if (souMaster() && waSaude)
+    (waSaude.estados || []).filter(e => !e.ok).forEach(e => {
+      if (e.chave.startsWith('sessao:') && e.email === currentUser.email) return;   // a sua própria já aparece acima
+      linhas.push({ ruim: e.chave === 'servidor', texto: '<b>' + escapeHtml(waNomeDaChave(e)) + ':</b> ' + escapeHtml(e.detalhe || 'com problema') + ' (desde ' + formatDataHora(e.desde) + ')', botao: true });
+    });
+  box.style.display = linhas.length ? '' : 'none';
+  box.innerHTML = linhas.map(l => `<div class="wa-alerta ${l.ruim ? 'ruim' : ''}" role="alert" style="margin-bottom:8px;"><span>⚠️ ${l.texto}</span>${l.botao ? '<button class="btn btn-sm" onclick="setTab(\'whatsapp\')">Abrir WhatsApp</button>' : ''}</div>`).join('');
+}
+function renderSaudeWhatsapp() {
+  const sv = document.getElementById('wa-servico'), box = document.getElementById('wa-saude');
+  if (sv) {   // aviso para qualquer pessoa: o serviço está fora do ar (vem do estado)
+    const s = waEstado && waEstado.servico;
+    sv.innerHTML = s && s.ok === false ? `<div class="wa-alerta" role="alert">⚠️ <span><b>O serviço de WhatsApp está instável desde ${escapeHtml(formatDataHora(s.desde))}.</b> As mensagens programadas ficam na fila e saem quando ele voltar.</span></div>` : '';
+  }
+  if (!box) return;
+  if (!souMaster() || !waSaude) { box.innerHTML = ''; return; }
+  const est = waSaude.estados || [], ev = waSaude.eventos || [];
+  const srv = est.find(e => e.chave === 'servidor');
+  const sessoes = est.filter(e => e.chave.startsWith('sessao:'));
+  box.innerHTML = `<h3 style="font-size:15px;margin-bottom:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">Saúde do serviço <small style="font-weight:400;color:var(--gray-text)">(só você vê; o vigia confere a cada 10 min)</small><button class="btn btn-sm" style="margin-left:auto;" onclick="abrirRelatorioWa()">📊 Relatório</button></h3>
+    <div style="font-size:13px;line-height:1.7;">
+      <div>${!srv ? '⚪ Servidor: ainda sem verificação (precisa estar configurado)' : srv.ok ? '🟢 Servidor no ar' : '🔴 Servidor fora do ar: ' + escapeHtml(srv.detalhe || '')}${srv && srv.verificado_em ? ' <small style="color:var(--gray-text)">· verificado ' + formatDataHora(srv.verificado_em) + '</small>' : ''}</div>
+      <div>${sessoes.length ? sessoes.map(s => (s.ok ? '🟢 ' : '🔴 ') + escapeHtml(s.email || 'pessoa') + ': ' + escapeHtml(s.detalhe || '')).join('<br>') : '<span style="color:var(--gray-text)">Nenhuma sessão com problema registrado.</span>'}</div>
+    </div>
+    ${ev.length ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;">Últimos eventos (${ev.length})</summary><div style="font-size:12.5px;line-height:1.7;margin-top:6px;">${ev.map(e => `${e.ok ? '🟢' : '🔴'} ${escapeHtml(formatDataHora(e.em))} · ${escapeHtml(waNomeDaChave(e))}: ${escapeHtml(e.detalhe || '')}`).join('<br>')}</div></details>` : ''}`;
+}
+
+// Relatório de saúde do WhatsApp (só master): incidentes montados a partir dos eventos do vigia (queda e volta de cada item).
+let waRel = null;
+function waDuracao(ms) {
+  if (ms == null) return '—';
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h < 48) return h + ' h' + (m ? ' ' + m + ' min' : '');
+  const d = Math.floor(h / 24);
+  return d + ' d' + (h % 24 ? ' ' + (h % 24) + ' h' : '');
+}
+// Cada item (servidor ou sessão de uma pessoa) tem eventos "caiu" e "voltou". O início do incidente é o momento do alerta
+// (já depois de 2 verificações com falha, ou seja, 10 a 20 min depois do início real).
+function waMontarIncidentes(rel) {
+  const agora = new Date(rel.agora).getTime(), ini = agora - rel.dias * 86400000;
+  const porChave = {};
+  (rel.eventos || []).forEach(e => { (porChave[e.chave] = porChave[e.chave] || []).push(e); });
+  const lista = [];
+  const nome = (e) => e.chave === 'servidor' ? 'Servidor' : 'Sessão de ' + (e.email || 'pessoa');
+  Object.entries(porChave).forEach(([chave, evs]) => {
+    let aberto = null;
+    evs.sort((a, b) => new Date(a.em) - new Date(b.em)).forEach(e => {
+      if (!e.ok) { if (!aberto) aberto = e; }
+      else if (aberto) { lista.push({ chave, item: nome(aberto), inicio: new Date(aberto.em).getTime(), fim: new Date(e.em).getTime(), causa: aberto.detalhe || '' }); aberto = null; }
+      else lista.push({ chave, item: nome(e), inicio: null, fim: new Date(e.em).getTime(), causa: 'Começou antes do período' });
+    });
+    if (aberto) lista.push({ chave, item: nome(aberto), inicio: new Date(aberto.em).getTime(), fim: null, causa: aberto.detalhe || '' });
+  });
+  // estado atual com problema mas sem evento no período (começou antes dele)
+  (rel.estados || []).filter(s => !s.ok && !lista.some(i => i.chave === s.chave && i.fim == null)).forEach(s =>
+    lista.push({ chave: s.chave, item: s.chave === 'servidor' ? 'Servidor' : 'Sessão de ' + (s.email || 'pessoa'), inicio: new Date(s.desde).getTime(), fim: null, causa: s.detalhe || '' }));
+  lista.sort((a, b) => (b.inicio ?? b.fim) - (a.inicio ?? a.fim));
+  const duracao = (i) => i.inicio == null ? null : (i.fim ?? agora) - Math.max(i.inicio, ini);
+  lista.forEach(i => { i.duracao = duracao(i); });
+  const obsDesde = Math.max(ini, rel.vigia_desde ? new Date(rel.vigia_desde).getTime() : agora);
+  const srv = lista.filter(i => i.chave === 'servidor');
+  const fora = srv.reduce((t, i) => t + (i.duracao || 0), 0);
+  const observado = Math.max(agora - obsDesde, 1);
+  return { lista, observadoMs: agora - obsDesde, obsDesde, incSrv: srv.length, foraMs: fora,
+    disponibilidade: rel.vigia_desde ? Math.max(0, 100 - fora / observado * 100) : null,
+    incSessao: lista.filter(i => i.chave !== 'servidor').length, pessoas: new Set(lista.filter(i => i.chave !== 'servidor').map(i => i.item)).size };
+}
+async function abrirRelatorioWa() {
+  document.getElementById('wa-rel-corpo').innerHTML = '<p class="config-hint">Carregando...</p>';
+  document.getElementById('wa-rel-modal-overlay').classList.add('open');
+  await carregarRelatorioWa();
+}
+function fecharRelatorioWa() { document.getElementById('wa-rel-modal-overlay').classList.remove('open'); }
+async function carregarRelatorioWa() {
+  const dias = parseInt(document.getElementById('wa-rel-dias').value, 10) || 30;
+  const { data, error } = await sb.rpc('master_whatsapp_relatorio', { p_dias: dias });
+  if (error) { document.getElementById('wa-rel-corpo').innerHTML = '<p class="config-hint">⚠️ ' + escapeHtml(error.message) + '</p>'; return; }
+  waRel = data; renderRelatorioWa();
+}
+function renderRelatorioWa() {
+  const box = document.getElementById('wa-rel-corpo');
+  if (!waRel) { box.innerHTML = ''; return; }
+  if (!waRel.vigia_desde) { box.innerHTML = '<p class="config-hint">O vigia ainda não fez nenhuma verificação. Assim que o servidor do WhatsApp estiver configurado, os registros aparecem aqui.</p>'; return; }
+  const r = waMontarIncidentes(waRel);
+  const card = (titulo, valor, sub, cor) => `<div style="flex:1 1 150px;border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:12px 14px;"><div style="font-size:12px;color:var(--gray-text);">${titulo}</div><div style="font-size:22px;font-weight:700;${cor ? 'color:' + cor : ''}">${valor}</div><div style="font-size:12px;color:var(--gray-text);">${sub}</div></div>`;
+  const disp = r.disponibilidade == null ? '—' : r.disponibilidade.toFixed(2).replace('.', ',') + '%';
+  box.innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;">
+      ${card('Disponibilidade do servidor', disp, 'observada desde ' + formatDataHora(new Date(r.obsDesde).toISOString()), r.disponibilidade != null && r.disponibilidade < 99 ? '#EF4444' : '#10B981')}
+      ${card('Quedas do servidor', r.incSrv, 'fora do ar por ' + waDuracao(r.incSrv ? r.foraMs : 0), r.incSrv ? '#F59E0B' : '')}
+      ${card('Sessões que caíram', r.incSessao, r.pessoas + (r.pessoas === 1 ? ' pessoa afetada' : ' pessoas afetadas'), r.incSessao ? '#F59E0B' : '')}
+    </div>
+    <p style="font-size:12px;color:var(--gray-text);margin:8px 0 12px;">Última verificação: ${waRel.ultima_verificacao ? formatDataHora(waRel.ultima_verificacao) : '—'}. O início de cada incidente é o momento do alerta, que sai depois de 2 verificações seguidas com falha (cerca de 10 a 20 min depois do início real). A disponibilidade só conta o tempo em que o vigia já estava ativo.</p>
+    ${r.lista.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:var(--gray-text);"><th style="padding:8px 12px;">Item</th><th style="padding:8px 12px;white-space:nowrap;">Começou</th><th style="padding:8px 12px;white-space:nowrap;">Terminou</th><th style="padding:8px 12px;">Duração</th><th style="padding:8px 12px;">Causa</th></tr></thead><tbody>` +
+      r.lista.map(i => `<tr style="border-top:1px solid var(--border,#e5e7eb);"><td style="padding:10px 12px;">${escapeHtml(i.item)}</td><td style="padding:10px 12px;white-space:nowrap;">${i.inicio ? formatDataHora(new Date(i.inicio).toISOString()) : 'antes do período'}</td><td style="padding:10px 12px;white-space:nowrap;">${i.fim ? formatDataHora(new Date(i.fim).toISOString()) : '<b style="color:#EF4444">em andamento</b>'}</td><td style="padding:10px 12px;white-space:nowrap;">${waDuracao(i.duracao)}</td><td style="padding:10px 12px;">${escapeHtml(i.causa)}</td></tr>`).join('') + '</tbody></table></div>'
+      : '<p style="padding:16px 0;">✅ Nenhum incidente neste período.</p>'}`;
+}
+function waCsvRelatorio(rel) {
+  const r = waMontarIncidentes(rel);
+  const fmt = (ms) => ms ? new Date(ms).toLocaleString('pt-BR') : '';
+  const cel = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const linhas = [['Item', 'Começou', 'Terminou', 'Duração (min)', 'Situação', 'Causa']];
+  r.lista.forEach(i => linhas.push([i.item, i.inicio ? fmt(i.inicio) : 'antes do período', fmt(i.fim), i.duracao == null ? '' : Math.max(1, Math.round(i.duracao / 60000)), i.fim ? 'Resolvido' : 'Em andamento', i.causa]));
+  return '﻿' + linhas.map(l => l.map(cel).join(';')).join('\r\n');
+}
+function baixarCsvRelatorioWa() {
+  if (!waRel) return;
+  const blob = new Blob([waCsvRelatorio(waRel)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'whatsapp-saude-' + todayStr() + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ══════════════════════════════════════════════════════════════
+// WHATSAPP (WuzAPI): conectar por QR e enviar/programar mensagens. Serviço pago: só aparece para quem o master liberou.
+// Tudo passa pela Edge Function whatsapp-api (o navegador só lê a lista de mensagens, pela RLS).
+// ══════════════════════════════════════════════════════════════
+let waEstado = null, waMensagens = [], waQr = null, waTimer = null, waListaTimer = null, waCarregando = false;
+function waParar() { clearInterval(waTimer); waTimer = null; clearInterval(waListaTimer); waListaTimer = null; }
+async function waChamar(corpo) {
+  const { data, error } = await sb.functions.invoke('whatsapp-api', { body: corpo });
+  if (error) return { ok: false, erro: 'Não consegui falar com o servidor: ' + error.message };
+  return data || { ok: false, erro: 'Resposta vazia do servidor.' };
+}
+function waFormatarFone(f) {
+  const d = String(f || '');
+  const m = d.match(/^55(\d{2})(9?\d{4})(\d{4})$/);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : '+' + d;
+}
+async function carregarWhatsapp() {
+  if (!sb || !currentUser || waCarregando) return;
+  waCarregando = true;
+  try {
+    const [est, lista] = await Promise.all([
+      waChamar({ acao: 'estado' }),
+      sb.from('whatsapp_mensagens').select('id, telefone, nome, texto, enviar_em, status, erro, enviado_em, origem').order('criado_em', { ascending: false }).limit(100),
+    ]);
+    waEstado = est;
+    if (!lista.error) waMensagens = lista.data || [];
+  } finally { waCarregando = false; }
+  if (activeTab === 'whatsapp') renderWhatsapp(true);
+  carregarAlertasWhatsapp();
+}
+function renderWhatsapp(semRecarregar) {
+  const box = document.getElementById('wa-conexao');
+  if (!box) return;
+  if (!semRecarregar) carregarWhatsapp();
+  if (!waListaTimer) waListaTimer = setInterval(() => { if (activeTab === 'whatsapp' && !telaOcupada()) carregarWhatsapp(); }, 20000);
+  if (!waEstado) { box.innerHTML = '<p class="config-hint">Carregando...</p>'; document.getElementById('wa-lista').innerHTML = ''; return; }
+  const e = waEstado, c = e.conta;
+  let html = '';
+  if (e.ok === false && !e.conta) html = `<p class="config-hint">⚠️ ${escapeHtml(e.erro || 'Não foi possível carregar.')}</p>`;
+  else if (!e.configurado) html = '<p class="config-hint">🛠 O servidor do WhatsApp ainda não foi configurado pelo administrador do Taskfull. Assim que for, a conexão aparece aqui.</p>';
+  else if (c && c.status === 'conectada') {
+    html = `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <span><b>✅ Conectado</b>${c.telefone ? ' · ' + escapeHtml(waFormatarFone(c.telefone)) : ''}</span>
+      <span style="color:var(--gray-text);font-size:13px;">Hoje: ${e.enviadas_hoje} de ${c.limite_diario} mensagens</span>
+      <button class="btn btn-primary btn-sm" onclick="abrirNovaMensagemWa()">+ Nova mensagem</button>
+      <button class="btn btn-sm" onclick="withLock(this, waDesconectar)">Desconectar</button></div>`;
+  } else if (c && c.status === 'aguardando_qr') {
+    waVigiarQr();
+    html = `<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+      <div style="width:230px;height:230px;border:1px solid var(--border,#e5e7eb);border-radius:12px;display:flex;align-items:center;justify-content:center;background:#fff;">${waQr ? `<img src="${escapeHtml(waQr)}" alt="QR code do WhatsApp" style="width:210px;height:210px;">` : '<span style="color:#6b7280;font-size:13px;">Gerando o QR code...</span>'}</div>
+      <div style="max-width:380px;"><b>Leia o QR code com o seu celular</b>
+        <ol style="margin:8px 0 12px 18px;font-size:13px;line-height:1.6;"><li>Abra o WhatsApp no celular</li><li>Toque em <b>Aparelhos conectados</b></li><li>Toque em <b>Conectar um aparelho</b> e aponte para o código</li></ol>
+        <button class="btn btn-sm" onclick="withLock(this, waDesconectar)">Cancelar</button></div></div>`;
+  } else {
+    html = `<div style="max-width:620px;">
+      <p style="margin-bottom:10px;"><b>Conecte o seu WhatsApp</b> para enviar e programar mensagens por aqui.</p>
+      <div style="background:var(--light-bg);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:12px;">
+        ⚠️ <b>Antes de conectar:</b> esta conexão usa o WhatsApp de forma <b>não oficial</b>. O WhatsApp pode restringir ou <b>bloquear números</b> que enviam muitas mensagens ou escrevem para quem não espera. Envie só para quem aceita receber, com moderação. O Taskfull limita o envio a ${c ? c.limite_diario : 50} mensagens por dia e confere se o número tem WhatsApp antes de enviar.</div>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;margin-bottom:12px;"><input type="checkbox" id="wa-consentimento" style="margin-top:3px;"> Entendo os riscos e quero conectar o meu WhatsApp.</label>
+      ${c && c.ultimo_erro ? `<p class="config-hint">Último erro: ${escapeHtml(c.ultimo_erro)}</p>` : ''}
+      <button class="btn btn-primary" onclick="withLock(this, waConectar)">Conectar WhatsApp</button></div>`;
+  }
+  box.innerHTML = html;
+  renderSaudeWhatsapp();
+  const nomesStatus = { agendada: ['🕒 Programada', '#2563EB'], enviando: ['⏳ Enviando', '#F59E0B'], enviada: ['✅ Enviada', '#10B981'], erro: ['⚠️ Erro', '#EF4444'], cancelada: ['⛔ Cancelada', '#6B7280'] };
+  document.getElementById('wa-lista').innerHTML = !waMensagens.length ? '' : `<h3 style="font-size:15px;margin-bottom:8px;">Mensagens</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:var(--gray-text);"><th style="padding:10px 14px;">Para</th><th style="padding:10px 14px;">Mensagem</th><th style="padding:10px 14px;white-space:nowrap;">Quando</th><th style="padding:10px 14px;">Situação</th><th></th></tr></thead><tbody>` +
+    waMensagens.map(m => { const s = nomesStatus[m.status] || [m.status, '#6B7280']; return `<tr style="border-top:1px solid var(--border,#e5e7eb);">
+      <td style="padding:12px 14px;white-space:nowrap;"><b>${escapeHtml(m.nome || waFormatarFone(m.telefone))}</b>${m.nome ? `<br><small style="color:var(--gray-text)">${escapeHtml(waFormatarFone(m.telefone))}</small>` : ''}</td>
+      <td style="padding:12px 14px;max-width:360px;">${escapeHtml(m.texto.length > 120 ? m.texto.slice(0, 120) + '…' : m.texto)}</td>
+      <td style="padding:12px 14px;white-space:nowrap;">${formatDataHora(m.status === 'enviada' && m.enviado_em ? m.enviado_em : m.enviar_em)}</td>
+      <td style="padding:12px 14px;"><span style="color:${s[1]};font-weight:600;white-space:nowrap;">${s[0]}</span>${m.erro && m.status !== 'enviada' ? `<br><small style="color:var(--gray-text)">${escapeHtml(m.erro)}</small>` : ''}</td>
+      <td style="padding:12px 14px;">${m.status === 'agendada' ? `<button class="btn btn-sm" onclick="withLock(this, () => waCancelar('${m.id}'))">Cancelar</button>` : ''}</td></tr>`; }).join('') + '</tbody></table>';
+}
+async function waConectar() {
+  if (!document.getElementById('wa-consentimento')?.checked) { alert('Marque a caixa para confirmar que entendeu os riscos.'); return; }
+  const r = await waChamar({ acao: 'conectar', consentimento: true, workspace_id: activeWorkspace.id });
+  if (!r.ok) { alert(r.erro || 'Não foi possível conectar.'); return; }
+  waQr = null;
+  await carregarWhatsapp();
+  waVigiarQr();
+}
+// Confere a cada 3 s se o QR foi lido (e atualiza o QR, que expira). Também religa depois de Atualizar/recarregar a página.
+function waVigiarQr() {
+  if (waTimer) return;
+  let tentativas = 0;
+  waTimer = setInterval(async () => {
+    if (activeTab !== 'whatsapp' || ++tentativas > 50) { clearInterval(waTimer); waTimer = null; return; }
+    const q = await waChamar({ acao: 'qr' });
+    if (q.conectada) { clearInterval(waTimer); waTimer = null; waQr = null; await carregarWhatsapp(); return; }
+    if (q.ok && q.qr && q.qr !== waQr) { waQr = q.qr; renderWhatsapp(true); }
+  }, 3000);
+}
+async function waDesconectar() {
+  if (!confirm('Desconectar o WhatsApp? As mensagens programadas que ainda não saíram serão canceladas.')) return;
+  waParar(); waQr = null;
+  const r = await waChamar({ acao: 'desconectar' });
+  if (!r.ok) alert(r.erro || 'Não foi possível desconectar.');
+  await carregarWhatsapp();
+}
+async function waCancelar(id) {
+  const r = await waChamar({ acao: 'cancelar', id });
+  if (!r.ok) alert(r.erro || 'Não foi possível cancelar.');
+  await carregarWhatsapp();
+}
+function waContar() { const t = document.getElementById('wa-texto'); document.getElementById('wa-contagem').textContent = '(' + t.value.length + '/1500)'; }
+function waTipoQuando() {
+  const prog = document.getElementById('wa-quando-tipo').value === 'programar';
+  const q = document.getElementById('wa-quando'); q.style.display = prog ? '' : 'none';
+  if (prog && !q.value) { const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0); q.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
+  document.getElementById('wa-btn-enviar').textContent = prog ? 'Programar' : 'Enviar';
+}
+// Contatos para escolher o número: os das fichas de clientes/projetos e os últimos números para quem já se enviou.
+let waContatos = [];
+function waMontarContatos() {
+  const vistos = new Set(), lista = [];
+  const add = (nome, tel, extra) => {
+    const d = String(tel || '').replace(/\D/g, ''); if (d.length < 10 || vistos.has(d)) return;
+    vistos.add(d); lista.push({ nome: nome || '', tel: String(tel).trim(), extra });
+  };
+  for (const e of (state.entidades || [])) for (const c of (e.contatos || [])) add(c.nome, c.telefone, e.nome);
+  for (const m of waMensagens) add(m.nome, m.telefone, 'enviado antes');
+  waContatos = lista.slice(0, 200);
+  document.getElementById('wa-contato').innerHTML = '<option value="">— digitar o número —</option>' + waContatos.map((c, i) =>
+    `<option value="${i}">${escapeHtml((c.nome || c.tel) + (c.nome ? ' · ' + c.tel : '') + (c.extra ? ' (' + c.extra + ')' : ''))}</option>`).join('');
+}
+function waAplicarContato() {
+  const i = document.getElementById('wa-contato').value; if (i === '') return;
+  const c = waContatos[+i]; if (!c) return;
+  document.getElementById('wa-telefone').value = c.tel;
+  if (c.nome) document.getElementById('wa-nome').value = c.nome;
+}
+function abrirNovaMensagemWa(agId, atId) {
+  waMontarContatos();
+  const hoje = todayStr();
+  const futuros = agendamentos.filter(a => !a.feito && a.data >= hoje).sort((x, y) => (x.data + (x.hora || '')).localeCompare(y.data + (y.hora || ''))).slice(0, 30);
+  const abertas = atividades.filter(a => !a.cancelado && a.coluna !== 'concluida').slice(0, 30);
+  document.getElementById('wa-modelo').innerHTML = '<option value="">— escrever do zero —</option>' +
+    (futuros.length ? '<optgroup label="Compromissos">' + futuros.map(a => `<option value="ag:${a.id}">${escapeHtml(formatDate(a.data) + (a.hora ? ' ' + a.hora.slice(0, 5) : '') + ' · ' + a.titulo)}</option>`).join('') + '</optgroup>' : '') +
+    (abertas.length ? '<optgroup label="Atividades em aberto">' + abertas.map(a => `<option value="at:${a.id}">${escapeHtml(a.titulo)}</option>`).join('') + '</optgroup>' : '');
+  ['wa-telefone', 'wa-nome', 'wa-texto'].forEach(i => { document.getElementById(i).value = ''; });
+  if (atId) {   // vindo de Atividades
+    const sel = document.getElementById('wa-modelo');
+    if (![...sel.options].some(o => o.value === 'at:' + atId)) {
+      const a = atividades.find(x => x.id === atId);
+      if (a) sel.insertAdjacentHTML('beforeend', `<option value="at:${a.id}">${escapeHtml(a.titulo)}</option>`);
+    }
+    sel.value = 'at:' + atId;
+    waAplicarModelo();
+  }
+  if (agId) {   // vindo da Agenda: o compromisso já vem escolhido e a pessoa só digita o telefone
+    const sel = document.getElementById('wa-modelo');
+    if (![...sel.options].some(o => o.value === 'ag:' + agId)) {
+      const a = agendamentos.find(x => x.id === agId);
+      if (a) sel.insertAdjacentHTML('beforeend', `<option value="ag:${a.id}">${escapeHtml(formatDate(a.data) + (a.hora ? ' ' + a.hora.slice(0, 5) : '') + ' · ' + a.titulo)}</option>`);
+    }
+    sel.value = 'ag:' + agId;
+    waAplicarModelo();
+  }
+  document.getElementById('wa-quando-tipo').value = 'agora';
+  document.getElementById('wa-quando').value = '';
+  waTipoQuando(); waContar();
+  document.getElementById('wa-modal-overlay').classList.add('open');
+  if (agId || atId) setTimeout(() => document.getElementById('wa-telefone')?.focus(), 50);
+}
+// Compartilhar uma atividade (mesmo formato do relatório de concluídas, só desta atividade): texto, imagem ou WhatsApp.
+let compartilharAtividadeId = null;
+function textoAtividade(a) {
+  const col = (colunasAtivas().find(c => c.id === a.coluna) || {}).nome || a.coluna;
+  const linhas = ['📝 ' + a.titulo];
+  linhas.push('Situação: ' + (a.cancelado ? 'Cancelada' : col));
+  if (a.responsavel) linhas.push('Responsável: ' + a.responsavel);
+  if (a.entidadeNome) linhas.push(entidadeLabel().slice(0, -1) + ': ' + a.entidadeNome);
+  if (a.concluidoEm) linhas.push('Concluída em: ' + formatDate(a.concluidoEm));
+  if (a.descricao) linhas.push('', a.descricao);
+  if (a.resolucao) linhas.push('', 'Resolução: ' + a.resolucao);
+  return linhas.join('\n');
+}
+function abrirCompartilharAtividade() {
+  const a = atividades.find(x => x.id === editingAtividadeId); if (!a) return;
+  compartilharAtividadeId = a.id;
+  const col = (colunasAtivas().find(c => c.id === a.coluna) || {}).nome || a.coluna;
+  const meta = [a.cancelado ? 'Cancelada' : col, a.responsavel ? 'Responsável: ' + a.responsavel : '', a.entidadeNome || '', a.concluidoEm ? 'Concluída em ' + formatDate(a.concluidoEm) : ''].filter(Boolean).join(' · ');
+  document.getElementById('ativ-share-visual').innerHTML = `<div class="rv-header"><h3>${escapeHtml(activeWorkspace.nome)} — Atividade</h3><p>${escapeHtml(meta)}</p></div>
+    <div class="rv-tarefa ${a.coluna === 'concluida' && !a.cancelado ? '' : 'rv-aberta'}">${escapeHtml(a.titulo)}${a.descricao ? `<div class="rv-resolucao" style="font-style:normal">${escapeHtml(a.descricao)}</div>` : ''}${a.resolucao ? `<div class="rv-resolucao">Resolução: ${escapeHtml(a.resolucao)}</div>` : ''}</div>`;
+  document.getElementById('ativ-share-wa').style.display = temRecurso('whatsapp') ? '' : 'none';
+  closeAtividadeModal();
+  document.getElementById('ativ-share-modal-overlay').classList.add('open');
+}
+function fecharCompartilharAtividade() { document.getElementById('ativ-share-modal-overlay').classList.remove('open'); }
+function nomeArquivoAtividade(ext) {
+  const a = atividades.find(x => x.id === compartilharAtividadeId);
+  return 'atividade-' + String((a && a.titulo) || 'atividade').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '.' + ext;
+}
+function baixarAtividadeTexto() {
+  const a = atividades.find(x => x.id === compartilharAtividadeId); if (!a) return;
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([textoAtividade(a)], { type: 'text/plain' }));
+  link.download = nomeArquivoAtividade('txt');
+  link.click();
+}
+async function canvasAtividade() { return await html2canvas(document.getElementById('ativ-share-visual'), { backgroundColor: '#ffffff', scale: 2 }); }
+async function baixarAtividadeImagem() {
+  const canvas = await canvasAtividade();
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = nomeArquivoAtividade('png');
+  link.click();
+}
+async function copiarAtividadeImagem() {
+  const canvas = await canvasAtividade();
+  canvas.toBlob(async (blob) => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      alert('Imagem copiada! Já pode colar (Ctrl+V) onde quiser.');
+    } catch (e) {
+      alert('Não foi possível copiar automaticamente nesse navegador. Use "Baixar Imagem" e anexe o arquivo.');
+    }
+  });
+}
+async function enviarAtividadeWa() {
+  const id = compartilharAtividadeId; if (!id) return;
+  if (!waEstado) await carregarWhatsapp();
+  const c = waEstado && waEstado.conta;
+  if (!c || c.status !== 'conectada') { alert('Conecte o seu WhatsApp primeiro: aba WhatsApp → Conectar WhatsApp.'); return; }
+  fecharCompartilharAtividade();
+  abrirNovaMensagemWa(null, id);
+}
+// Botão do compromisso (Agenda): abre o envio do WhatsApp com o compromisso preenchido. Não envia nada sozinho.
+async function compartilharAgendamentoWa() {
+  const id = editingAgendamentoId;
+  if (!id) return;
+  if (!waEstado) await carregarWhatsapp();
+  const c = waEstado && waEstado.conta;
+  if (!c || c.status !== 'conectada') { alert('Conecte o seu WhatsApp primeiro: aba WhatsApp → Conectar WhatsApp.'); return; }
+  closeAgendamentoModal();
+  abrirNovaMensagemWa(id);
+}
+function fecharNovaMensagemWa() { document.getElementById('wa-modal-overlay').classList.remove('open'); }
+function waAplicarModelo() {
+  const v = document.getElementById('wa-modelo').value; if (!v) return;
+  const [tipo, id] = v.split(':');
+  const t = document.getElementById('wa-texto');
+  if (tipo === 'ag') {
+    const a = agendamentos.find(x => x.id === id); if (!a) return;
+    t.value = `Olá! Lembrando do nosso compromisso: ${a.titulo}, em ${formatDate(a.data)}${a.hora ? ' às ' + a.hora.slice(0, 5) : ''}.`;
+  } else {
+    const a = atividades.find(x => x.id === id); if (!a) return;
+    t.value = `Olá! Sobre: ${a.titulo}.${a.descricao ? '\n' + a.descricao : ''}`;
+  }
+  waContar();
+}
+async function enviarMensagemWa() {
+  const programar = document.getElementById('wa-quando-tipo').value === 'programar';
+  const q = document.getElementById('wa-quando').value;
+  if (programar && !q) { alert('Escolha a data e a hora do envio.'); return; }
+  const modelo = document.getElementById('wa-modelo').value;
+  const corpo = {
+    acao: 'enviar', telefone: document.getElementById('wa-telefone').value, nome: document.getElementById('wa-nome').value,
+    texto: document.getElementById('wa-texto').value, quando: programar ? new Date(q).toISOString() : null,
+    origem: modelo.startsWith('ag:') ? 'agenda' : modelo.startsWith('at:') ? 'atividade' : 'manual', origem_id: modelo ? modelo.split(':')[1] : null,
+  };
+  const r = await waChamar(corpo);
+  if (!r.ok && r.status !== 'agendada') { alert(r.erro || 'Não foi possível enviar.'); await carregarWhatsapp(); return; }
+  fecharNovaMensagemWa();
+  await carregarWhatsapp();
+  if (r.status === 'agendada' && !programar) alert('A mensagem ficou na fila: ' + (r.erro || 'será enviada em breve.'));
+}
+
 function renderBuscar() {
   document.getElementById('buscar-sub').textContent = temAba('entidades')
     ? 'Procure nas notas, atividades e pendências deste workspace. Dá pra escrever uma pergunta normal, ex.: "quando foi feito o treinamento do ' + (entidadeLabel().slice(0, -1).toLowerCase() || 'cliente') + ' X?"'
@@ -3945,7 +4692,27 @@ async function withLock(btn, asyncFn) {
   btn.disabled = true; btn.style.opacity = '0.6';
   try { await asyncFn(); } finally { btn.disabled = false; btn.style.opacity = ''; }
 }
-function abasAtivas() { return activeWorkspace ? PERFIL_ABAS[activeWorkspace.perfilTipo] : []; }
+// Conta master (dono do app): só ela vê "Buscar" (uso pago, gasta tokens) e "Usuários". A checagem de verdade
+// dos dados é no servidor (eh_master / master_usuarios); aqui é só para esconder o botão.
+const MASTER_EMAIL = 'ejnascimento@hotmail.com';
+// Recursos pagos (ainda em teste) que o master libera pessoa a pessoa: 'buscar', 'assessor_telegram', 'assessor_email'.
+// A trava de verdade está no banco (tem_recurso + triggers); aqui só se esconde o que a pessoa não pode usar.
+let recursosLiberados = [];
+function temRecurso(r) { return souMaster() || recursosLiberados.includes(r); }
+async function carregarRecursos() {
+  recursosLiberados = [];
+  if (!sb) return;
+  const { data } = await sb.rpc('meus_recursos');
+  recursosLiberados = Array.isArray(data) ? data : [];
+}
+function souMaster() { return !!currentUser && (currentUser.email || '').toLowerCase() === MASTER_EMAIL; }
+function abasAtivas() {
+  if (!activeWorkspace) return [];
+  // Perfil Pessoal pode ligar a aba de Clientes em Configurações (workspaces.usa_clientes); os outros perfis já têm.
+  const base = (activeWorkspace.perfilTipo === 'pessoal' && activeWorkspace.usaClientes) ? ['entidades'].concat(PERFIL_ABAS.pessoal) : PERFIL_ABAS[activeWorkspace.perfilTipo];
+  const abas = base.filter(a => (a !== 'buscar' || temRecurso('buscar')) && (a !== 'emails' || temRecurso('assessor_email')) && (a !== 'whatsapp' || temRecurso('whatsapp')));
+  return souMaster() ? abas.concat('usuarios') : abas;
+}
 function temAba(aba) { return abasAtivas().includes(aba); }
 function entidadeLabel() { return (activeWorkspace && activeWorkspace.entidadeLabel) || 'Entidades'; }
 function souSolo() { return activeWorkspace && activeWorkspace.perfilTipo === 'pessoal'; }
@@ -4009,7 +4776,7 @@ async function entrarComCodigoPendente() {
 }
 async function doLogout() {
   await sb.auth.signOut();
-  currentUser = null; workspaces = []; activeWorkspace = null;
+  currentUser = null; recursosLiberados = []; waSaude = null; waMinhaConta = null; clearInterval(waAlertaTimer); waAlertaTimer = null; workspaces = []; activeWorkspace = null;
   aplicarCorDestaque(DEFAULT_COR_DESTAQUE);
   aplicarCorFundo(DEFAULT_COR_FUNDO);
   document.getElementById('app-shell').style.display = 'none';
@@ -4029,6 +4796,8 @@ async function afterAuth() {
   if ((user.email || '').endsWith('@cliente.taskfull.invalid')) { location.replace('/cronograma'); return; }
   await sb.rpc('accept_pending_invites');
   await entrarComCodigoPendente();
+  await carregarRecursos();
+  iniciarAlertasWhatsapp();
   await loadWorkspaces();
 }
 
@@ -4047,7 +4816,7 @@ async function loadWorkspaces() {
   workspaces = wsRows.map(w => ({
     id: w.id, nome: w.nome, perfilTipo: w.perfil_tipo, ownerId: w.owner_id,
     inviteCode: w.invite_code, entidadeLabel: w.entidade_label, corDestaque: w.cor_destaque || DEFAULT_COR_DESTAQUE,
-    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico,
+    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato', recontatoDias: w.recontato_dias || 0,
     role: membrosRows.find(m => m.workspace_id === w.id).role,
   }));
   const savedId = localStorage.getItem('ws_active_id');
@@ -4249,11 +5018,26 @@ async function loadWorkspaceData() {
 let activeTab = null;
 let pessoaFiltro = 'Todos';
 
+// Menu "☰" do celular (Configurações, Ajuda, Aparência, sair). No computador o botão nem aparece.
+function toggleMenuMobile() {
+  const sb = document.querySelector('.sidebar'); if (!sb) return;
+  const aberto = sb.classList.toggle('menu-aberto');
+  document.getElementById('btn-menu-mobile')?.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+}
+function fecharMenuMobile() {
+  document.querySelector('.sidebar')?.classList.remove('menu-aberto');
+  document.getElementById('btn-menu-mobile')?.setAttribute('aria-expanded', 'false');
+}
+// Instalável no celular (PWA): o service worker só guarda arquivos do próprio site, nunca dados do banco.
+if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+
 function setTab(tab) {
   if (tab !== 'configuracoes' && tab !== 'ajuda' && !temAba(tab)) tab = abasAtivas()[0] || 'configuracoes';
   if (tab === 'agenda' && activeTab !== 'agenda') { const chk = document.getElementById('show-concluidos-agenda'); if (chk) chk.checked = false; }
   activeTab = tab;
-  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','configuracoes','ajuda'].forEach(t => {
+  fecharMenuMobile();
+  if (tab !== 'whatsapp') waParar();
+  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','whatsapp','usuarios','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
     if (navBtn) navBtn.classList.toggle('active', t===tab);
     const view = document.getElementById('view-'+t);
@@ -4280,6 +5064,8 @@ function render() {
   else if (activeTab === 'indicadores') renderIndicadores();
   else if (activeTab === 'buscar') renderBuscar();
   else if (activeTab === 'emails') renderEmails();
+  else if (activeTab === 'usuarios') renderUsuarios();
+  else if (activeTab === 'whatsapp') renderWhatsapp();
   else if (activeTab === 'lamina') renderLamina();
   else if (activeTab === 'cronograma') renderCronograma();
   else if (activeTab === 'treinamentos') renderTreinamentos();
@@ -4359,14 +5145,38 @@ function sortEntidades(col) {
 }
 function pendenciasAbertasDe(c) { return c.pendencias.filter(p => !p.feito); }
 
+// Campos do cadastro de cliente que aparecem. No perfil Pessoal a pessoa escolhe (Configurações → Aba de Clientes → Escolher os campos);
+// Equipe e Projeto mostram tudo. Esconder não apaga: o valor já gravado continua no banco e volta ao reativar o campo.
+const CAMPOS_CLIENTE = [
+  ['codigo', 'Código'], ['responsavel', 'Responsável'], ['analista', 'Analista responsável'], ['etapa', 'Etapa atual'], ['fase', 'Fase'],
+  ['inicio', 'Início'], ['proximo', 'Próximo contato'], ['saude', 'Saúde'], ['motivo', 'Motivo (se amarelo/vermelho)'],
+  ['observacao', 'Observação'], ['contatos', 'Contatos'], ['pendencias', 'Pendências'],
+];
+const CAMPOS_CLIENTE_PADRAO_PESSOAL = ['proximo', 'observacao', 'contatos', 'pendencias'];
+function campoCliente(k) {
+  if (!souSolo()) return true;
+  const sel = activeWorkspace.camposCliente || CAMPOS_CLIENTE_PADRAO_PESSOAL;
+  return sel.includes(k);
+}
+function aplicarCamposCliente() {
+  const mostra = (id, k) => { const el = document.getElementById(id); const f = el && (el.closest('.form-field') || el); if (f) f.style.display = campoCliente(k) ? '' : 'none'; };
+  mostra('f-codigo', 'codigo'); mostra('f-responsavel', 'responsavel'); mostra('f-analista', 'analista');
+  mostra('f-etapa', 'etapa'); mostra('f-fase', 'fase'); mostra('f-inicio', 'inicio'); mostra('f-proximo', 'proximo');
+  mostra('f-saude', 'saude'); mostra('f-saude-motivo', 'motivo'); mostra('f-observacao', 'observacao');
+  const sec = (id, k) => { const el = document.getElementById(id); const f = el && el.closest('.modal-section'); if (f) f.style.display = campoCliente(k) ? '' : 'none'; };
+  sec('contatos-list', 'contatos'); sec('pend-list-entidade', 'pendencias');
+  document.querySelectorAll('#view-entidades [data-campo]').forEach(el => { el.style.display = campoCliente(el.dataset.campo) ? '' : 'none'; });
+  if (!campoCliente('fase')) { const ff = document.getElementById('filter-fase'); if (ff) ff.value = ''; }   // sem Fase, o filtro "Ativos" não pode esconder ninguém
+}
 function renderEntidades() {
+  aplicarCamposCliente();
   const search = (document.getElementById('search-input').value||'').toLowerCase();
   const fStage = document.getElementById('filter-stage').value;
   const fSaude = document.getElementById('filter-saude').value;
-  const fFase = document.getElementById('filter-fase').value;
+  const fFase = campoCliente('fase') ? document.getElementById('filter-fase').value : '';
   let list = state.entidades.filter(c => {
-    if (fStage && c.etapa !== fStage) return false;
-    if (fSaude && c.saude !== fSaude) return false;
+    if (fStage && campoCliente('etapa') && c.etapa !== fStage) return false;
+    if (fSaude && campoCliente('saude') && c.saude !== fSaude) return false;
     if (fFase && (c.fase||'implantacao') !== fFase) return false;
     if (search && !(c.nome.toLowerCase().includes(search) || c.contatos.some(ct=>ct.nome.toLowerCase().includes(search)))) return false;
     return true;
@@ -4380,21 +5190,21 @@ function renderEntidades() {
   if (entidadesView === 'lista') {
     document.getElementById('entidades-tbody').innerHTML = list.map(c => `
       <tr onclick="openModal('${c.id}')">
-        <td>${escapeHtml(c.codigo)}</td>
+        ${campoCliente('codigo') ? `<td>${escapeHtml(c.codigo)}</td>` : ''}
         <td>${escapeHtml(c.nome)}</td>
-        <td><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></td>
-        <td><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span></td>
-        <td><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></td>
-        <td>${escapeHtml(c.responsavel)}</td>
-        <td>${escapeHtml(c.analista||'—')}</td>${prazoTd(c)}
-        <td>${pendenciasAbertasDe(c).length || '—'}</td>
-      </tr>`).join('') || `<tr><td colspan="7"><div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div></td></tr>`;
+        ${campoCliente('fase') ? `<td><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></td>` : ''}
+        ${campoCliente('etapa') ? `<td><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span></td>` : ''}
+        ${campoCliente('saude') ? `<td><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></td>` : ''}
+        ${campoCliente('responsavel') ? `<td>${escapeHtml(c.responsavel)}</td>` : ''}
+        ${campoCliente('analista') ? `<td>${escapeHtml(c.analista||'—')}</td>` : ''}${prazoTd(c)}
+        ${campoCliente('pendencias') ? `<td>${pendenciasAbertasDe(c).length || '—'}</td>` : ''}
+      </tr>`).join('') || `<tr><td colspan="9"><div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div></td></tr>`;
   } else {
     document.getElementById('entidades-cards-wrap').innerHTML = list.map(c => `
       <div class="entidade-card" onclick="openModal('${c.id}')">
-        <div class="cc-top"><div class="cc-quem"><span class="cc-ini">${inicialDe(c.nome)}</span><div class="cc-name">${escapeHtml(c.nome)}</div></div><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></div>
-        <div class="cc-meta">${escapeHtml(c.responsavel)||'—'}${c.analista ? ' · 👤 ' + escapeHtml(c.analista) : ''}</div>${prazoBadgeHtml(c)}
-        <div class="cc-badges"><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></div>
+        <div class="cc-top"><div class="cc-quem"><span class="cc-ini">${inicialDe(c.nome)}</span><div class="cc-name">${escapeHtml(c.nome)}</div></div>${campoCliente('saude') ? `<span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span>` : ''}</div>
+        ${(campoCliente('responsavel') || (campoCliente('analista') && c.analista)) ? `<div class="cc-meta">${campoCliente('responsavel') ? (escapeHtml(c.responsavel)||'—') : ''}${campoCliente('analista') && c.analista ? ' · 👤 ' + escapeHtml(c.analista) : ''}</div>` : ''}${prazoBadgeHtml(c)}
+        ${(campoCliente('etapa') || campoCliente('fase')) ? `<div class="cc-badges">${campoCliente('etapa') ? `<span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span>` : ''}${campoCliente('fase') ? `<span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span>` : ''}</div>` : ''}
       </div>`).join('') || `<div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div>`;
   }
 }
@@ -4406,8 +5216,9 @@ function openModal(id) {
   document.getElementById('modal-title').textContent = c ? c.nome : 'Novo(a) ' + entidadeLabel().slice(0,-1);
   document.getElementById('f-codigo').value = c ? c.codigo : (activeWorkspace.codigoAutomatico ? proximoCodigoAutomatico() : '');
   document.getElementById('f-codigo').readOnly = !!activeWorkspace.codigoAutomatico;
+  if (!c && !campoCliente('codigo')) document.getElementById('f-codigo').value = proximoCodigoAutomatico();   // código escondido: numera sozinho
   document.getElementById('f-nome').value = c ? c.nome : '';
-  document.getElementById('f-responsavel').value = c ? c.responsavel : '';
+  document.getElementById('f-responsavel').value = c ? c.responsavel : (campoCliente('responsavel') ? '' : meuNome());
   populateStageOptions();
   document.getElementById('f-etapa').value = c ? c.etapa : (STAGES[0] ? STAGES[0].id : '');
   document.getElementById('f-fase').value = c ? (c.fase||'implantacao') : 'implantacao';
@@ -4417,8 +5228,9 @@ function openModal(id) {
   document.getElementById('f-saude-motivo').value = c ? c.saudeMotivo : '';
   document.getElementById('f-observacao').value = c ? c.observacao : '';
   document.getElementById('f-nota-contato').value = '';
-  document.getElementById('f-nota-proximo').value = addDays(todayStr(),1);
+  document.getElementById('f-nota-proximo').value = addDays(todayStr(), (activeWorkspace.recontatoAuto && activeWorkspace.recontatoDias > 0) ? activeWorkspace.recontatoDias : 1);
   document.getElementById('btn-delete-entidade').style.display = c ? '' : 'none';
+  aplicarCamposCliente();
   renderContatosList(); renderPendenciasModal(); renderHistoricoList();
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -4535,6 +5347,7 @@ async function registrarContatoModal() {
   const c = state.entidades.find(x=>x.id===editingEntidadeId);
   c.historico.unshift({ id:histRow.id, data:today, texto });
   c.ultimoContato = today; c.proximoContato = proximo;
+  await concluirCardsRecontato(c.nome);
   document.getElementById('f-nota-contato').value = '';
   document.getElementById('f-proximo').value = proximo;
   renderHistoricoList();
@@ -4868,6 +5681,7 @@ function openAgendamentoModal(id) {
   document.getElementById('ag-obs').value = a ? a.observacao : '';
   document.getElementById('btn-delete-agendamento').style.display = a ? '' : 'none';
   ['ag-prox-data','ag-prox-hora','ag-prox-titulo'].forEach(i => { document.getElementById(i).value = ''; });
+  document.getElementById('btn-compartilhar-wa').style.display = a && temRecurso('whatsapp') ? '' : 'none';
   const btnAtividade = document.getElementById('btn-criar-atividade');
   if (a && a.atividadeId) {
     btnAtividade.textContent = '✅ Atividade já criada';
@@ -5091,6 +5905,7 @@ function openAtividadeModal(id, colunaForcada) {
   onAtColunaChange();
   renderLabelSwatches();
   renderAtividadeImagens();
+  document.getElementById('btn-compartilhar-wa-at').style.display = a ? '' : 'none';
   document.getElementById('btn-delete-atividade').style.display = a ? '' : 'none';
   document.getElementById('atividade-modal-overlay').classList.add('open');
   if (colunaForcada === 'concluida') setTimeout(()=>document.getElementById('at-resolucao').focus(), 50);
@@ -5167,6 +5982,7 @@ async function saveAtividade() {
   const participantes = [...document.querySelectorAll('#at-participantes-list input:checked')].map(i=>i.value);
   const old = editingAtividadeId ? atividades.find(a=>a.id===editingAtividadeId) : null;
   const mudouRelevante = !old || old.entidadeNome !== entidadeNome || old.resolucao !== resolucao;
+  const colunaAntes = old ? old.coluna : null;
   const payload = {
     workspace_id: activeWorkspace.id,
     entidade_nome: entidadeNome,
@@ -5202,6 +6018,10 @@ async function saveAtividade() {
   }
   closeAtividadeModal();
   renderAtividades();
+  if (coluna === 'concluida' && (payload.titulo || '').startsWith(PREFIXO_RECONTATO) && colunaAntes !== 'concluida') {
+    const cli = state.entidades.find(e => e.nome.toLowerCase() === entidadeNome.toLowerCase());
+    if (cli) perguntarProximoContato(cli);
+  }
 }
 async function deleteAtividade() { if (editingAtividadeId) await deleteAtividadeCard(editingAtividadeId, true); }
 async function deleteAtividadeCard(id, fecharModal) {
@@ -5436,7 +6256,9 @@ async function carregarBomDia(forcar) {
       sb.functions.invoke('bom-dia-noticias', { body: { cidade: c.cidade, estado: c.estado, pais: c.pais } }).then(r => r.error ? { erro: r.error.message } : r.data).catch(e => ({ erro: e.message })),
     ]);
     bomDiaDados = { tempo, noticias };
-    bomDiaChave = chave; bomDiaQuando = Date.now();
+    // Manchetes vazias (falha passageira da fonte) não ficam em cache por 30 min: tenta de novo em ~5 min.
+    const semManchetes = !noticias.erro && ['mundo', 'pais', 'estado', 'cidade'].every(k => !(noticias[k] || []).length);
+    bomDiaChave = chave; bomDiaQuando = semManchetes ? Date.now() - 25 * 60 * 1000 : Date.now();
   } finally { bomDiaCarregando = false; renderBomDia(); }
 }
 function renderBomDia() {
@@ -5779,6 +6601,25 @@ function renderConfiguracoes() {
   document.getElementById('section-treinamentos-padrao').style.display = temAba('treinamentos') ? '' : 'none';
   document.getElementById('section-assessor').style.display = souSolo() ? '' : 'none';
   document.getElementById('section-bomdia').style.display = souSolo() ? '' : 'none';
+  document.getElementById('section-clientes-pessoal').style.display = souSolo() ? '' : 'none';
+  document.getElementById('section-recontato').style.display = temAba('entidades') ? '' : 'none';
+  document.getElementById('wcfg-recontato').checked = !!activeWorkspace.recontatoAuto;
+  document.getElementById('wcfg-recontato').disabled = !souAdmin;
+  const selCol = document.getElementById('wcfg-recontato-coluna');
+  const colAtual = activeWorkspace.recontatoColuna || 're_contato';
+  const raias = KANBAN_COLUNAS.filter(c => c.ativo !== false && c.id !== 'concluida');
+  selCol.innerHTML = raias.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.nome)}</option>`).join('') +
+    (raias.some(c => c.id === 're_contato') ? '' : `<option value="re_contato">➕ Criar a raia RE CONTATO</option>`);
+  if (![...selCol.options].some(o => o.value === colAtual)) selCol.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(colAtual)}">${escapeHtml(colAtual)} (raia removida)</option>`);
+  selCol.value = colAtual;
+  selCol.disabled = !souAdmin;
+  document.getElementById('wcfg-recontato-dias').value = activeWorkspace.recontatoDias || 0;
+  document.getElementById('wcfg-recontato-dias').disabled = !souAdmin;
+  const chkClientes = document.getElementById('wcfg-usa-clientes');
+  chkClientes.checked = !!activeWorkspace.usaClientes;
+  chkClientes.disabled = !souAdmin;
+  document.getElementById('wcfg-campos-cliente-box').style.display = (souSolo() && activeWorkspace.usaClientes) ? '' : 'none';
+  document.getElementById('btn-campos-cliente').style.display = souAdmin ? '' : 'none';
   if (souSolo()) renderBomDiaConfig();
   if (souSolo()) { renderAssessorConfig(); renderAssessorEmailConfig(); }
   renderMembrosList();
@@ -5787,6 +6628,125 @@ function renderConfiguracoes() {
   renderTiposAgendaList();
   renderFeriadosDatasList();
   renderTreinamentosPadraoList();
+}
+function abrirCamposCliente() {
+  const sel = activeWorkspace.camposCliente || CAMPOS_CLIENTE_PADRAO_PESSOAL;
+  document.getElementById('campos-cliente-lista').innerHTML =
+    `<label style="display:flex;gap:8px;align-items:center;opacity:.6;"><input type="checkbox" checked disabled> Nome (sempre aparece)</label>` +
+    CAMPOS_CLIENTE.map(([k, nome]) => `<label style="display:flex;gap:8px;align-items:center;cursor:pointer;"><input type="checkbox" data-campo-cli="${k}" ${sel.includes(k) ? 'checked' : ''}> ${escapeHtml(nome)}</label>`).join('');
+  document.getElementById('campos-cliente-overlay').classList.add('open');
+}
+function fecharCamposCliente() { document.getElementById('campos-cliente-overlay').classList.remove('open'); }
+function restaurarCamposCliente() {
+  document.querySelectorAll('#campos-cliente-lista input[data-campo-cli]').forEach(i => { i.checked = CAMPOS_CLIENTE_PADRAO_PESSOAL.includes(i.dataset.campoCli); });
+}
+async function salvarCamposCliente() {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); return; }
+  const marcados = [...document.querySelectorAll('#campos-cliente-lista input[data-campo-cli]')].filter(i => i.checked).map(i => i.dataset.campoCli);
+  const { error } = await sb.from('workspaces').update({ campos_cliente: marcados }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); return; }
+  activeWorkspace.camposCliente = marcados;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.camposCliente = marcados;
+  fecharCamposCliente();
+  renderEntidades();
+}
+// ── Re-contato automático ──
+const PREFIXO_RECONTATO = 'Re-contato: ';
+async function salvarRecontatoAuto(ligar) {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  let coluna = activeWorkspace.recontatoColuna || 're_contato';
+  if (ligar && !KANBAN_COLUNAS.some(c => c.id === coluna)) {   // cria a raia "RE CONTATO" uma vez (o nome pode ser trocado depois)
+    const ordem = KANBAN_COLUNAS.length + 1;
+    const { error: e1 } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+    if (e1) { alert('Não consegui criar a raia: ' + e1.message); renderConfiguracoes(); return; }
+    KANBAN_COLUNAS.push({ id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+  }
+  const dias = (ligar && !(activeWorkspace.recontatoDias > 0)) ? 30 : (activeWorkspace.recontatoDias || 0);   // ao ligar pela primeira vez, sugere 30 dias
+  const { error } = await sb.from('workspaces').update({ recontato_auto: ligar, recontato_coluna: coluna, recontato_dias: dias }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  activeWorkspace.recontatoAuto = ligar; activeWorkspace.recontatoColuna = coluna; activeWorkspace.recontatoDias = dias;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) { w.recontatoAuto = ligar; w.recontatoColuna = coluna; w.recontatoDias = dias; }
+  if (ligar) await gerarRecontatosAgora(true); else renderConfiguracoes();
+}
+async function salvarRecontatoColuna() {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  const coluna = document.getElementById('wcfg-recontato-coluna').value;
+  if (!coluna || coluna === 'concluida') { renderConfiguracoes(); return; }
+  if (activeWorkspace.recontatoAuto && !KANBAN_COLUNAS.some(c => c.id === coluna)) {   // só a raia padrão pode faltar: cria
+    const ordem = KANBAN_COLUNAS.length + 1;
+    const { error: e1 } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+    if (e1) { alert('Não consegui criar a raia: ' + e1.message); renderConfiguracoes(); return; }
+    KANBAN_COLUNAS.push({ id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+  }
+  const { error } = await sb.from('workspaces').update({ recontato_coluna: coluna }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  activeWorkspace.recontatoColuna = coluna;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.recontatoColuna = coluna;
+  renderConfiguracoes(); renderAtividades();
+}
+async function salvarRecontatoDias() {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  const v = parseInt(document.getElementById('wcfg-recontato-dias').value, 10);
+  if (isNaN(v) || v < 0 || v > 365) { alert('Informe um número de dias entre 0 e 365.'); renderConfiguracoes(); return; }
+  const { error } = await sb.from('workspaces').update({ recontato_dias: v }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  activeWorkspace.recontatoDias = v;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.recontatoDias = v;
+}
+async function gerarRecontatosAgora(silencioso) {
+  if (!activeWorkspace.recontatoAuto) { alert('Ligue o re-contato automático primeiro.'); return; }
+  const { data, error } = await sb.rpc('gerar_recontatos_ws', { p_ws: activeWorkspace.id });
+  if (error) { alert('Não foi possível gerar os cards: ' + error.message); return; }
+  await refreshDados();
+  setTab('configuracoes');
+  if (!silencioso || data > 0) alert(data > 0 ? (data + (data === 1 ? ' card criado' : ' cards criados') + ' na raia escolhida.') : 'Nenhum cliente com próximo contato vencido: nada a criar.');
+}
+// Ao registrar contato na ficha do cliente, os cards de re-contato abertos dele são concluídos.
+async function concluirCardsRecontato(nomeCliente) {
+  const abertos = atividades.filter(a => a.entidadeNome === nomeCliente && !a.cancelado && a.coluna !== 'concluida' && (a.titulo || '').startsWith(PREFIXO_RECONTATO));
+  for (const a of abertos) {
+    const resolucao = 'Contato registrado em ' + formatDate(todayStr());
+    const { error } = await sb.from('atividades').update({ coluna: 'concluida', concluido_em: todayStr(), resolucao }).eq('id', a.id);
+    if (error) { alert('Não consegui concluir o card de re-contato: ' + error.message); return; }
+    Object.assign(a, { coluna: 'concluida', concluidoEm: todayStr(), resolucao });
+  }
+}
+// Ao concluir um card de re-contato, pergunta a data do próximo contato (senão o card nasceria de novo amanhã).
+let proximoContatoEntidadeId = null;
+function perguntarProximoContato(entidade) {
+  proximoContatoEntidadeId = entidade.id;
+  document.getElementById('proximo-contato-texto').textContent = 'Você concluiu o re-contato com ' + entidade.nome + '. Quando é o próximo contato?';
+  document.getElementById('proximo-contato-data').value = addDays(todayStr(), (activeWorkspace.recontatoAuto && activeWorkspace.recontatoDias > 0) ? activeWorkspace.recontatoDias : 7);
+  document.getElementById('proximo-contato-overlay').classList.add('open');
+}
+async function salvarProximoContato(comData) {
+  const e = state.entidades.find(x => x.id === proximoContatoEntidadeId); if (!e) { document.getElementById('proximo-contato-overlay').classList.remove('open'); return; }
+  const data = comData ? (document.getElementById('proximo-contato-data').value || null) : null;
+  if (comData && !data) { alert('Escolha a data ou use "Sem próximo contato".'); return; }
+  const { error } = await sb.from('entidades').update({ ultimo_contato: todayStr(), proximo_contato: data }).eq('id', e.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); return; }
+  e.ultimoContato = todayStr(); e.proximoContato = data;
+  proximoContatoEntidadeId = null;
+  document.getElementById('proximo-contato-overlay').classList.remove('open');
+  renderEntidades();
+}
+async function salvarUsaClientes(ligar) {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  const campos = { usa_clientes: ligar };
+  if (ligar && !activeWorkspace.entidadeLabel) campos.entidade_label = 'Clientes';
+  const { error } = await sb.from('workspaces').update(campos).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  if (ligar && !STAGES.length) {   // espaço Pessoal nasce sem as etapas de cliente: cria as padrão uma vez
+    const { error: e2 } = await sb.from('etapas').insert(DEFAULT_ETAPAS.map(e => ({ ...e, workspace_id: activeWorkspace.id })));
+    if (e2) { alert('Ligado, mas não consegui criar as etapas padrão: ' + e2.message); }
+  }
+  activeWorkspace.usaClientes = ligar;
+  if (campos.entidade_label) activeWorkspace.entidadeLabel = campos.entidade_label;
+  const w = workspaces.find(x => x.id === activeWorkspace.id);
+  if (w) { w.usaClientes = ligar; if (campos.entidade_label) w.entidadeLabel = campos.entidade_label; }
+  buildSidebarNav();
+  await refreshDados();
+  setTab('configuracoes');
 }
 async function salvarWorkspaceInfo() {
   const nome = document.getElementById('wcfg-nome').value.trim();

@@ -1,0 +1,50 @@
+# Servidor de TESTE do WuzAPI (WhatsApp) — para rodar na sua máquina PESSOAL com Docker ou num Codespace (nuvem), nunca na máquina da empresa.
+# Sobe o WuzAPI (construído direto do repositório oficial) + PostgreSQL (onde ficam as sessões do WhatsApp)
+# + um túnel da Cloudflare (grátis, sem conta) que dá um endereço HTTPS público para o Supabase alcançar o WuzAPI.
+# A porta 8080 só abre para a própria máquina (127.0.0.1); de fora, só o túnel chega nela.
+# Não inclui o RabbitMQ do modelo oficial (opcional; o Taskfull não usa).
+# Os segredos ficam no arquivo .env (criado por ./gerar-env.sh, nunca vai para o Git).
+services:
+  wuzapi:
+    build:
+      # Código do WuzAPI baixado para a pasta ./wuzapi-src (ver LEIA-ME, passo 2). Contexto por URL do Git falha no Docker do Windows.
+      context: ./wuzapi-src
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - "127.0.0.1:${WUZAPI_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Túnel rápido da Cloudflare: o endereço (https://algo.trycloudflare.com) aparece nos logs: docker compose logs tunel
+  # Ele MUDA toda vez que este serviço reinicia; aí é preciso atualizar o segredo WUZAPI_URL no Supabase.
+  # Para um endereço fixo (com domínio próprio na Cloudflare) existe o "túnel nomeado": ver LEIA-ME.
+  tunel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://wuzapi:8080
+    depends_on:
+      - wuzapi
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  db_data:

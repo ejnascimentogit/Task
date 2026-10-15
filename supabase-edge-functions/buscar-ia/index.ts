@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) return jsonResponse({ error: "Sessão inválida." }, 401);
 
+
     const { workspace_id, pergunta, termo_busca } = await req.json();
     if (!workspace_id || !pergunta || typeof pergunta !== "string") return jsonResponse({ error: "Informe workspace_id e pergunta." }, 400);
     if (pergunta.length > MAX_PERGUNTA) return jsonResponse({ error: "Pergunta muito longa." }, 400);
@@ -65,6 +66,9 @@ Deno.serve(async (req) => {
 
     // 2) Liga por workspace e limite mensal (service role: nem config nem uso são editáveis por membro).
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // Uso pago, ainda em testes: só quem o master liberou (recurso "buscar"; o master sempre pode). Evita gastar os tokens do dono do app.
+    const { data: liberado } = await admin.rpc("tem_recurso", { p_user: user.id, p_recurso: "buscar" });
+    if (liberado !== true) return jsonResponse({ error: "A busca com IA ainda não está liberada para a sua conta." }, 403);
     const { data: cfg } = await admin.from("busca_ia_config").select("ativo, limite_mensal_usd").eq("workspace_id", workspace_id).maybeSingle();
     if (!cfg || !cfg.ativo) return jsonResponse({ error: "A busca com IA não está ativada neste workspace." }, 403);
 

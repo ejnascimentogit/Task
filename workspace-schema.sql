@@ -1248,3 +1248,351 @@ end $$;
 revoke all on function public.assessor_email_iniciar(uuid, text, text) from public, anon;
 grant execute on function public.assessor_email_iniciar(uuid, text, text) to authenticated;
 
+
+-- ══════════════════════════════════════════════════════════════
+-- Usuário MASTER: aba "Usuários" (monitoramento de contas), 2026-10-13
+-- Só a conta ejnascimento@hotmail.com enxerga. A checagem é no servidor (e-mail do login),
+-- não na tela. Se a conta master mudar, trocar o e-mail aqui e o MASTER_EMAIL do index.html.
+-- ══════════════════════════════════════════════════════════════
+create or replace function public.eh_master()
+returns boolean language sql stable security definer set search_path = public, auth as $$
+  select exists (select 1 from auth.users u where u.id = auth.uid() and lower(u.email) = 'ejnascimento@hotmail.com' and u.email_confirmed_at is not null);
+$$;
+revoke all on function public.eh_master() from public, anon;
+grant execute on function public.eh_master() to authenticated;
+
+create or replace function public.master_usuarios()
+returns table (user_id uuid, email text, nome text, cliente_cronograma boolean, criado_em timestamptz, ultimo_login timestamptz, ultimo_acesso timestamptz, ultima_movimentacao timestamptz, workspaces integer, perfis text[], atividades integer, agendamentos integer, assessor_mensagens_mes integer, assessor_custo_mes_usd numeric, telegram boolean, emails_conectados integer)
+language plpgsql stable security definer set search_path = public, auth as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  return query
+  select u.id, u.email::text, coalesce(u.raw_user_meta_data->>'nome','')::text, (u.email like '%@cliente.taskfull.invalid'),
+    u.created_at, u.last_sign_in_at,
+    greatest(u.last_sign_in_at, (select max(coalesce(s.refreshed_at, s.updated_at, s.created_at)) from auth.sessions s where s.user_id = u.id)),
+    greatest((select max(a.created_at) from atividades a where a.workspace_id = any(w.ids)), (select max(g.created_at) from agendamentos g where g.workspace_id = any(w.ids))),
+    coalesce(cardinality(w.ids),0), coalesce(w.perfis,'{}'),
+    (select count(*)::int from atividades a where a.workspace_id = any(w.ids)),
+    (select count(*)::int from agendamentos g where g.workspace_id = any(w.ids)),
+    (select count(*)::int from assessor_uso s where s.user_id = u.id and s.created_at >= date_trunc('month', now())),
+    coalesce((select sum(s.custo_estimado_usd) from assessor_uso s where s.user_id = u.id and s.created_at >= date_trunc('month', now())),0),
+    exists (select 1 from assessor_vinculos v where v.user_id = u.id and v.canal = 'telegram' and v.chat_id is not null),
+    (select count(*)::int from assessor_email_contas c where c.user_id = u.id and c.ativo)
+  from auth.users u
+  left join lateral (select array_agg(m.workspace_id) ids, array_agg(distinct x.perfil_tipo) perfis from workspace_membros m join workspaces x on x.id = m.workspace_id where m.user_id = u.id and m.status = 'ativo') w on true
+  order by u.created_at;
+end $$;
+revoke all on function public.master_usuarios() from public, anon;
+grant execute on function public.master_usuarios() to authenticated;
+
+-- ══════════════════════════════════════════════════════════════
+-- Recursos pagos liberados pelo master (Buscar, assessor no Telegram, leitura de e-mail), 2026-10-14
+-- Tudo travado por padrão; só o master (ejnascimento@hotmail.com) libera, pela aba Usuários.
+-- A trava é no banco: triggers recusam conectar Telegram/e-mail sem liberação, e a Edge Function buscar-ia confere tem_recurso.
+-- Revogar desconecta (apaga vínculo/conversas do Telegram; contas de e-mail e segredos do Vault).
+-- ══════════════════════════════════════════════════════════════
+create table if not exists public.recursos_liberados (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  recurso text not null check (recurso in ('buscar','assessor_telegram','assessor_email')),
+  liberado_por uuid references auth.users(id) on delete set null,
+  liberado_em timestamptz not null default now(),
+  primary key (user_id, recurso)
+);
+alter table public.recursos_liberados enable row level security;
+revoke all on public.recursos_liberados from anon, authenticated;   -- sem policy: só pelas funções abaixo
+
+create or replace function public.tem_recurso(p_user uuid, p_recurso text)
+returns boolean language sql stable security definer set search_path = public, auth as $$
+  select exists (select 1 from auth.users u where u.id = p_user and lower(u.email) = 'ejnascimento@hotmail.com' and u.email_confirmed_at is not null)
+      or exists (select 1 from public.recursos_liberados r where r.user_id = p_user and r.recurso = p_recurso);
+$$;
+revoke all on function public.tem_recurso(uuid, text) from public, anon, authenticated;
+grant execute on function public.tem_recurso(uuid, text) to service_role;
+
+create or replace function public.meus_recursos()
+returns text[] language sql stable security definer set search_path = public, auth as $$
+  select coalesce(array_agg(r), '{}') from unnest(array['buscar','assessor_telegram','assessor_email']) r where public.tem_recurso(auth.uid(), r);
+$$;
+revoke all on function public.meus_recursos() from public, anon;
+grant execute on function public.meus_recursos() to authenticated;
+
+create or replace function public.exigir_recurso_liberado()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if not public.tem_recurso(new.user_id, tg_argv[0]) then
+    raise exception 'Este recurso é pago e ainda não foi liberado para a sua conta. Peça a liberação ao administrador do Taskfull.';
+  end if;
+  return new;
+end $$;
+revoke all on function public.exigir_recurso_liberado() from public, anon, authenticated;
+create or replace trigger exigir_liberacao_telegram before insert on public.assessor_vinculos
+  for each row execute function public.exigir_recurso_liberado('assessor_telegram');
+create or replace trigger exigir_liberacao_email_estado before insert on public.assessor_email_estados
+  for each row execute function public.exigir_recurso_liberado('assessor_email');
+create or replace trigger exigir_liberacao_email_conta before insert on public.assessor_email_contas
+  for each row execute function public.exigir_recurso_liberado('assessor_email');
+
+create or replace function public.limpar_email_usuario(p_user uuid) returns void language sql security definer set search_path = public, vault as $$
+  with d as (delete from public.assessor_email_contas where user_id = p_user returning segredo_id)
+  delete from vault.secrets where id in (select segredo_id from d where segredo_id is not null) $$;
+create or replace function public.limpar_telegram_usuario(p_user uuid) returns void language sql security definer set search_path = public as $$
+  with m as (delete from public.assessor_mensagens where user_id = p_user and canal = 'telegram' returning 1)
+  delete from public.assessor_vinculos where user_id = p_user and canal = 'telegram' $$;
+create or replace function public.remover_liberacao(p_user uuid, p_recurso text) returns void language sql security definer set search_path = public as $$
+  with d as (delete from public.recursos_liberados where user_id = p_user and recurso = p_recurso returning 1) select count(*) from d $$;
+revoke all on function public.limpar_email_usuario(uuid) from public, anon, authenticated;
+revoke all on function public.limpar_telegram_usuario(uuid) from public, anon, authenticated;
+revoke all on function public.remover_liberacao(uuid, text) from public, anon, authenticated;
+
+create or replace function public.master_definir_liberacao(p_user uuid, p_recurso text, p_ativo boolean)
+returns void language plpgsql security definer set search_path = public, auth as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  if p_recurso not in ('buscar','assessor_telegram','assessor_email') then raise exception 'Recurso inválido'; end if;
+  if p_ativo then
+    insert into public.recursos_liberados (user_id, recurso, liberado_por) values (p_user, p_recurso, auth.uid()) on conflict do nothing;
+    return;
+  end if;
+  perform public.remover_liberacao(p_user, p_recurso);
+  if p_recurso = 'assessor_telegram' then perform public.limpar_telegram_usuario(p_user);
+  elsif p_recurso = 'assessor_email' then perform public.limpar_email_usuario(p_user);
+  end if;
+end $$;
+revoke all on function public.master_definir_liberacao(uuid, text, boolean) from public, anon;
+grant execute on function public.master_definir_liberacao(uuid, text, boolean) to authenticated;
+
+create or replace function public.master_recursos() returns table (user_id uuid, recursos text[]) language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  return query select r.user_id, array_agg(r.recurso order by r.recurso) from public.recursos_liberados r group by r.user_id;
+end $$;
+revoke all on function public.master_recursos() from public, anon;
+grant execute on function public.master_recursos() to authenticated;
+
+-- ══════════════════════════════════════════════════════════════
+-- WhatsApp (WuzAPI): conectar o número da pessoa e enviar/programar mensagens para qualquer número, 2026-10-14
+-- Serviço pago liberado pelo master (recurso 'whatsapp'). O navegador só LÊ (RLS); toda escrita passa pelas Edge Functions
+-- whatsapp-api (tela) e whatsapp-agendadas (cron a cada minuto), com a chave de serviço. O token de cada pessoa no WuzAPI fica no Vault.
+-- ══════════════════════════════════════════════════════════════
+do $t$ begin
+  execute 'alter table public.recursos_liberados drop constraint if exists recursos_liberados_recurso_check';
+  execute 'alter table public.recursos_liberados add constraint recursos_liberados_recurso_check check (recurso in (''buscar'',''assessor_telegram'',''assessor_email'',''whatsapp''))';
+end $t$;
+
+create table if not exists public.whatsapp_contas (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  workspace_id uuid references public.workspaces(id) on delete set null,
+  token_segredo_id uuid,                       -- token do usuário no WuzAPI (Vault)
+  status text not null default 'desconectada' check (status in ('desconectada','aguardando_qr','conectada','erro')),
+  jid text, telefone text,
+  consentimento_em timestamptz,                -- aceite do aviso de uso não oficial
+  limite_diario integer not null default 50,   -- proteção contra bloqueio; só o master altera (SQL Editor)
+  ultimo_erro text,
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+alter table public.whatsapp_contas enable row level security;
+drop policy if exists whatsapp_contas_select on public.whatsapp_contas;
+create policy whatsapp_contas_select on public.whatsapp_contas for select using (user_id = auth.uid());
+revoke all on public.whatsapp_contas from anon;
+revoke insert, update, delete on public.whatsapp_contas from authenticated;
+
+create table if not exists public.whatsapp_mensagens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  conta_id uuid references public.whatsapp_contas(id) on delete cascade,
+  telefone text not null,
+  nome text not null default '',
+  texto text not null check (char_length(texto) between 1 and 1500),
+  enviar_em timestamptz not null default now(),
+  status text not null default 'agendada' check (status in ('agendada','enviando','enviada','erro','cancelada')),
+  tentativas integer not null default 0,
+  reservada_em timestamptz,
+  enviado_em timestamptz,
+  erro text,
+  origem text not null default 'manual',       -- manual | agenda | atividade (de onde veio o texto sugerido)
+  origem_id uuid,
+  criado_em timestamptz not null default now()
+);
+create index if not exists whatsapp_mensagens_fila_idx on public.whatsapp_mensagens (status, enviar_em);
+create index if not exists whatsapp_mensagens_user_idx on public.whatsapp_mensagens (user_id, criado_em desc);
+alter table public.whatsapp_mensagens enable row level security;
+drop policy if exists whatsapp_mensagens_select on public.whatsapp_mensagens;
+create policy whatsapp_mensagens_select on public.whatsapp_mensagens for select using (user_id = auth.uid());
+revoke all on public.whatsapp_mensagens from anon;
+revoke insert, update, delete on public.whatsapp_mensagens from authenticated;
+
+create or replace function public.whatsapp_salvar_token(p_user uuid, p_workspace uuid, p_token text) returns uuid language sql security definer set search_path = public, vault as $$
+  with s as (select vault.create_secret(p_token, 'whatsapp_' || p_user::text || '_' || extract(epoch from clock_timestamp())::bigint::text) as id)
+  insert into public.whatsapp_contas (user_id, workspace_id, token_segredo_id) select p_user, p_workspace, s.id from s
+  on conflict (user_id) do update set token_segredo_id = excluded.token_segredo_id, workspace_id = excluded.workspace_id, atualizado_em = now() returning id $$;
+create or replace function public.whatsapp_token(p_user uuid) returns text language sql stable security definer set search_path = public, vault as $$
+  select ds.decrypted_secret from public.whatsapp_contas c join vault.decrypted_secrets ds on ds.id = c.token_segredo_id where c.user_id = p_user $$;
+create or replace function public.whatsapp_enviadas_hoje(p_user uuid) returns integer language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.whatsapp_mensagens where user_id = p_user and status in ('enviada','enviando')
+    and coalesce(enviado_em, reservada_em) >= (date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo') $$;
+-- Pega até p_limite mensagens vencidas e as marca "enviando" (skip locked: duas rodadas nunca pegam a mesma; reserva travada há 10 min volta para a fila; máx. 3 tentativas)
+create or replace function public.whatsapp_reservar(p_limite integer) returns setof public.whatsapp_mensagens language sql security definer set search_path = public as $$
+  update public.whatsapp_mensagens m set status = 'enviando', tentativas = m.tentativas + 1, reservada_em = now()
+  where m.id in (select x.id from public.whatsapp_mensagens x where x.tentativas < 3 and x.enviar_em <= now()
+    and (x.status = 'agendada' or (x.status = 'enviando' and x.reservada_em < now() - interval '10 minutes'))
+    order by x.enviar_em limit p_limite for update skip locked) returning m.* $$;
+create or replace function public.whatsapp_cancelar_usuario(p_user uuid) returns void language sql security definer set search_path = public as $$
+  update public.whatsapp_mensagens set status = 'cancelada', erro = 'Serviço removido pelo administrador' where user_id = p_user and status in ('agendada','enviando') $$;
+revoke all on function public.whatsapp_salvar_token(uuid, uuid, text) from public, anon, authenticated;
+revoke all on function public.whatsapp_token(uuid) from public, anon, authenticated;
+revoke all on function public.whatsapp_enviadas_hoje(uuid) from public, anon, authenticated;
+revoke all on function public.whatsapp_reservar(integer) from public, anon, authenticated;
+revoke all on function public.whatsapp_cancelar_usuario(uuid) from public, anon, authenticated;
+grant execute on function public.whatsapp_salvar_token(uuid, uuid, text) to service_role;
+grant execute on function public.whatsapp_token(uuid) to service_role;
+grant execute on function public.whatsapp_enviadas_hoje(uuid) to service_role;
+grant execute on function public.whatsapp_reservar(integer) to service_role;
+grant execute on function public.whatsapp_cancelar_usuario(uuid) to service_role;
+
+-- 'whatsapp' entra na lista de serviços pagos (versões finais, substituem as anteriores)
+create or replace function public.meus_recursos() returns text[] language sql stable security definer set search_path = public, auth as $$
+  select coalesce(array_agg(r), '{}') from unnest(array['buscar','assessor_telegram','assessor_email','whatsapp']) r where public.tem_recurso(auth.uid(), r) $$;
+create or replace function public.master_definir_liberacao(p_user uuid, p_recurso text, p_ativo boolean) returns void language plpgsql security definer set search_path = public, auth as $$
+begin
+  if not public.eh_master() then raise exception 'Acesso restrito ao usuário master'; end if;
+  if p_recurso not in ('buscar','assessor_telegram','assessor_email','whatsapp') then raise exception 'Recurso inválido'; end if;
+  if p_ativo then
+    insert into public.recursos_liberados (user_id, recurso, liberado_por) values (p_user, p_recurso, auth.uid()) on conflict do nothing;
+    return;
+  end if;
+  perform public.remover_liberacao(p_user, p_recurso);
+  if p_recurso = 'assessor_telegram' then perform public.limpar_telegram_usuario(p_user);
+  elsif p_recurso = 'assessor_email' then perform public.limpar_email_usuario(p_user);
+  elsif p_recurso = 'whatsapp' then perform public.whatsapp_cancelar_usuario(p_user);
+  end if;
+end $$;
+
+-- Cron do envio programado (já criado; a chave é a anon/publishable, pública):
+-- select cron.schedule('whatsapp-agendadas', '* * * * *', $c$ select net.http_post(
+--   url := 'https://dubbmmjtbunzmdmfbbja.supabase.co/functions/v1/whatsapp-agendadas',
+--   headers := jsonb_build_object('Content-Type','application/json','Authorization','Bearer <anon key>'),
+--   body := '{}'::jsonb, timeout_milliseconds := 120000); $c$);
+
+-- Vigia de saúde do WhatsApp e relatório (2026-10-14). Aplicado no Supabase; as Edge Functions do vigia ainda NÃO foram publicadas (ver CLAUDE.md).
+create table if not exists public.whatsapp_saude_estado (
+  chave text primary key, user_id uuid references auth.users(id) on delete cascade, ok boolean not null default true,
+  falhas_seguidas integer not null default 0, detalhe text, desde timestamptz not null default now(),
+  verificado_em timestamptz, alertado_em timestamptz, criado_em timestamptz not null default now());
+create table if not exists public.whatsapp_saude_eventos (
+  id bigint generated always as identity primary key, em timestamptz not null default now(), chave text not null,
+  user_id uuid references auth.users(id) on delete cascade, ok boolean not null, detalhe text);
+create index if not exists whatsapp_saude_eventos_em_idx on public.whatsapp_saude_eventos (em desc);
+alter table public.whatsapp_saude_estado enable row level security;
+alter table public.whatsapp_saude_eventos enable row level security;
+revoke all on public.whatsapp_saude_estado from anon, authenticated;
+revoke all on public.whatsapp_saude_eventos from anon, authenticated;
+-- Funções (corpo completo em supabase-edge-functions/whatsapp-agendadas/vigia.ts e nas migrações aplicadas):
+--   whatsapp_saude_registrar(chave, user, ok, detalhe, falhas_para_alertar=2, lembrete_horas=6) -> 'alertar' | 'lembrar' | 'recuperou' | null  (service_role)
+--   master_whatsapp_saude() e master_whatsapp_relatorio(dias) (só master), whatsapp_chat_master() e whatsapp_chat_usuario(uuid) (service_role)
+
+-- Perfil Pessoal pode usar a aba de Clientes (opção ligada em Configurações, só admin). Aplicada em 2026-10-15.
+alter table public.workspaces add column if not exists usa_clientes boolean not null default false;
+
+-- Perfil Pessoal: campos do cadastro de cliente que a pessoa quer ver (lista de chaves; null = padrão). Aplicada em 2026-10-15.
+alter table public.workspaces add column if not exists campos_cliente jsonb;
+
+-- Re-contato automático (aplicado em 2026-10-15): quando chega o dia do próximo contato de um cliente, cria um card
+-- "Re-contato: <cliente>" na raia configurada (padrão 're_contato', criada pela tela). Um card aberto por cliente.
+alter table public.workspaces add column if not exists recontato_auto boolean not null default false;
+alter table public.workspaces add column if not exists recontato_coluna text not null default 're_contato';
+
+create or replace function public._gerar_recontatos(p_ws uuid default null)
+returns int language plpgsql security definer set search_path = public as $$
+declare hoje date := (now() at time zone 'America/Sao_Paulo')::date; n int := 0; r record; resp text;
+begin
+  for r in
+    select w.id as ws, w.recontato_coluna as col, e.nome, e.responsavel, e.proximo_contato, e.ultimo_contato
+    from public.workspaces w
+    join public.entidades e on e.workspace_id = w.id
+    where w.recontato_auto and (p_ws is null or w.id = p_ws)
+      and e.proximo_contato is not null and e.proximo_contato <= hoje
+      and exists (select 1 from public.kanban_colunas k where k.workspace_id = w.id and k.id = w.recontato_coluna)
+      and not exists (select 1 from public.atividades a where a.workspace_id = w.id and a.entidade_nome = e.nome
+                      and a.coluna <> 'concluida' and not a.cancelado and a.titulo like 'Re-contato:%')
+  loop
+    resp := coalesce(nullif(r.responsavel, ''),
+      (select m.nome from public.workspace_membros m where m.workspace_id = r.ws and m.role = 'admin' and coalesce(m.nome, '') <> '' order by m.created_at limit 1),
+      'Taskfull');
+    insert into public.atividades (workspace_id, responsavel, criado_por, titulo, descricao, entidade_nome, coluna, ordem)
+    values (r.ws, resp, 'Taskfull (automático)', 'Re-contato: ' || r.nome,
+      'Contato marcado para ' || to_char(r.proximo_contato, 'DD/MM/YYYY') ||
+      case when r.ultimo_contato is not null then '. Último contato: ' || to_char(r.ultimo_contato, 'DD/MM/YYYY') else '' end || '.',
+      r.nome, r.col,
+      coalesce((select max(a.ordem) + 1 from public.atividades a where a.workspace_id = r.ws and a.coluna = r.col), 0));
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+revoke all on function public._gerar_recontatos(uuid) from public, anon, authenticated;
+
+create or replace function public.gerar_recontatos()
+returns int language sql security definer set search_path = public as $$ select public._gerar_recontatos(null) $$;
+revoke all on function public.gerar_recontatos() from public, anon, authenticated;
+
+create or replace function public.gerar_recontatos_ws(p_ws uuid)
+returns int language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_member(p_ws) then raise exception 'sem acesso'; end if;
+  return public._gerar_recontatos(p_ws);
+end $$;
+revoke all on function public.gerar_recontatos_ws(uuid) from public, anon;
+grant execute on function public.gerar_recontatos_ws(uuid) to authenticated;
+
+-- Todo dia às 06:00 de Brasília (09:00 UTC):
+-- select cron.schedule('gerar-recontatos', '0 9 * * *', 'select public.gerar_recontatos()');
+
+-- Re-contato automático, contagem em dias a partir do último contato (aplicado em 2026-10-15). Substitui a versão acima.
+-- Último contato = o maior entre entidades.ultimo_contato, atividade concluída do cliente e compromisso realizado (feito) do cliente.
+-- Vence em: Próximo contato (se maior que o último contato) ou último contato + recontato_dias. recontato_dias = 0 usa só o Próximo contato.
+alter table public.workspaces add column if not exists recontato_dias int not null default 0;
+
+create or replace function public._gerar_recontatos(p_ws uuid default null)
+returns int language plpgsql security definer set search_path = public as $$
+declare hoje date := (now() at time zone 'America/Sao_Paulo')::date; n int := 0; r record; resp text; zero date := date '0001-01-01';
+begin
+  for r in
+    with base as (
+      select w.id as ws, w.recontato_coluna as col, w.recontato_dias as dias, e.nome, e.responsavel, e.proximo_contato as prox,
+        nullif(greatest(
+          coalesce(e.ultimo_contato, zero),
+          coalesce((select max(a.concluido_em) from public.atividades a where a.workspace_id = w.id and lower(a.entidade_nome) = lower(e.nome) and a.coluna = 'concluida' and not a.cancelado), zero),
+          coalesce((select max(g.data) from public.agendamentos g where g.workspace_id = w.id and g.feito and g.data <= hoje and (g.entidade_id = e.id or lower(g.entidade_nome) = lower(e.nome))), zero)
+        ), zero) as ult
+      from public.workspaces w
+      join public.entidades e on e.workspace_id = w.id
+      where w.recontato_auto and (p_ws is null or w.id = p_ws)
+    ), due as (
+      select base.*, case
+          when dias > 0 and prox is not null and (ult is null or prox > ult) then prox
+          when dias > 0 and ult is not null then ult + dias
+          when dias <= 0 then prox
+        end as vence
+      from base
+    )
+    select ws, col, nome, responsavel, vence, ult from due
+    where vence is not null and vence <= hoje
+      and exists (select 1 from public.kanban_colunas k where k.workspace_id = due.ws and k.id = due.col)
+      and not exists (select 1 from public.atividades a where a.workspace_id = due.ws and lower(a.entidade_nome) = lower(due.nome)
+                      and a.coluna <> 'concluida' and not a.cancelado and a.titulo like 'Re-contato:%')
+  loop
+    resp := coalesce(nullif(r.responsavel, ''),
+      (select m.nome from public.workspace_membros m where m.workspace_id = r.ws and m.role = 'admin' and coalesce(m.nome, '') <> '' order by m.created_at limit 1),
+      'Taskfull');
+    insert into public.atividades (workspace_id, responsavel, criado_por, titulo, descricao, entidade_nome, coluna, ordem)
+    values (r.ws, resp, 'Taskfull (automático)', 'Re-contato: ' || r.nome,
+      'Contato previsto para ' || to_char(r.vence, 'DD/MM/YYYY') ||
+      case when r.ult is not null then '. Último contato: ' || to_char(r.ult, 'DD/MM/YYYY') else '' end || '.',
+      r.nome, r.col,
+      coalesce((select max(a.ordem) + 1 from public.atividades a where a.workspace_id = r.ws and a.coluna = r.col), 0));
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+revoke all on function public._gerar_recontatos(uuid) from public, anon, authenticated;
