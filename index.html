@@ -1629,8 +1629,11 @@
         <div class="resumo-box config-section" id="section-recontato" style="display:none">
           <div class="config-section-header" onclick="toggleConfigSection('recontato')"><h2>🔁 Re-contato automático</h2><span class="config-chevron" id="chevron-recontato">▸</span></div>
           <div class="config-section-body" id="body-recontato" style="display:none">
-            <p class="config-hint">Quando chega o dia do <b>Próximo contato</b> de um cliente, o Taskfull cria um card na raia <b>RE CONTATO</b> do quadro de Atividades ("Re-contato: nome do cliente"), todo dia por volta das 6h. Cliente sem data de próximo contato não gera card, e enquanto o card estiver aberto não nasce outro. Ao <b>registrar o contato</b> (na ficha do cliente) o card é concluído; ao <b>concluir o card</b> o Taskfull pergunta a data do próximo contato. Para parar de lembrar de um cliente, apague a data dele.</p>
+            <p class="config-hint">O Taskfull cria um card na raia <b>RE CONTATO</b> do quadro de Atividades ("Re-contato: nome do cliente") para lembrar de falar de novo com o cliente. A contagem parte do <b>último contato</b>, que vale quando você registra o contato na ficha do cliente, conclui uma atividade ou realiza um compromisso da Agenda desse cliente. Passados os dias abaixo, nasce o card. Se você marcar uma data de <b>Próximo contato</b> maior que o último contato, ela vale no lugar da contagem. Os cards são criados todo dia por volta das 6h e só um por cliente fica aberto. Ao <b>registrar o contato</b> na ficha o card é concluído, e ao <b>concluir o card</b> o Taskfull pergunta a data do próximo contato.</p>
             <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;"><input type="checkbox" id="wcfg-recontato" onchange="withLock(this, () => salvarRecontatoAuto(this.checked))"> Criar card automático de re-contato neste espaço</label>
+            <div class="form-field" style="margin-top:12px;max-width:320px;"><label>Gerar o card depois de quantos dias do último contato?</label>
+              <div style="display:flex;gap:8px;align-items:center;"><input type="number" id="wcfg-recontato-dias" min="0" max="365" style="width:100px;" onchange="withLock(this, salvarRecontatoDias)"> <span style="color:var(--gray-text);font-size:13px;">dias (0 = só pela data de Próximo contato)</span></div>
+            </div>
             <div style="margin-top:10px;"><button class="btn btn-sm" id="btn-gerar-recontato" onclick="withLock(this, gerarRecontatosAgora)">▶ Gerar os cards de hoje agora</button></div>
           </div>
         </div>
@@ -4751,7 +4754,7 @@ async function loadWorkspaces() {
   workspaces = wsRows.map(w => ({
     id: w.id, nome: w.nome, perfilTipo: w.perfil_tipo, ownerId: w.owner_id,
     inviteCode: w.invite_code, entidadeLabel: w.entidade_label, corDestaque: w.cor_destaque || DEFAULT_COR_DESTAQUE,
-    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato',
+    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato', recontatoDias: w.recontato_dias || 0,
     role: membrosRows.find(m => m.workspace_id === w.id).role,
   }));
   const savedId = localStorage.getItem('ws_active_id');
@@ -5163,7 +5166,7 @@ function openModal(id) {
   document.getElementById('f-saude-motivo').value = c ? c.saudeMotivo : '';
   document.getElementById('f-observacao').value = c ? c.observacao : '';
   document.getElementById('f-nota-contato').value = '';
-  document.getElementById('f-nota-proximo').value = addDays(todayStr(),1);
+  document.getElementById('f-nota-proximo').value = addDays(todayStr(), (activeWorkspace.recontatoAuto && activeWorkspace.recontatoDias > 0) ? activeWorkspace.recontatoDias : 1);
   document.getElementById('btn-delete-entidade').style.display = c ? '' : 'none';
   aplicarCamposCliente();
   renderContatosList(); renderPendenciasModal(); renderHistoricoList();
@@ -6511,6 +6514,8 @@ function renderConfiguracoes() {
   document.getElementById('section-recontato').style.display = temAba('entidades') ? '' : 'none';
   document.getElementById('wcfg-recontato').checked = !!activeWorkspace.recontatoAuto;
   document.getElementById('wcfg-recontato').disabled = !souAdmin;
+  document.getElementById('wcfg-recontato-dias').value = activeWorkspace.recontatoDias || 0;
+  document.getElementById('wcfg-recontato-dias').disabled = !souAdmin;
   const chkClientes = document.getElementById('wcfg-usa-clientes');
   chkClientes.checked = !!activeWorkspace.usaClientes;
   chkClientes.disabled = !souAdmin;
@@ -6557,11 +6562,21 @@ async function salvarRecontatoAuto(ligar) {
     if (e1) { alert('Não consegui criar a raia: ' + e1.message); renderConfiguracoes(); return; }
     KANBAN_COLUNAS.push({ id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
   }
-  const { error } = await sb.from('workspaces').update({ recontato_auto: ligar, recontato_coluna: coluna }).eq('id', activeWorkspace.id);
+  const dias = (ligar && !(activeWorkspace.recontatoDias > 0)) ? 30 : (activeWorkspace.recontatoDias || 0);   // ao ligar pela primeira vez, sugere 30 dias
+  const { error } = await sb.from('workspaces').update({ recontato_auto: ligar, recontato_coluna: coluna, recontato_dias: dias }).eq('id', activeWorkspace.id);
   if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
-  activeWorkspace.recontatoAuto = ligar; activeWorkspace.recontatoColuna = coluna;
-  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) { w.recontatoAuto = ligar; w.recontatoColuna = coluna; }
+  activeWorkspace.recontatoAuto = ligar; activeWorkspace.recontatoColuna = coluna; activeWorkspace.recontatoDias = dias;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) { w.recontatoAuto = ligar; w.recontatoColuna = coluna; w.recontatoDias = dias; }
   if (ligar) await gerarRecontatosAgora(true); else renderConfiguracoes();
+}
+async function salvarRecontatoDias() {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  const v = parseInt(document.getElementById('wcfg-recontato-dias').value, 10);
+  if (isNaN(v) || v < 0 || v > 365) { alert('Informe um número de dias entre 0 e 365.'); renderConfiguracoes(); return; }
+  const { error } = await sb.from('workspaces').update({ recontato_dias: v }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  activeWorkspace.recontatoDias = v;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.recontatoDias = v;
 }
 async function gerarRecontatosAgora(silencioso) {
   if (!activeWorkspace.recontatoAuto) { alert('Ligue o re-contato automático primeiro.'); return; }
@@ -6586,7 +6601,7 @@ let proximoContatoEntidadeId = null;
 function perguntarProximoContato(entidade) {
   proximoContatoEntidadeId = entidade.id;
   document.getElementById('proximo-contato-texto').textContent = 'Você concluiu o re-contato com ' + entidade.nome + '. Quando é o próximo contato?';
-  document.getElementById('proximo-contato-data').value = addDays(todayStr(), 7);
+  document.getElementById('proximo-contato-data').value = addDays(todayStr(), (activeWorkspace.recontatoAuto && activeWorkspace.recontatoDias > 0) ? activeWorkspace.recontatoDias : 7);
   document.getElementById('proximo-contato-overlay').classList.add('open');
 }
 async function salvarProximoContato(comData) {

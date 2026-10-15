@@ -1547,3 +1547,52 @@ grant execute on function public.gerar_recontatos_ws(uuid) to authenticated;
 
 -- Todo dia às 06:00 de Brasília (09:00 UTC):
 -- select cron.schedule('gerar-recontatos', '0 9 * * *', 'select public.gerar_recontatos()');
+
+-- Re-contato automático, contagem em dias a partir do último contato (aplicado em 2026-10-15). Substitui a versão acima.
+-- Último contato = o maior entre entidades.ultimo_contato, atividade concluída do cliente e compromisso realizado (feito) do cliente.
+-- Vence em: Próximo contato (se maior que o último contato) ou último contato + recontato_dias. recontato_dias = 0 usa só o Próximo contato.
+alter table public.workspaces add column if not exists recontato_dias int not null default 0;
+
+create or replace function public._gerar_recontatos(p_ws uuid default null)
+returns int language plpgsql security definer set search_path = public as $$
+declare hoje date := (now() at time zone 'America/Sao_Paulo')::date; n int := 0; r record; resp text; zero date := date '0001-01-01';
+begin
+  for r in
+    with base as (
+      select w.id as ws, w.recontato_coluna as col, w.recontato_dias as dias, e.nome, e.responsavel, e.proximo_contato as prox,
+        nullif(greatest(
+          coalesce(e.ultimo_contato, zero),
+          coalesce((select max(a.concluido_em) from public.atividades a where a.workspace_id = w.id and lower(a.entidade_nome) = lower(e.nome) and a.coluna = 'concluida' and not a.cancelado), zero),
+          coalesce((select max(g.data) from public.agendamentos g where g.workspace_id = w.id and g.feito and g.data <= hoje and (g.entidade_id = e.id or lower(g.entidade_nome) = lower(e.nome))), zero)
+        ), zero) as ult
+      from public.workspaces w
+      join public.entidades e on e.workspace_id = w.id
+      where w.recontato_auto and (p_ws is null or w.id = p_ws)
+    ), due as (
+      select base.*, case
+          when dias > 0 and prox is not null and (ult is null or prox > ult) then prox
+          when dias > 0 and ult is not null then ult + dias
+          when dias <= 0 then prox
+        end as vence
+      from base
+    )
+    select ws, col, nome, responsavel, vence, ult from due
+    where vence is not null and vence <= hoje
+      and exists (select 1 from public.kanban_colunas k where k.workspace_id = due.ws and k.id = due.col)
+      and not exists (select 1 from public.atividades a where a.workspace_id = due.ws and lower(a.entidade_nome) = lower(due.nome)
+                      and a.coluna <> 'concluida' and not a.cancelado and a.titulo like 'Re-contato:%')
+  loop
+    resp := coalesce(nullif(r.responsavel, ''),
+      (select m.nome from public.workspace_membros m where m.workspace_id = r.ws and m.role = 'admin' and coalesce(m.nome, '') <> '' order by m.created_at limit 1),
+      'Taskfull');
+    insert into public.atividades (workspace_id, responsavel, criado_por, titulo, descricao, entidade_nome, coluna, ordem)
+    values (r.ws, resp, 'Taskfull (automático)', 'Re-contato: ' || r.nome,
+      'Contato previsto para ' || to_char(r.vence, 'DD/MM/YYYY') ||
+      case when r.ult is not null then '. Último contato: ' || to_char(r.ult, 'DD/MM/YYYY') else '' end || '.',
+      r.nome, r.col,
+      coalesce((select max(a.ordem) + 1 from public.atividades a where a.workspace_id = r.ws and a.coluna = r.col), 0));
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+revoke all on function public._gerar_recontatos(uuid) from public, anon, authenticated;
