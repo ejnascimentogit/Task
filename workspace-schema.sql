@@ -1494,3 +1494,6 @@ revoke all on public.whatsapp_saude_eventos from anon, authenticated;
 
 -- Perfil Pessoal pode usar a aba de Clientes (opção ligada em Configurações, só admin). Aplicada em 2026-10-15.
 alter table public.workspaces add column if not exists usa_clientes boolean not null default false;
+
+-- Perfil Pessoal: campos do cadastro de cliente que a pessoa quer ver (lista de chaves; null = padrão). Aplicada em 2026-10-15.
+alter table public.workspaces add column if not exists campos_cliente jsonb;
