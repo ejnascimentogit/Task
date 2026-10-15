@@ -1629,8 +1629,11 @@
         <div class="resumo-box config-section" id="section-recontato" style="display:none">
           <div class="config-section-header" onclick="toggleConfigSection('recontato')"><h2>🔁 Re-contato automático</h2><span class="config-chevron" id="chevron-recontato">▸</span></div>
           <div class="config-section-body" id="body-recontato" style="display:none">
-            <p class="config-hint">O Taskfull cria um card na raia <b>RE CONTATO</b> do quadro de Atividades ("Re-contato: nome do cliente") para lembrar de falar de novo com o cliente. A contagem parte do <b>último contato</b>, que vale quando você registra o contato na ficha do cliente, conclui uma atividade ou realiza um compromisso da Agenda desse cliente. Passados os dias abaixo, nasce o card. Se você marcar uma data de <b>Próximo contato</b> maior que o último contato, ela vale no lugar da contagem. Os cards são criados todo dia por volta das 6h e só um por cliente fica aberto. Ao <b>registrar o contato</b> na ficha o card é concluído, e ao <b>concluir o card</b> o Taskfull pergunta a data do próximo contato.</p>
+            <p class="config-hint">O Taskfull cria um card no quadro de Atividades ("Re-contato: nome do cliente"), na raia que você escolher abaixo (a raia Concluído não entra) para lembrar de falar de novo com o cliente (você escolhe abaixo em qual raia ele nasce; a raia "concluída" não entra). A contagem parte do <b>último contato</b>, que vale quando você registra o contato na ficha do cliente, conclui uma atividade ou realiza um compromisso da Agenda desse cliente. Passados os dias abaixo, nasce o card. Se você marcar uma data de <b>Próximo contato</b> maior que o último contato, ela vale no lugar da contagem. Os cards são criados todo dia por volta das 6h e só um por cliente fica aberto. Ao <b>registrar o contato</b> na ficha o card é concluído, e ao <b>concluir o card</b> o Taskfull pergunta a data do próximo contato.</p>
             <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;"><input type="checkbox" id="wcfg-recontato" onchange="withLock(this, () => salvarRecontatoAuto(this.checked))"> Criar card automático de re-contato neste espaço</label>
+            <div class="form-field" style="margin-top:12px;max-width:320px;"><label>Em qual raia o card nasce?</label>
+              <select id="wcfg-recontato-coluna" onchange="withLock(this, salvarRecontatoColuna)"></select>
+            </div>
             <div class="form-field" style="margin-top:12px;max-width:320px;"><label>Gerar o card depois de quantos dias do último contato?</label>
               <div style="display:flex;gap:8px;align-items:center;"><input type="number" id="wcfg-recontato-dias" min="0" max="365" style="width:100px;" onchange="withLock(this, salvarRecontatoDias)"> <span style="color:var(--gray-text);font-size:13px;">dias (0 = só pela data de Próximo contato)</span></div>
             </div>
@@ -6514,6 +6517,14 @@ function renderConfiguracoes() {
   document.getElementById('section-recontato').style.display = temAba('entidades') ? '' : 'none';
   document.getElementById('wcfg-recontato').checked = !!activeWorkspace.recontatoAuto;
   document.getElementById('wcfg-recontato').disabled = !souAdmin;
+  const selCol = document.getElementById('wcfg-recontato-coluna');
+  const colAtual = activeWorkspace.recontatoColuna || 're_contato';
+  const raias = KANBAN_COLUNAS.filter(c => c.ativo !== false && c.id !== 'concluida');
+  selCol.innerHTML = raias.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.nome)}</option>`).join('') +
+    (raias.some(c => c.id === 're_contato') ? '' : `<option value="re_contato">➕ Criar a raia RE CONTATO</option>`);
+  if (![...selCol.options].some(o => o.value === colAtual)) selCol.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(colAtual)}">${escapeHtml(colAtual)} (raia removida)</option>`);
+  selCol.value = colAtual;
+  selCol.disabled = !souAdmin;
   document.getElementById('wcfg-recontato-dias').value = activeWorkspace.recontatoDias || 0;
   document.getElementById('wcfg-recontato-dias').disabled = !souAdmin;
   const chkClientes = document.getElementById('wcfg-usa-clientes');
@@ -6569,6 +6580,22 @@ async function salvarRecontatoAuto(ligar) {
   const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) { w.recontatoAuto = ligar; w.recontatoColuna = coluna; w.recontatoDias = dias; }
   if (ligar) await gerarRecontatosAgora(true); else renderConfiguracoes();
 }
+async function salvarRecontatoColuna() {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  const coluna = document.getElementById('wcfg-recontato-coluna').value;
+  if (!coluna || coluna === 'concluida') { renderConfiguracoes(); return; }
+  if (activeWorkspace.recontatoAuto && !KANBAN_COLUNAS.some(c => c.id === coluna)) {   // só a raia padrão pode faltar: cria
+    const ordem = KANBAN_COLUNAS.length + 1;
+    const { error: e1 } = await sb.from('kanban_colunas').insert({ workspace_id: activeWorkspace.id, id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+    if (e1) { alert('Não consegui criar a raia: ' + e1.message); renderConfiguracoes(); return; }
+    KANBAN_COLUNAS.push({ id: coluna, nome: 'RE CONTATO', ordem, ativo: true });
+  }
+  const { error } = await sb.from('workspaces').update({ recontato_coluna: coluna }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  activeWorkspace.recontatoColuna = coluna;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.recontatoColuna = coluna;
+  renderConfiguracoes(); renderAtividades();
+}
 async function salvarRecontatoDias() {
   if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
   const v = parseInt(document.getElementById('wcfg-recontato-dias').value, 10);
@@ -6584,7 +6611,7 @@ async function gerarRecontatosAgora(silencioso) {
   if (error) { alert('Não foi possível gerar os cards: ' + error.message); return; }
   await refreshDados();
   setTab('configuracoes');
-  if (!silencioso || data > 0) alert(data > 0 ? (data + (data === 1 ? ' card criado' : ' cards criados') + ' na raia RE CONTATO.') : 'Nenhum cliente com próximo contato vencido: nada a criar.');
+  if (!silencioso || data > 0) alert(data > 0 ? (data + (data === 1 ? ' card criado' : ' cards criados') + ' na raia escolhida.') : 'Nenhum cliente com próximo contato vencido: nada a criar.');
 }
 // Ao registrar contato na ficha do cliente, os cards de re-contato abertos dele são concluídos.
 async function concluirCardsRecontato(nomeCliente) {
