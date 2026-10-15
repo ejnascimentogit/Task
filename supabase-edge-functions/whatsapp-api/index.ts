@@ -87,6 +87,44 @@ Deno.serve(async (req) => {
         return resp({ ok: true, conectada: false, qr: qr || null });
       }
 
+      case "servidor": {   // só o master: visão do servidor (nunca devolve tokens)
+        if (String(user.email ?? "").toLowerCase() !== "ejnascimento@hotmail.com" || !user.email_confirmed_at) return resp({ ok: false, erro: "Só o administrador do Taskfull vê isto." });
+        if (!cfg) return resp({ ok: true, configurado: false });
+        const t0 = Date.now();
+        const srv = await wz.saude(cfg);
+        const latencia = Date.now() - t0;
+        let host = ""; try { host = new URL(cfg.url).host; } catch (_) { host = cfg.url; }
+        const tipo = /\.ts\.net$/i.test(host) ? "tailscale_funnel" : /trycloudflare\.com$/i.test(host) ? "tunel_rapido" : "outro";
+        const lista = Array.isArray(srv.json?.data) ? srv.json.data : [];
+        const { data: contas } = await admin.from("whatsapp_contas").select("user_id, telefone, status");
+        const instancias = [];
+        for (const u of lista) {
+          const nome = String(u?.name ?? "");
+          const pref = nome.startsWith("taskfull-") ? nome.slice(9) : "";
+          const conta = (contas ?? []).find((c: any) => pref && String(c.user_id).startsWith(pref));
+          let email: string | null = null;
+          if (conta) { const { data: au } = await admin.auth.admin.getUserById(conta.user_id); email = au?.user?.email ?? null; }
+          instancias.push({ nome, email, telefone: conta?.telefone ?? numeroDoJid(u?.jid), conectada: u?.connected === true, logada: u?.loggedIn === true, taskfull: conta?.status ?? null });
+        }
+        const conta_ = async (status: string, desde?: string) => {
+          let q = admin.from("whatsapp_mensagens").select("id", { count: "exact", head: true }).eq("status", status);
+          if (desde) q = q.gte("criado_em", desde);
+          return (await q).count ?? 0;
+        };
+        const dia = new Date(Date.now() - 86400_000).toISOString(), mes = new Date(Date.now() - 30 * 86400_000).toISOString();
+        const fila = { agendadas: await conta_("agendada"), enviadas_24h: await conta_("enviada", dia), erros_7d: await conta_("erro", new Date(Date.now() - 7 * 86400_000).toISOString()) };
+        const { data: est } = await admin.from("whatsapp_saude_estado").select("ok, desde, verificado_em").eq("chave", "servidor").maybeSingle();
+        const { count: quedas } = await admin.from("whatsapp_saude_eventos").select("id", { count: "exact", head: true }).eq("chave", "servidor").eq("ok", false).gte("em", mes);
+        return resp({
+          ok: true, configurado: true,
+          endereco: { url: cfg.url, host, tipo },
+          links: { dashboard: cfg.url + "/dashboard", api: cfg.url + "/api", tailscale: tipo === "tailscale_funnel" ? "https://login.tailscale.com/admin/machines" : null },
+          servidor: { ok: srv.ok, http: srv.status, latencia_ms: latencia, erro: srv.ok ? null : wz.erro(srv) },
+          instancias, fila,
+          saude: est ? { ok: est.ok, desde: est.desde, verificado_em: est.verificado_em } : null, quedas_30d: quedas ?? 0,
+        });
+      }
+
       case "desconectar": {
         const t = await token();
         if (cfg && t) await wz.sair(cfg, t);

@@ -1468,6 +1468,7 @@
           <div id="wa-conexao" style="margin-top:14px;"></div>
           <div id="wa-lista" style="margin-top:14px;overflow-x:auto;"></div>
           <div id="wa-saude" style="margin-top:20px;"></div>
+          <div id="wa-servidor" style="margin-top:20px;"></div>
         </div>
       </section>
 
@@ -3637,6 +3638,49 @@ function renderAlertaWhatsapp() {
   box.style.display = linhas.length ? '' : 'none';
   box.innerHTML = linhas.map(l => `<div class="wa-alerta ${l.ruim ? 'ruim' : ''}" role="alert" style="margin-bottom:8px;"><span>⚠️ ${l.texto}</span>${l.botao ? '<button class="btn btn-sm" onclick="setTab(\'whatsapp\')">Abrir WhatsApp</button>' : ''}</div>`).join('');
 }
+// ── Visão do servidor (só master): endereço, caminho da conexão, instâncias do WuzAPI e fila. Nunca mostra tokens. ──
+let waServidor = null;
+async function carregarServidorWa() {
+  if (!souMaster() || !sb) { waServidor = null; renderServidorWa(); return; }
+  const r = await waChamar({ acao: 'servidor' });
+  waServidor = r;
+  renderServidorWa();
+}
+function renderServidorWa() {
+  const box = document.getElementById('wa-servidor'); if (!box) return;
+  if (!souMaster()) { box.innerHTML = ''; return; }
+  const d = waServidor;
+  if (!d) { box.innerHTML = '<h3 style="font-size:15px;">🖥 Servidor do WhatsApp</h3><p class="config-hint">Carregando...</p>'; return; }
+  if (d.ok === false) { box.innerHTML = `<h3 style="font-size:15px;">🖥 Servidor do WhatsApp</h3><p class="config-hint">⚠️ ${escapeHtml(d.erro || 'Não foi possível carregar.')}</p>`; return; }
+  if (!d.configurado) { box.innerHTML = '<h3 style="font-size:15px;">🖥 Servidor do WhatsApp</h3><p class="config-hint">Servidor não configurado (faltam os segredos WUZAPI_URL e WUZAPI_ADMIN_TOKEN).</p>'; return; }
+  const tipoNome = { tailscale_funnel: 'Tailscale Funnel (endereço fixo)', tunel_rapido: 'Túnel rápido da Cloudflare (muda a cada reinício)', outro: 'Endereço próprio' }[d.endereco.tipo] || d.endereco.tipo;
+  const inst = d.instancias || [];
+  const logadas = inst.filter(i => i.logada).length;
+  const etapa = (ok, txt, dica) => `<span title="${escapeHtml(dica || '')}" style="display:inline-flex;gap:6px;align-items:center;padding:5px 10px;border-radius:999px;border:1px solid var(--border-light);font-size:12.5px;">${ok === true ? '🟢' : ok === false ? '🔴' : '⚪'} ${escapeHtml(txt)}</span>`;
+  const seta = '<span style="color:var(--gray-text);">→</span>';
+  const caminho = [
+    etapa(true, 'Taskfull', 'Esta tela'), etapa(true, 'Supabase', 'A função respondeu'),
+    etapa(d.servidor.http > 0, d.endereco.tipo === 'tailscale_funnel' ? 'Funnel' : 'Túnel', 'Endereço público alcançado: ' + d.endereco.host),
+    etapa(d.servidor.ok, 'WuzAPI (Docker)', d.servidor.ok ? 'Respondeu em ' + d.servidor.latencia_ms + ' ms' : (d.servidor.erro || 'Sem resposta')),
+    etapa(inst.length ? logadas === inst.length : null, 'WhatsApp ' + logadas + '/' + inst.length, 'Sessões logadas / instâncias'),
+  ].join(' ' + seta + ' ');
+  const card = (titulo, corpo) => `<div style="flex:1 1 220px;border:1px solid var(--border-light);border-radius:12px;padding:12px 14px;"><div style="font-size:12px;color:var(--gray-text);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">${titulo}</div><div style="font-size:13px;line-height:1.7;">${corpo}</div></div>`;
+  const lk = (url, txt) => url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${txt}</a>` : '';
+  const l = d.links || {};
+  box.innerHTML = `<h3 style="font-size:15px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">🖥 Servidor do WhatsApp <small style="font-weight:400;color:var(--gray-text)">(só você vê)</small></h3>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">${caminho}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      ${card('Endereço', `<b>${escapeHtml(d.endereco.host)}</b><br>${escapeHtml(tipoNome)}<br>Rota local: 127.0.0.1:8080 (contêiner wuzapi)<br>${[lk(l.dashboard, 'Painel do WuzAPI'), lk(l.api, 'Documentação da API'), lk(l.tailscale, 'Painel do Tailscale')].filter(Boolean).join(' · ')}`)}
+      ${card('Resposta', `${d.servidor.ok ? '🟢 No ar' : '🔴 ' + escapeHtml(d.servidor.erro || 'Fora do ar')}<br>Tempo: ${d.servidor.latencia_ms} ms · HTTP ${d.servidor.http || '—'}`)}
+      ${card('Fila de mensagens', `Programadas: <b>${d.fila.agendadas}</b><br>Enviadas (24 h): <b>${d.fila.enviadas_24h}</b><br>Com erro (7 dias): <b>${d.fila.erros_7d}</b>`)}
+      ${card('Estabilidade', `${d.saude ? (d.saude.ok ? 'No ar desde ' : 'Fora do ar desde ') + escapeHtml(formatDataHora(d.saude.desde)) + '<br>Última verificação: ' + escapeHtml(formatDataHora(d.saude.verificado_em)) : 'Sem verificações do vigia ainda'}<br>Quedas (30 dias): <b>${d.quedas_30d}</b>`)}
+    </div>
+    <h4 style="font-size:13.5px;margin:14px 0 6px;">Usuários no Docker (instâncias do WuzAPI): ${inst.length}</h4>
+    <div style="overflow-x:auto;"><table class="data-table" style="font-size:13px;"><thead><tr><th>Instância</th><th>Usuário do Taskfull</th><th>Telefone</th><th>Conectada</th><th>Logada</th><th>No Taskfull</th></tr></thead><tbody>
+      ${inst.map(i => `<tr><td>${escapeHtml(i.nome)}</td><td>${escapeHtml(i.email || '—')}</td><td>${i.telefone ? escapeHtml(waFormatarFone(i.telefone)) : '—'}</td><td>${i.conectada ? '✅' : '❌'}</td><td>${i.logada ? '✅' : '❌'}</td><td>${escapeHtml(i.taskfull || '—')}</td></tr>`).join('') || '<tr><td colspan="6">Nenhuma instância.</td></tr>'}
+    </tbody></table></div>
+    <p class="config-hint" style="margin-top:8px;">O Taskfull não enxerga o Docker nem o Tailscale diretamente: se o WuzAPI responde pelo endereço, os dois estão no ar. Para ver CPU, memória e contêineres da máquina seria preciso um agente instalado nela.</p>`;
+}
 function renderSaudeWhatsapp() {
   const sv = document.getElementById('wa-servico'), box = document.getElementById('wa-saude');
   if (sv) {   // aviso para qualquer pessoa: o serviço está fora do ar (vem do estado)
@@ -3644,6 +3688,7 @@ function renderSaudeWhatsapp() {
     sv.innerHTML = s && s.ok === false ? `<div class="wa-alerta" role="alert">⚠️ <span><b>O serviço de WhatsApp está instável desde ${escapeHtml(formatDataHora(s.desde))}.</b> As mensagens programadas ficam na fila e saem quando ele voltar.</span></div>` : '';
   }
   if (!box) return;
+  renderServidorWa();
   if (!souMaster() || !waSaude) { box.innerHTML = ''; return; }
   const est = waSaude.estados || [], ev = waSaude.eventos || [];
   const srv = est.find(e => e.chave === 'servidor');
@@ -3772,6 +3817,7 @@ async function carregarWhatsapp() {
   } finally { waCarregando = false; }
   if (activeTab === 'whatsapp') renderWhatsapp(true);
   carregarAlertasWhatsapp();
+  if (souMaster() && activeTab === 'whatsapp') carregarServidorWa();
 }
 function renderWhatsapp(semRecarregar) {
   const box = document.getElementById('wa-conexao');
@@ -4776,7 +4822,7 @@ async function entrarComCodigoPendente() {
 }
 async function doLogout() {
   await sb.auth.signOut();
-  currentUser = null; recursosLiberados = []; waSaude = null; waMinhaConta = null; clearInterval(waAlertaTimer); waAlertaTimer = null; workspaces = []; activeWorkspace = null;
+  currentUser = null; recursosLiberados = []; waSaude = null; waServidor = null; waMinhaConta = null; clearInterval(waAlertaTimer); waAlertaTimer = null; workspaces = []; activeWorkspace = null;
   aplicarCorDestaque(DEFAULT_COR_DESTAQUE);
   aplicarCorFundo(DEFAULT_COR_FUNDO);
   document.getElementById('app-shell').style.display = 'none';
