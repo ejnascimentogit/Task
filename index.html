@@ -1067,6 +1067,8 @@
   .btn.btn-perigo { background:#dc2626; border-color:#dc2626; color:#fff; }
   .btn:disabled { opacity:.5; cursor:not-allowed; }
   .raia-toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:300; max-width:90vw; padding:12px 18px; border-radius:14px; background:#0f2233; color:#fff; font-size:14px; box-shadow:0 10px 30px rgba(0,0,0,.3); }
+  .raia-toast { display:flex; align-items:center; gap:14px; }
+  .raia-toast .toast-acao { flex:none; border:0; border-radius:10px; padding:6px 12px; background:#fff; color:#0f2233; font-weight:600; font-size:13px; cursor:pointer; }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -4917,9 +4919,11 @@ async function criarAtividadeDoAgendamento() {
     participantes:payload.participantes, concluidoEm:null, criadoEm:data.created_at, ordem:0, cancelado:false, imagens:[] });
   const { error: linkErr } = await sb.from('agendamentos').update({ atividade_id: data.id }).eq('id', ag.id);
   if (!linkErr) ag.atividadeId = data.id;
-  alert('Atividade criada a partir deste agendamento.');
   closeAgendamentoModal();
   renderAgenda(); updateAgendaCount();
+  const col = colunasAtivas().find(c => c.id === payload.coluna);
+  avisoToast('✅ Atividade criada: ' + payload.titulo + (payload.entidade_nome ? ' (' + payload.entidade_nome + ')' : '') + (col ? ', na coluna ' + col.nome + '.' : '.'),
+    { rotulo: 'Ver no quadro', fn: () => setTab('atividades') });
 }
 async function toggleAgendamentoFeito(id, feito) {
   const { error } = await sb.from('agendamentos').update({ feito }).eq('id', id);
@@ -5621,7 +5625,7 @@ const AJUDA_CONTEUDO = [
   ]},
   { categoria: 'Agenda', itens: [
     { p: 'Quais visualizações a Agenda tem?', r: 'Três: Lista (agrupada por dia), Cards e Calendário (grade mensal, mostrando só os dias que têm algum compromisso).' },
-    { p: 'Como transformo um agendamento em atividade sem digitar tudo de novo?', r: 'No modal de Agendamento (ao criar ou editar), clique em "✅ Criar Atividade". O campo Assunto vira o Título da atividade e a Observação vira a Descrição, automaticamente. Depois de usado, o botão trava ("Atividade já criada") pra não duplicar.' },
+    { p: 'Como transformo um agendamento em atividade sem digitar tudo de novo?', r: 'No modal de Agendamento (ao criar ou editar), clique em "✅ Criar Atividade". O campo Assunto vira o Título da atividade e a Observação vira a Descrição, automaticamente. Depois de usado, o botão trava ("Atividade já criada") pra não duplicar, e um aviso no canto da tela diz qual atividade foi criada e em que coluna, com o botão "Ver no quadro".' },
   ]},
   { categoria: 'Atividades (Kanban)', itens: [
     { p: 'Dá pra mudar as colunas do Kanban?', r: 'Sim — Configurações → Raias do Kanban. O admin cria, renomeia e reordena livremente. A coluna "Concluído" fica sempre fixa, por causa da regra de resolução obrigatória e do histórico automático.' },
@@ -5973,12 +5977,19 @@ function atualizarRaiaPrevia() {
   m.innerHTML = msg ? `<div class="raia-aviso ${ok ? '' : 'erro'}">${escapeHtml(msg)}</div>` : '';
   document.getElementById('raia-ok').disabled = !ok;
 }
-function avisoRaia(texto) {
+function avisoToast(texto, acao) {
   const el = document.createElement('div');
-  el.className = 'raia-toast'; el.textContent = texto;
+  el.className = 'raia-toast';
+  const t = document.createElement('span'); t.textContent = texto; el.appendChild(t);
+  if (acao) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-acao'; b.textContent = acao.rotulo;
+    b.onclick = () => { el.remove(); acao.fn(); };
+    el.appendChild(b);
+  }
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 4500);
+  setTimeout(() => el.remove(), acao ? 8000 : 4500);
 }
+function avisoRaia(texto) { avisoToast(texto); }
 async function confirmarRaiaModal() {
   if (!raiaModal) return;
   const { tipo, id } = raiaModal;
