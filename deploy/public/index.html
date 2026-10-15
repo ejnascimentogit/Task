@@ -5555,6 +5555,13 @@ async function garantirFeriadosNacionais(anos) {
       const j = r.ok ? await r.json() : [];
       FERIADOS_NACIONAIS_CACHE[ano] = Array.isArray(j) && j.length ? j : [];
     } catch (e) { FERIADOS_NACIONAIS_CACHE[ano] = []; }
+    if (!FERIADOS_NACIONAIS_CACHE[ano].length) {   // segunda fonte: se a BrasilAPI falhar, tenta a Nager.Date antes do cálculo local
+      try {
+        const r2 = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${ano}/BR`);
+        const j2 = r2.ok ? await r2.json() : [];
+        FERIADOS_NACIONAIS_CACHE[ano] = Array.isArray(j2) ? j2.filter(h => h && h.date).map(h => ({ date: h.date, name: h.localName || h.name })) : [];
+      } catch (e) { FERIADOS_NACIONAIS_CACHE[ano] = []; }
+    }
   }));
   if (activeTab === 'agenda') renderAgenda();
 }
@@ -5581,6 +5588,7 @@ function nesimoDiaSemana(ano, mes, dow, n) { // n-ésimo dia da semana (0=doming
 function dataComercial(d, ano) {
   if (d.nome === 'Dia das Maes') return { mes: 5, dia: nesimoDiaSemana(ano, 5, 0, 2) };
   if (d.nome === 'Dia dos Pais') return { mes: 8, dia: nesimoDiaSemana(ano, 8, 0, 2) };
+  if (d.nome === 'Páscoa') { const c = pascoaDe(ano); return { mes: c.getMonth() + 1, dia: c.getDate() }; }
   if (d.nome === 'Carnaval') { const c = somaDias(pascoaDe(ano), -47); return { mes: c.getMonth() + 1, dia: c.getDate() }; }
   if (d.nome === 'Black Friday') { const q = nesimoDiaSemana(ano, 11, 4, 4); return { mes: 11, dia: q + 1 }; }
   if (d.nome === 'Cyber Monday') { const q = nesimoDiaSemana(ano, 11, 4, 4); return { mes: 11, dia: q + 4 }; }
@@ -7209,6 +7217,76 @@ const DEFAULT_FERIADOS_COMERCIAIS = [
   ['Dia do Cliente', 9, 15], ['Dia da Arvore', 9, 21], ['Dia Internacional do Cafe', 10, 1], ['Dia do Vendedor', 10, 1], ['Dia Mundial dos Animais', 10, 4],
   ['Dia das Criancas', 10, 12], ['Halloween', 10, 31], ['Dia do Veganismo', 11, 1],
   ['Black Friday', 11, 27], ['Cyber Monday', 11, 30], ['Reveillon', 12, 31],
+  // Mais datas comemorativas (2026-10-15)
+  ['Dia do Fotógrafo', 1, 8],
+  ['Dia do Farmacêutico', 1, 20],
+  ['Dia do Carteiro', 1, 25],
+  ['Dia da Visibilidade Trans', 1, 29],
+  ['Dia de Iemanjá', 2, 2],
+  ['Dia do Bibliotecário', 3, 12],
+  ['Dia Nacional da Poesia', 3, 14],
+  ['Dia Internacional da Felicidade', 3, 20],
+  ['Dia Mundial da Água', 3, 22],
+  ['Dia do Circo', 3, 27],
+  ['Dia da Mentira', 4, 1],
+  ['Dia do Jornalista', 4, 7],
+  ['Dia Mundial da Saúde', 4, 7],
+  ['Dia do Beijo', 4, 13],
+  ['Dia Nacional do Livro Infantil', 4, 18],
+  ['Dia dos Povos Indígenas', 4, 19],
+  ['Dia da Polícia Militar', 4, 21],
+  ['Dia da Terra', 4, 22],
+  ['Dia do Contador', 4, 25],
+  ['Dia Internacional da Enfermagem', 5, 12],
+  ['Dia da Abolição da Escravatura', 5, 13],
+  ['Dia do Assistente Social', 5, 15],
+  ['Dia Mundial da Internet', 5, 17],
+  ['Dia Mundial sem Tabaco', 5, 31],
+  ['Dia Mundial do Meio Ambiente', 6, 5],
+  ['Dia do Cinema Brasileiro', 6, 19],
+  ['Dia do Bombeiro', 7, 2],
+  ['Dia da Pizza', 7, 10],
+  ['Dia do Comerciante', 7, 16],
+  ['Dia do Escritor', 7, 25],
+  ['Dia do Motorista', 7, 25],
+  ['Dia da Mulher Negra Latino-Americana', 7, 25],
+  ['Dia do Agricultor', 7, 28],
+  ['Dia do Advogado', 8, 11],
+  ['Dia do Estudante', 8, 11],
+  ['Dia do Folclore', 8, 22],
+  ['Dia do Soldado', 8, 25],
+  ['Dia do Psicólogo', 8, 27],
+  ['Dia do Bancário', 8, 28],
+  ['Dia do Nutricionista', 8, 31],
+  ['Dia do Biólogo', 9, 3],
+  ['Dia da Amazônia', 9, 5],
+  ['Dia do Administrador', 9, 9],
+  ['Dia do Médico Veterinário', 9, 9],
+  ['Dia do Programador', 9, 13],
+  ['Dia Nacional do Trânsito', 9, 25],
+  ['Dia Mundial do Turismo', 9, 27],
+  ['Dia do Secretário', 9, 30],
+  ['Dia do Empreendedor', 10, 5],
+  ['Dia do Professor', 10, 15],
+  ['Dia Mundial da Alimentação', 10, 16],
+  ['Dia do Médico', 10, 18],
+  ['Dia do Dentista', 10, 25],
+  ['Dia do Servidor Público', 10, 28],
+  ['Dia de Todos os Santos', 11, 1],
+  ['Dia do Designer', 11, 5],
+  ['Dia do Radialista', 11, 7],
+  ['Dia Mundial do Diabetes', 11, 14],
+  ['Dia da Bandeira', 11, 19],
+  ['Dia Internacional do Homem', 11, 19],
+  ['Dia do Músico', 11, 22],
+  ['Dia Internacional da Eliminação da Violência contra a Mulher', 11, 25],
+  ['Dia Mundial de Combate à AIDS', 12, 1],
+  ['Dia da Família', 12, 8],
+  ['Dia dos Direitos Humanos', 12, 10],
+  ['Dia do Engenheiro', 12, 11],
+  ['Dia do Marinheiro', 12, 13],
+  ['Dia do Arquiteto', 12, 15],
+  ['Véspera de Natal', 12, 24],
 ].map(([nome, mes, dia]) => ({ nome, mes, dia, tipo: 'comercial' }));
 async function sincronizarFeriadosComerciais() {
   const faltando = DEFAULT_FERIADOS_COMERCIAIS.filter(d =>
