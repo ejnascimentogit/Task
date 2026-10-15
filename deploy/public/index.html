@@ -3425,10 +3425,22 @@ async function salvarLiberacoes() {
   if (!liberar.length && !remover.length) { fecharLiberacoes(); return; }
   const nomeDe = r => RECURSOS_PAGOS.find(x => x[0] === r)[1];
   const quem = u.nome || u.email;
-  let aviso = '';
-  if (liberar.length) aviso += 'Liberar para ' + quem + ':\n' + liberar.map(r => ' • ' + nomeDe(r)).join('\n') + '\n(passa a gastar tokens da sua conta quando ela usar)\n\n';
-  if (remover.length) aviso += 'Remover de ' + quem + ':\n' + remover.map(r => ' • ' + nomeDe(r) + (r === 'assessor_telegram' ? ' (desconecta o Telegram e apaga as conversas)' : r === 'assessor_email' ? ' (desconecta os e-mails)' : r === 'whatsapp' ? ' (cancela as mensagens programadas)' : '')).join('\n') + '\n\n';
-  if (!confirm(aviso + 'Confirmar?')) return;
+  const LIBERA = {
+    buscar: 'usa IA e gasta tokens da sua conta Anthropic',
+    assessor_telegram: 'usa IA e gasta tokens da sua conta Anthropic (limite mensal por pessoa)',
+    assessor_email: 'usa IA e gasta tokens da sua conta Anthropic (mesmo limite mensal do assessor)',
+    whatsapp: 'não usa IA e não gasta tokens; usa o seu servidor do WhatsApp; limite de 50 mensagens por dia; conexão não oficial (risco de bloqueio do número)',
+  };
+  const REMOVE = {
+    assessor_telegram: 'desconecta o Telegram e apaga as conversas',
+    assessor_email: 'desconecta os e-mails',
+    whatsapp: 'desconecta o WhatsApp e cancela as mensagens programadas',
+  };
+  const linhas = [];
+  if (liberar.length) linhas.push('✅ LIBERAR para ' + quem + ':', ...liberar.map(r => '   • ' + nomeDe(r) + '\n      ' + LIBERA[r]), '');
+  if (remover.length) linhas.push('⛔ REMOVER de ' + quem + ':', ...remover.map(r => '   • ' + nomeDe(r) + (REMOVE[r] ? '\n      ' + REMOVE[r] : '')), '');
+  const aviso = linhas.join('\n') + '\n';
+  if (!confirm(aviso + 'Confirmar as alterações?')) return;
   for (const [recs, ativar] of [[liberar, true], [remover, false]]) {
     for (const r of recs) {
       const { error } = await sb.rpc('master_definir_liberacao', { p_user: u.user_id, p_recurso: r, p_ativo: ativar });
