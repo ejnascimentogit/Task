@@ -1,6 +1,6 @@
 // WhatsApp (WuzAPI) — envia as mensagens programadas que já chegaram na hora.
 // Chamada a cada minuto pelo pg_cron (job 'whatsapp-agendadas', via pg_net, com a chave anon). verify_jwt = true.
-// Com corpo { tarefa: "vigia" } (job 'whatsapp-vigia', a cada 10 min) faz a checagem de saúde em vez de enviar (ver vigia.ts).
+// Com corpo { tarefa: "vigia" } (job 'whatsapp-vigia', a cada 5 min) faz a checagem de saúde em vez de enviar (ver vigia.ts).
 // Proteções: no máximo 5 mensagens por rodada, 4 a 9 s de intervalo entre elas, e o limite diário/checagem do número ficam em enviarMensagem.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { cfgDoAmbiente, enviarMensagem } from "./envio.ts";
@@ -13,7 +13,7 @@ const espera = (min: number, max: number) => new Promise((r) => setTimeout(r, (m
 Deno.serve(async (req) => {
   let corpo: { tarefa?: string } = {};
   try { corpo = await req.json(); } catch (_) { /* sem corpo */ }
-  if (corpo.tarefa === "vigia") return Response.json(await rodarVigia(sb, Deno.env));   // cron 'whatsapp-vigia', a cada 10 min
+  if (corpo.tarefa === "vigia") return Response.json(await rodarVigia(sb, Deno.env));   // cron 'whatsapp-vigia', a cada 5 min
   const cfg = cfgDoAmbiente(Deno.env);
   const { data, error } = await sb.rpc("whatsapp_reservar", { p_limite: POR_RODADA });
   if (error) { console.error("whatsapp-agendadas:", error.message); return Response.json({ erro: error.message }, { status: 500 }); }

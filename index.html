@@ -3606,7 +3606,7 @@ function renderUsuarios(semRecarregar) {
 }
 
 // Alertas do WhatsApp: a própria conta do usuário (sessão caiu) e, só para o master, a saúde do serviço (servidor e sessões de todos).
-// O vigia (Edge Function whatsapp-agendadas, a cada 10 min) grava; aqui só se lê.
+// O vigia (Edge Function whatsapp-agendadas, a cada 5 min) grava; aqui só se lê.
 let waSaude = null, waMinhaConta = null, waAlertaTimer = null;
 async function carregarAlertasWhatsapp() {
   if (!sb || !currentUser) return;
@@ -3693,7 +3693,7 @@ function renderSaudeWhatsapp() {
   const est = waSaude.estados || [], ev = waSaude.eventos || [];
   const srv = est.find(e => e.chave === 'servidor');
   const sessoes = est.filter(e => e.chave.startsWith('sessao:'));
-  box.innerHTML = `<h3 style="font-size:15px;margin-bottom:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">Saúde do serviço <small style="font-weight:400;color:var(--gray-text)">(só você vê; o vigia confere a cada 10 min)</small><button class="btn btn-sm" style="margin-left:auto;" onclick="abrirRelatorioWa()">📊 Relatório</button></h3>
+  box.innerHTML = `<h3 style="font-size:15px;margin-bottom:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">Saúde do serviço <small style="font-weight:400;color:var(--gray-text)">(só você vê; o vigia confere a cada 5 min)</small><button class="btn btn-sm" style="margin-left:auto;" onclick="abrirRelatorioWa()">📊 Relatório</button></h3>
     <div style="font-size:13px;line-height:1.7;">
       <div>${!srv ? '⚪ Servidor: ainda sem verificação (precisa estar configurado)' : srv.ok ? '🟢 Servidor no ar' : '🔴 Servidor fora do ar: ' + escapeHtml(srv.detalhe || '')}${srv && srv.verificado_em ? ' <small style="color:var(--gray-text)">· verificado ' + formatDataHora(srv.verificado_em) + '</small>' : ''}</div>
       <div>${sessoes.length ? sessoes.map(s => (s.ok ? '🟢 ' : '🔴 ') + escapeHtml(s.email || 'pessoa') + ': ' + escapeHtml(s.detalhe || '')).join('<br>') : '<span style="color:var(--gray-text)">Nenhuma sessão com problema registrado.</span>'}</div>
@@ -3767,7 +3767,7 @@ function renderRelatorioWa() {
       ${card('Quedas do servidor', r.incSrv, 'fora do ar por ' + waDuracao(r.incSrv ? r.foraMs : 0), r.incSrv ? '#F59E0B' : '')}
       ${card('Sessões que caíram', r.incSessao, r.pessoas + (r.pessoas === 1 ? ' pessoa afetada' : ' pessoas afetadas'), r.incSessao ? '#F59E0B' : '')}
     </div>
-    <p style="font-size:12px;color:var(--gray-text);margin:8px 0 12px;">Última verificação: ${waRel.ultima_verificacao ? formatDataHora(waRel.ultima_verificacao) : '—'}. O início de cada incidente é o momento do alerta, que sai depois de 2 verificações seguidas com falha (cerca de 10 a 20 min depois do início real). A disponibilidade só conta o tempo em que o vigia já estava ativo.</p>
+    <p style="font-size:12px;color:var(--gray-text);margin:8px 0 12px;">Última verificação: ${waRel.ultima_verificacao ? formatDataHora(waRel.ultima_verificacao) : '—'}. O início de cada incidente é a primeira verificação com falha (o alerta só sai depois de 2 seguidas, cerca de 5 a 10 min depois). Interrupções curtas, como um reinício do computador, aparecem se alguma das verificações (a cada 5 min) pegar o servidor fora. A disponibilidade só conta o tempo em que o vigia já estava ativo.</p>
     ${r.lista.length ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="text-align:left;color:var(--gray-text);"><th style="padding:8px 12px;">Item</th><th style="padding:8px 12px;white-space:nowrap;">Começou</th><th style="padding:8px 12px;white-space:nowrap;">Terminou</th><th style="padding:8px 12px;">Duração</th><th style="padding:8px 12px;">Causa</th></tr></thead><tbody>` +
       r.lista.map(i => `<tr style="border-top:1px solid var(--border,#e5e7eb);"><td style="padding:10px 12px;">${escapeHtml(i.item)}</td><td style="padding:10px 12px;white-space:nowrap;">${i.inicio ? formatDataHora(new Date(i.inicio).toISOString()) : 'antes do período'}</td><td style="padding:10px 12px;white-space:nowrap;">${i.fim ? formatDataHora(new Date(i.fim).toISOString()) : '<b style="color:#EF4444">em andamento</b>'}</td><td style="padding:10px 12px;white-space:nowrap;">${waDuracao(i.duracao)}</td><td style="padding:10px 12px;">${escapeHtml(i.causa)}</td></tr>`).join('') + '</tbody></table></div>'
       : '<p style="padding:16px 0;">✅ Nenhum incidente neste período.</p>'}`;
