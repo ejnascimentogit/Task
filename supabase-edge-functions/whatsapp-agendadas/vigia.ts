@@ -1,4 +1,4 @@
-// WhatsApp (WuzAPI): vigia de saúde. Chamado a cada 10 min pelo cron 'whatsapp-vigia' (mesma função whatsapp-agendadas, corpo { tarefa: "vigia" }).
+// WhatsApp (WuzAPI): vigia de saúde. Chamado a cada 5 min pelo cron 'whatsapp-vigia' (mesma função whatsapp-agendadas, corpo { tarefa: "vigia" }).
 // 1) "Toca" o servidor (GET /admin/users): isso também impede hospedagens grátis de dormirem por falta de acesso.
 // 2) Confere se cada sessão marcada como conectada continua logada.
 // Só alerta depois de 2 falhas seguidas (a regra fica no banco: whatsapp_saude_registrar), lembra a cada 6 h e avisa quando volta.
@@ -36,7 +36,12 @@ export async function rodarVigia(sb: any, env: Env) {
   // 1) servidor
   const srv = await wz.saude(cfg);
   const detSrv = srv.ok ? "No ar" : detalheServidor(srv);
+  const { data: antes } = await sb.from("whatsapp_saude_estado").select("falhas_seguidas").eq("chave", "servidor").maybeSingle();
+  const falhasAntes = Number(antes?.falhas_seguidas ?? 0);
   const acaoSrv = await registrar("servidor", null, srv.ok, detSrv);
+  // Interrupções curtas (ex.: reinício do computador) também ficam no histórico, sem alerta: 1ª falha vira evento, e a volta antes do alerta também.
+  if (!srv.ok && falhasAntes === 0) await sb.from("whatsapp_saude_eventos").insert({ chave: "servidor", user_id: null, ok: false, detalhe: "Falha em verificação (ainda sem alerta): " + detSrv });
+  if (srv.ok && falhasAntes === 1) await sb.from("whatsapp_saude_eventos").insert({ chave: "servidor", user_id: null, ok: true, detalhe: "Voltou antes do alerta (interrupção curta)" });
   out.servidor = srv.ok ? "ok" : detSrv;
   if (acaoSrv === "alertar") master.push(`⚠️ WhatsApp: o servidor do WuzAPI não está respondendo.\n${detSrv}\nAs mensagens programadas ficam na fila e saem quando ele voltar.`);
   if (acaoSrv === "lembrar") master.push(`⚠️ Lembrete: o servidor do WuzAPI continua fora do ar.\n${detSrv}`);
