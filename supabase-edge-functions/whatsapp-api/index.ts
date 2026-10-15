@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
         if ((count ?? 0) >= MAX_PENDENTES) return resp({ ok: false, erro: `Você já tem ${MAX_PENDENTES} mensagens programadas. Cancele ou espere algumas saírem.` });
         const { data: m, error } = await admin.from("whatsapp_mensagens").insert({
           user_id: user.id, conta_id: c.id, telefone: fone, nome: String(b.nome ?? "").slice(0, 80), texto,
-          enviar_em: (imediata ? new Date() : quando).toISOString(), status: imediata ? "enviando" : "agendada",
+          enviar_em: (imediata ? new Date() : quando).toISOString(), programada_para: (imediata ? new Date() : quando).toISOString(), status: imediata ? "enviando" : "agendada",
           tentativas: imediata ? 1 : 0, reservada_em: imediata ? new Date().toISOString() : null,
           origem: ["manual", "agenda", "atividade"].includes(b.origem) ? b.origem : "manual", origem_id: b.origem_id ?? null,
         }).select().single();

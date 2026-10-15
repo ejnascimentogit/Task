@@ -1596,3 +1596,6 @@ begin
   return n;
 end $$;
 revoke all on function public._gerar_recontatos(uuid) from public, anon, authenticated;
+
+-- WhatsApp: hora em que a mensagem devia sair (base do prazo de espera da fila: programada 24 h, "Agora" 1 h)
+alter table public.whatsapp_mensagens add column if not exists programada_para timestamptz;

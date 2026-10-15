@@ -72,9 +72,8 @@ export async function enviarMensagem(sb: any, cfg: Cfg, m: any): Promise<{ statu
   if (liberado !== true) return fecha({ status: "cancelada", erro: "Serviço não liberado para esta conta" });
 
   const { data: conta } = await sb.from("whatsapp_contas").select("id, status, limite_diario").eq("user_id", m.user_id).maybeSingle();
-  if (!conta || conta.status !== "conectada") {   // sessão caiu (ex.: servidor reiniciou): a mensagem programada espera a pessoa reconectar, em vez de se perder
-    if ((m.tentativas ?? 1) < 3) return fecha({ status: "agendada", enviar_em: new Date(Date.now() + 30 * 60_000).toISOString(), erro: "Aguardando você reconectar o WhatsApp (leia o QR de novo na aba WhatsApp)" });
-    return fecha({ status: "erro", erro: "O WhatsApp continuou desconectado. Conecte de novo e reenvie." });
+  if (!conta || conta.status !== "conectada") {   // sessão caiu (ex.: servidor reiniciou): espera a pessoa reconectar, dentro do prazo
+    return esperarOuExpirar(fecha, m, "O WhatsApp não está conectado (leia o QR de novo na aba WhatsApp).", 10);
   }
 
   const { data: hoje } = await sb.rpc("whatsapp_enviadas_hoje", { p_user: m.user_id });
@@ -88,7 +87,7 @@ export async function enviarMensagem(sb: any, cfg: Cfg, m: any): Promise<{ statu
   const fone = normalizarTelefone(m.telefone);
   if (!fone) return fecha({ status: "erro", erro: "Número inválido" });
   const chk = await wz.checar(cfg, token, fone);
-  if (chk.status === 0 || chk.status >= 500) return tentarDeNovo(fecha, m, wz.erro(chk));
+  if (chk.status === 0 || chk.status >= 500) return esperarOuExpirar(fecha, m, "Servidor do WhatsApp fora do ar: " + wz.erro(chk) + ".", 5);
   const u = chk.json?.data?.Users?.[0];
   if (chk.ok && u && u.IsInWhatsapp === false) return fecha({ status: "erro", erro: "Este número não tem WhatsApp" });
   const destino = String(u?.JID ?? "").split("@")[0].split(":")[0] || fone;   // o JID já vem com o formato certo (ex.: nono dígito)
@@ -98,9 +97,30 @@ export async function enviarMensagem(sb: any, cfg: Cfg, m: any): Promise<{ statu
   const erro = wz.erro(r);
   if (/not (logged|connected)|no session|disconnected/i.test(erro) || r.status === 401) {
     await sb.from("whatsapp_contas").update({ status: "desconectada", ultimo_erro: erro, atualizado_em: new Date().toISOString() }).eq("id", conta.id);
-    return fecha({ status: "erro", erro: "O WhatsApp foi desconectado. Conecte de novo." });
+    return esperarOuExpirar(fecha, m, "O WhatsApp foi desconectado (leia o QR de novo na aba WhatsApp).", 10);
   }
+  if (r.status === 0 || r.status >= 500) return esperarOuExpirar(fecha, m, "Servidor do WhatsApp fora do ar: " + erro + ".", 5);
   return tentarDeNovo(fecha, m, erro);
+}
+
+// Prazo de espera quando o servidor ou a sessão estão fora do ar: mensagem programada espera até 24 h; a enviada com "Agora", 1 h.
+// Passado o prazo, vira erro ("expirada"), porque um aviso que sai um dia depois já não serve. A espera não gasta tentativas (volta o contador).
+export const HORAS_PROGRAMADA = 24, HORAS_IMEDIATA = 1;
+export function prazoDaMensagem(m: any): { limite: Date; imediata: boolean } {
+  const t = new Date(m.programada_para ?? m.enviar_em).getTime();
+  const base = Number.isFinite(t) ? t : Date.now();
+  const c = new Date(m.criado_em ?? base).getTime();
+  const criado = Number.isFinite(c) ? c : base;
+  const imediata = base - criado < 60_000;   // foi enviada com "Agora" (hora marcada = hora em que foi criada)
+  return { limite: new Date(base + (imediata ? HORAS_IMEDIATA : HORAS_PROGRAMADA) * 3600_000), imediata };
+}
+function hora(d: Date): string { return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", " às"); }
+function esperarOuExpirar(fecha: (c: Record<string, unknown>) => Promise<{ status: string; erro?: string }>, m: any, motivo: string, minutos: number) {
+  const { limite, imediata } = prazoDaMensagem(m);
+  if (Date.now() < limite.getTime()) {
+    return fecha({ status: "agendada", enviar_em: new Date(Date.now() + minutos * 60_000).toISOString(), tentativas: Math.max(0, (m.tentativas ?? 1) - 1), erro: `${motivo} Vai tentar de novo a cada ${minutos} min, até ${hora(limite)}.` });
+  }
+  return fecha({ status: "erro", erro: `Expirou: ${motivo} Passou o prazo de espera (${imediata ? HORAS_IMEDIATA + " hora" : HORAS_PROGRAMADA + " horas"}). Reenvie quando o WhatsApp estiver conectado.` });
 }
 
 function tentarDeNovo(fecha: (c: Record<string, unknown>) => Promise<{ status: string; erro?: string }>, m: any, erro: string) {
