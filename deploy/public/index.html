@@ -4029,9 +4029,10 @@ async function compartilharAgendamentoWa() {
 }
 function fecharNovaMensagemWa() { document.getElementById('wa-modal-overlay').classList.remove('open'); }
 function waAplicarModelo() {
-  const v = document.getElementById('wa-modelo').value; if (!v) return;
-  const [tipo, id] = v.split(':');
+  const v = document.getElementById('wa-modelo').value;
   const t = document.getElementById('wa-texto');
+  if (!v) { t.value = ''; waContar(); t.focus(); return; }   // "escrever do zero": limpa o texto preenchido e deixa digitar
+  const [tipo, id] = v.split(':');
   if (tipo === 'ag') {
     const a = agendamentos.find(x => x.id === id); if (!a) return;
     t.value = `Olá! Lembrando do nosso compromisso: ${a.titulo}, em ${formatDate(a.data)}${a.hora ? ' às ' + a.hora.slice(0, 5) : ''}.`;
