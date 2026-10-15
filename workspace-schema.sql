@@ -1491,3 +1491,6 @@ revoke all on public.whatsapp_saude_eventos from anon, authenticated;
 -- Funções (corpo completo em supabase-edge-functions/whatsapp-agendadas/vigia.ts e nas migrações aplicadas):
 --   whatsapp_saude_registrar(chave, user, ok, detalhe, falhas_para_alertar=2, lembrete_horas=6) -> 'alertar' | 'lembrar' | 'recuperou' | null  (service_role)
 --   master_whatsapp_saude() e master_whatsapp_relatorio(dias) (só master), whatsapp_chat_master() e whatsapp_chat_usuario(uuid) (service_role)
+
+-- Perfil Pessoal pode usar a aba de Clientes (opção ligada em Configurações, só admin). Aplicada em 2026-10-15.
+alter table public.workspaces add column if not exists usa_clientes boolean not null default false;
