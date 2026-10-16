@@ -1769,7 +1769,14 @@
 
     <div class="modal-section">
       <h3>Pendências</h3>
-      <div class="pend-cols">
+      <div id="pend-grid-pessoal" style="display:none;">
+        <div id="pend-grid-list"></div>
+        <div class="add-pend-row">
+          <input type="text" id="new-pend-pessoal" placeholder="Nova pendência..." onkeydown="if(event.key==='Enter'){event.preventDefault();withLock(this, () => addPendencia('entidade','new-pend-pessoal'));}">
+          <button class="btn btn-sm" onclick="withLock(this, () => addPendencia('entidade','new-pend-pessoal'))">+</button>
+        </div>
+      </div>
+      <div class="pend-cols" id="pend-cols-padrao">
         <div class="pend-col entidade">
           <h4 id="pend-col-entidade-label">⚠ Do lado deles</h4>
           <div id="pend-list-entidade"></div>
@@ -2774,10 +2781,10 @@ async function persistirOrdemPendencias(entidadeId, idsEmOrdem) {
   if (!c) return;
   const resultados = await Promise.all(idsEmOrdem.map((id, i) => sb.from('pendencias').update({ ordem: i }).eq('id', id)));
   const falhou = resultados.find(r => r.error);
-  if (falhou) { alert('Erro ao salvar a nova ordem: ' + falhou.error.message); renderPendenciasOverview(); return; }
+  if (falhou) { alert('Erro ao salvar a nova ordem: ' + falhou.error.message); if (activeTab === 'pendencias') renderPendenciasOverview(); else renderPendenciasModal(); return; }
   idsEmOrdem.forEach((id, i) => { const p = c.pendencias.find(x => x.id === id); if (p) p.ordem = i; });
   c.pendencias.sort((a, b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9));
-  renderPendenciasOverview();
+  if (activeTab === 'pendencias') renderPendenciasOverview(); else renderPendenciasModal();
 }
 // Flag "aparece na Lâmina" por pendência (padrão: aparece; o fluxo é tirar as exceções).
 async function toggleLaminaPendencia(id) {
@@ -5316,6 +5323,15 @@ async function delContato(id) {
 
 function renderPendenciasModal() {
   const c = state.entidades.find(x=>x.id===editingEntidadeId);
+  const grade = souSolo();   // perfil Pessoal: pendências em grade (Pendência | Observação), como na aba Pendências
+  document.getElementById('pend-grid-pessoal').style.display = grade ? '' : 'none';
+  document.getElementById('pend-cols-padrao').style.display = grade ? 'none' : '';
+  if (grade) {
+    const lista = document.getElementById('pend-grid-list');
+    lista.innerHTML = (c && c.pendencias.length) ? pendObsHtml(c, true) : `<div style="font-size:12px;color:var(--gray-text);margin-bottom:8px;">Nenhuma.</div>`;
+    if (typeof ativarOrtografia === 'function') lista.querySelectorAll('.pend-obs-row textarea').forEach(ativarOrtografia);
+    return;
+  }
   ['entidade','equipe'].forEach(lado => {
     const list = !c ? [] : c.pendencias.filter(p=>p.responsavel===lado);
     document.getElementById('pend-list-'+lado).innerHTML = list.map(p => `
@@ -5326,9 +5342,9 @@ function renderPendenciasModal() {
       </div>`).join('') || `<div style="font-size:12px;color:var(--gray-text);">Nenhuma.</div>`;
   });
 }
-async function addPendencia(lado) {
+async function addPendencia(lado, idInput) {
   if (!editingEntidadeId) { alert('Salve antes de adicionar pendências.'); return; }
-  const input = document.getElementById('new-pend-'+lado);
+  const input = document.getElementById(idInput || 'new-pend-'+lado);
   const texto = input.value.trim();
   if (!texto) return;
   const { data, error } = await sb.from('pendencias').insert({ workspace_id: activeWorkspace.id, entidade_id: editingEntidadeId, texto, responsavel: lado, feito:false }).select().single();
@@ -5468,7 +5484,7 @@ function renderPendenciasOverview() {
       </div>
     </div>`).join('') || `<div class="empty-state"><div class="big">✅</div><h3>Sem pendências abertas</h3></div>`;
 }
-function pendObsHtml(c) {
+function pendObsHtml(c, simples) {
   if (!c.pendencias.length) return '';
   return `<div style="grid-column:1 / -1;" ondragover="pendDragOver(event)" ondrop="pendDrop(event, '${c.id}')">
     <div class="pend-obs-head"><h4>Pendência</h4><h4>Observação</h4></div>
@@ -5476,7 +5492,7 @@ function pendObsHtml(c) {
       <div class="pend-obs-row" data-id="${p.id}">
         <div class="pend-item ${p.feito?'done':''}">
           <input type="checkbox" ${p.feito?'checked':''} onchange="withLock(this, () => togglePendencia('${p.id}', this.checked))">
-          <span class="pend-drag-handle" draggable="true" title="Arraste para reordenar" ondragstart="pendDragStart(event)" ondragend="pendDragEnd(event)">⠿</span><span>${escapeHtml(p.texto)}${p.responsavel==='equipe' ? '<span class="pend-tag-nossa">nossa</span>' : ''}</span><span class="lamina-toggle ${p.mostrarLamina===false?'off':''}" title="${p.mostrarLamina===false?'Fora da Lâmina (clique para incluir)':'Aparece na Lâmina (clique para tirar)'}" onclick="withLock(this, () => toggleLaminaPendencia('${p.id}'))">🖼</span>
+          <span class="pend-drag-handle" draggable="true" title="Arraste para reordenar" ondragstart="pendDragStart(event)" ondragend="pendDragEnd(event)">⠿</span><span>${escapeHtml(p.texto)}${!simples && p.responsavel==='equipe' ? '<span class="pend-tag-nossa">nossa</span>' : ''}</span>${simples ? `<span class="del" title="Apagar" onclick="withLock(this, () => delPendencia('${p.id}'))">✕</span>` : ''}<span style="${simples ? 'display:none' : ''}" class="lamina-toggle ${p.mostrarLamina===false?'off':''}" title="${p.mostrarLamina===false?'Fora da Lâmina (clique para incluir)':'Aparece na Lâmina (clique para tirar)'}" onclick="withLock(this, () => toggleLaminaPendencia('${p.id}'))">🖼</span>
         </div>
         <textarea placeholder="Observação sobre esta pendência..." onchange="withLock(this, () => salvarObservacaoPendencia('${p.id}', this.value))">${escapeHtml(p.observacao||'')}</textarea>
       </div>`).join('')}
