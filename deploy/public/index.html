@@ -235,6 +235,11 @@
   .modal-overlay.open { display: flex; }
   .modal-box { background: var(--white); border-radius: 18px; width: 100%; max-width: 720px; padding: 28px; margin-bottom: 40px; }
   @media (min-width: 861px) { #modal-overlay .modal-box { max-width: 960px; } }   /* cadastro do cliente: mais largo para as pendências com observação */
+  /* Marca: logo na entrada e no menu lateral (2026-10-16) */
+  .logo-auth { display:block; margin:0 auto 4px; width:132px; height:132px; border-radius:30px; box-shadow:0 10px 28px rgba(2,31,51,.28); }
+  .app-brand { display:flex; align-items:center; gap:9px; }
+  .app-brand span { font-size:15px; font-weight:800; letter-spacing:.01em; color: var(--sb-fg-strong, #fff); }
+  .brand-logo { width:30px; height:30px; border-radius:8px; flex:0 0 auto; }
   /* Cadastro do cliente: mais espaço para escrever (observação das pendências e contato de hoje); os campos crescem conforme o texto */
   @media (min-width: 861px) { #pend-grid-list .pend-obs-head, #pend-grid-list .pend-obs-row { grid-template-columns: minmax(0,.8fr) minmax(0,1.5fr); } }
   #pend-grid-list .pend-obs-row textarea { min-height: 96px; max-height: 420px; line-height: 1.45; }
@@ -1142,7 +1147,7 @@
 <!-- ══ AUTENTICAÇÃO ══ -->
 <div id="auth-screen" class="auth-screen" style="display:none;">
   <div class="modal-box" style="max-width:380px; width:100%;">
-    <div class="app-title-auth">TaskFull</div>
+    <div class="app-title-auth"><img class="logo-auth" src="/logo-taskfull.png" alt="TaskFull" width="132" height="132"></div>
     <div style="display:flex; gap:8px; margin-bottom:18px;">
       <button class="btn btn-sm auth-tab active" id="auth-tab-login" onclick="setAuthTab('login')">Entrar</button>
       <button class="btn btn-sm auth-tab" id="auth-tab-signup" onclick="setAuthTab('signup')">Criar conta</button>
@@ -1176,7 +1181,7 @@
 
 <div id="recovery-screen" class="auth-screen" style="display:none;">
   <div class="modal-box" style="max-width:380px; width:100%;">
-    <div class="app-title-auth">TaskFull</div>
+    <div class="app-title-auth"><img class="logo-auth" src="/logo-taskfull.png" alt="TaskFull" width="132" height="132"></div>
     <p style="font-size:13px; color:var(--gray-text); margin-bottom:14px;">Crie uma nova senha para entrar.</p>
     <div class="form-field" style="margin-bottom:12px;"><label>Nova senha</label>
       <div class="senha-wrap"><input type="password" id="recovery-senha"><span class="senha-toggle" onclick="toggleSenhaVisivel('recovery-senha', this)">👁</span></div>
@@ -1217,7 +1222,7 @@
 <div class="app-shell" id="app-shell" style="display:none;">
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="app-brand">TaskFull</div>
+      <div class="app-brand"><img class="brand-logo" src="/icon-192.png" alt="" width="30" height="30"><span>TaskFull</span></div>
     </div>
 
     <div class="ws-switcher">
