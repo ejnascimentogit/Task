@@ -234,6 +234,7 @@
   .modal-overlay { display:none; position: fixed; inset: 0; background: rgba(2,31,51,0.55); align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y:auto; z-index: 100; }
   .modal-overlay.open { display: flex; }
   .modal-box { background: var(--white); border-radius: 18px; width: 100%; max-width: 720px; padding: 28px; margin-bottom: 40px; }
+  @media (min-width: 861px) { #modal-overlay .modal-box { max-width: 960px; } }   /* cadastro do cliente: mais largo para as pendências com observação */
   .modal-box h2 { font-size: 20px; color: var(--text-main); font-weight: 800; margin-bottom: 18px; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .form-field { display:flex; flex-direction: column; gap: 5px; min-width: 0; }
