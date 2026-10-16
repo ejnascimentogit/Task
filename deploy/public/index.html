@@ -235,6 +235,10 @@
   .modal-overlay.open { display: flex; }
   .modal-box { background: var(--white); border-radius: 18px; width: 100%; max-width: 720px; padding: 28px; margin-bottom: 40px; }
   @media (min-width: 861px) { #modal-overlay .modal-box { max-width: 960px; } }   /* cadastro do cliente: mais largo para as pendências com observação */
+  /* Cadastro do cliente: mais espaço para escrever (observação das pendências e contato de hoje); os campos crescem conforme o texto */
+  @media (min-width: 861px) { #pend-grid-list .pend-obs-head, #pend-grid-list .pend-obs-row { grid-template-columns: minmax(0,.8fr) minmax(0,1.5fr); } }
+  #pend-grid-list .pend-obs-row textarea { min-height: 96px; max-height: 420px; line-height: 1.45; }
+  #f-nota-contato { min-height: 140px; max-height: 420px; line-height: 1.45; }
   .modal-box h2 { font-size: 20px; color: var(--text-main); font-weight: 800; margin-bottom: 18px; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .form-field { display:flex; flex-direction: column; gap: 5px; min-width: 0; }
@@ -5282,7 +5286,7 @@ function openModal(id) {
   document.getElementById('f-saude').value = c ? c.saude : 'verde';
   document.getElementById('f-saude-motivo').value = c ? c.saudeMotivo : '';
   document.getElementById('f-observacao').value = c ? c.observacao : '';
-  document.getElementById('f-nota-contato').value = '';
+  document.getElementById('f-nota-contato').value = ''; document.getElementById('f-nota-contato').style.height = '';
   document.getElementById('f-nota-proximo').value = addDays(todayStr(), (activeWorkspace.recontatoAuto && activeWorkspace.recontatoDias > 0) ? activeWorkspace.recontatoDias : 1);
   document.getElementById('btn-delete-entidade').style.display = c ? '' : 'none';
   aplicarCamposCliente();
@@ -5322,6 +5326,14 @@ async function delContato(id) {
   renderContatosList();
 }
 
+// Campos de escrever do cadastro do cliente crescem conforme o texto (sem barra de rolagem escondendo o que foi escrito).
+function autoAltura(ta) {
+  if (!ta || !ta.scrollHeight) return;   // modal ainda fechado: sem medida
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight + 4, 420) + 'px';
+}
+document.addEventListener('input', e => { if (e.target.matches && e.target.matches('#pend-grid-list textarea, #f-nota-contato')) autoAltura(e.target); });
+function ajustarAlturasCadastro() { document.querySelectorAll('#pend-grid-list textarea, #f-nota-contato').forEach(autoAltura); }
 function renderPendenciasModal() {
   const c = state.entidades.find(x=>x.id===editingEntidadeId);
   const grade = souSolo();   // perfil Pessoal: pendências em grade (Pendência | Observação), como na aba Pendências
@@ -5331,6 +5343,7 @@ function renderPendenciasModal() {
     const lista = document.getElementById('pend-grid-list');
     lista.innerHTML = (c && c.pendencias.length) ? pendObsHtml(c, true) : `<div style="font-size:12px;color:var(--gray-text);margin-bottom:8px;">Nenhuma.</div>`;
     if (typeof ativarOrtografia === 'function') lista.querySelectorAll('.pend-obs-row textarea').forEach(ativarOrtografia);
+    setTimeout(ajustarAlturasCadastro, 60);
     return;
   }
   ['entidade','equipe'].forEach(lado => {
@@ -5412,7 +5425,7 @@ async function registrarContatoModal() {
   c.historico.unshift({ id:histRow.id, data:today, texto });
   c.ultimoContato = today; c.proximoContato = proximo;
   await concluirCardsRecontato(c.nome);
-  document.getElementById('f-nota-contato').value = '';
+  document.getElementById('f-nota-contato').value = ''; document.getElementById('f-nota-contato').style.height = '';
   document.getElementById('f-proximo').value = proximo;
   renderHistoricoList();
 }
