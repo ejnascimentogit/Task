@@ -6278,7 +6278,7 @@ const BOMDIA_UFS = { AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Ba
 const BOMDIA_WMO = { 0:['☀️','Céu limpo'], 1:['🌤️','Poucas nuvens'], 2:['⛅','Parcialmente nublado'], 3:['☁️','Nublado'], 45:['🌫️','Neblina'], 48:['🌫️','Neblina'], 51:['🌦️','Garoa'], 53:['🌦️','Garoa'], 55:['🌦️','Garoa forte'], 61:['🌧️','Chuva fraca'], 63:['🌧️','Chuva'], 65:['🌧️','Chuva forte'], 66:['🌧️','Chuva gelada'], 67:['🌧️','Chuva gelada'], 71:['🌨️','Neve fraca'], 73:['🌨️','Neve'], 75:['🌨️','Neve forte'], 77:['🌨️','Granizo'], 80:['🌦️','Pancadas de chuva'], 81:['🌧️','Pancadas de chuva'], 82:['⛈️','Pancadas fortes'], 85:['🌨️','Neve'], 86:['🌨️','Neve'], 95:['⛈️','Tempestade'], 96:['⛈️','Tempestade com granizo'], 99:['⛈️','Tempestade com granizo'] };
 const BOMDIA_PAISES = { BR:'Brasil', PT:'Portugal', US:'Estados Unidos', AR:'Argentina', UY:'Uruguai', PY:'Paraguai', CL:'Chile', CO:'Colômbia', MX:'México', PE:'Peru', ES:'Espanha', FR:'França', IT:'Itália', DE:'Alemanha', GB:'Reino Unido', CA:'Canadá', JP:'Japão', AO:'Angola', MZ:'Moçambique' };
 let bomDiaDados = null, bomDiaChave = '', bomDiaQuando = 0, bomDiaCarregando = false, bomDiaErro = '';
-function bomDiaLocal() {
+function bomDiaLocalSalvo() {
   try {
     const c = JSON.parse(localStorage.getItem('ws_bomdia_local'));
     if (c && c.cidade) return c;
@@ -6287,7 +6287,46 @@ function bomDiaLocal() {
   } catch (e) {}
   return { pais: 'Brasil', paisCodigo: 'BR', estado: 'São Paulo', cidade: 'São Paulo', padrao: true };
 }
-function bomDiaSalvarLocal(l) {
+// Dois modos (pedido do Edimilson, 2026-10-19): "auto" (padrão) = onde a pessoa está agora, pelo GPS do navegador; "manual" = o local que ela escolheu.
+// O GPS descoberto fica em cache por 6 h (ws_bomdia_gps) para não pedir a localização a cada abertura; a escolha manual fica em ws_bomdia_local.
+const BOMDIA_GPS_VALIDADE = 6 * 3600 * 1000;
+let bomDiaGpsTentou = false, bomDiaGpsAviso = '';
+function bomDiaModo() { try { return localStorage.getItem('ws_bomdia_modo') === 'manual' ? 'manual' : 'auto'; } catch (e) { return 'auto'; } }
+function bomDiaDefinirModo(m) { try { localStorage.setItem('ws_bomdia_modo', m); } catch (e) {} }
+function bomDiaGpsCache() { try { const c = JSON.parse(localStorage.getItem('ws_bomdia_gps')); return c && c.cidade ? c : null; } catch (e) { return null; } }
+function bomDiaLocal() {
+  if (bomDiaModo() === 'auto') { const g = bomDiaGpsCache(); if (g) return Object.assign({}, g, { gps: true }); }
+  return bomDiaLocalSalvo();
+}
+function bomDiaGpsPromessa() {   // pede a localização ao navegador e descobre a cidade pelas coordenadas (BigDataCloud, grátis e sem chave)
+  return new Promise((ok, falha) => {
+    if (!navigator.geolocation) { falha(new Error('Este navegador não oferece localização.')); return; }
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const r = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=pt').then(x => x.json());
+        const cidade = r.city || r.locality;
+        if (!cidade) throw new Error('não deu para descobrir a cidade');
+        const cod = (r.countryCode || '').toUpperCase();
+        ok({ pais: BOMDIA_PAISES[cod] || r.countryName || cod, paisCodigo: cod, estado: r.principalSubdivision || '', cidade, lat, lon, quando: Date.now() });
+      } catch (e) { falha(e); }
+    }, err => falha(new Error(err.code === 1 ? 'permissão negada: libere a localização no navegador' : 'não foi possível obter a localização')), { timeout: 12000, maximumAge: 600000 });
+  });
+}
+async function bomDiaGpsGarantir(forcar) {   // no modo automático: usa o cache se for recente, senão pergunta ao GPS (uma tentativa por abertura da página)
+  if (bomDiaModo() !== 'auto') return;
+  const g = bomDiaGpsCache();
+  if (!forcar && g && Date.now() - (g.quando || 0) < BOMDIA_GPS_VALIDADE) return;
+  if (!forcar && bomDiaGpsTentou) return;
+  bomDiaGpsTentou = true;
+  try {
+    const novo = await bomDiaGpsPromessa();
+    try { localStorage.setItem('ws_bomdia_gps', JSON.stringify(novo)); } catch (e) {}
+    bomDiaGpsAviso = '';
+  } catch (e) { bomDiaGpsAviso = 'GPS indisponível (' + e.message + '): usando ' + bomDiaLocal().cidade + '.'; }
+}
+function bomDiaSalvarLocal(l) {   // escolha manual
+  bomDiaDefinirModo('manual'); bomDiaGpsAviso = '';
   try { localStorage.setItem('ws_bomdia_local', JSON.stringify(l)); } catch (e) {}
   bomDiaPainelAberto = false;
   carregarBomDia(true);
@@ -6397,7 +6436,14 @@ function bomDiaMontarForm(p, boxId, msg) {
   const box = document.getElementById(boxId);
   if (!box) return;
   const l = bomDiaLocal();
-  box.innerHTML = `<p class="config-hint">Escolha o país, depois o estado e a cidade. Usado no bloco "Bom dia" do Resumo do Dia (tempo e manchetes). Fica só neste navegador.${l.padrao ? ' <b>Ainda não escolhida: usando São Paulo, SP.</b>' : ''}</p>` + bomDiaFormHtml(p, l);
+  const auto = bomDiaModo() === 'auto';
+  box.innerHTML = `<p class="config-hint">Usado no bloco "Bom dia" do Resumo do Dia (tempo e manchetes). Fica só neste navegador.</p>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;margin:0 0 10px;font-size:13px;">
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:600;"><input type="radio" name="${p}-modo" ${auto ? 'checked' : ''} onchange="bomDiaDetectar()"> 📡 Automático: onde eu estou agora (GPS)</label>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:600;"><input type="radio" name="${p}-modo" ${auto ? '' : 'checked'} onchange="bomDiaUsarManual()"> ✍️ Escolher o local à mão</label>
+    </div>
+    ${auto ? `<p class="config-hint" style="margin:0 0 8px;">${l.gps ? 'Detectado pelo GPS: <b>' + escapeHtml(l.cidade) + (l.estado ? ', ' + escapeHtml(l.estado) : '') + '</b>. Atualiza sozinho a cada 6 horas.' : 'Detectando onde você está…'}${bomDiaGpsAviso ? ' <b>' + escapeHtml(bomDiaGpsAviso) + '</b>' : ''} Para fixar outro local, escolha "à mão".</p>` : '<p class="config-hint" style="margin:0 0 8px;">Escolha o país, depois o estado e a cidade.</p>'}
+    <div style="${auto ? 'opacity:.5;pointer-events:none;' : ''}">${bomDiaFormHtml(p, l)}</div>`;
   if (msg) box.querySelector('.bd-msg').textContent = msg;
   bomDiaCarregarEstados(p, l.paisCodigo || 'BR', l.estado || '', l.cidade || '');
 }
@@ -6408,22 +6454,17 @@ function bomDiaAlternarPainel(detectar) {
   if (detectar === true) bomDiaDetectar();
 }
 // Localização automática: pede permissão ao navegador (GPS/Wi-Fi) e descobre a cidade pelas coordenadas (BigDataCloud, grátis e sem chave).
-function bomDiaDetectar() {
+function bomDiaDetectar() {   // "usar minha localização": volta ao modo automático e pergunta ao GPS agora
   const msg = t => document.querySelectorAll('.bd-msg').forEach(m => m.textContent = t);
-  if (!navigator.geolocation) { msg('Este navegador não oferece localização.'); return; }
+  bomDiaDefinirModo('auto'); bomDiaGpsAviso = '';
   msg('Aguardando a permissão do navegador…');
-  navigator.geolocation.getCurrentPosition(async pos => {
-    try {
-      const { latitude: lat, longitude: lon } = pos.coords;
-      const r = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=pt').then(x => x.json());
-      const cidade = r.city || r.locality;
-      if (!cidade) throw new Error('não deu para descobrir a cidade');
-      const cod = (r.countryCode || '').toUpperCase();
-      bomDiaSalvarLocal({ pais: BOMDIA_PAISES[cod] || r.countryName || cod, paisCodigo: cod, estado: r.principalSubdivision || '', cidade, lat, lon });
-      msg('✓ Localização encontrada: ' + cidade);
-    } catch (e) { msg('Não consegui identificar a cidade (' + e.message + '). Preencha à mão.'); }
-  }, err => msg(err.code === 1 ? 'Permissão negada. Libere a localização no navegador ou preencha à mão.' : 'Não foi possível obter a localização. Preencha à mão.'), { timeout: 12000, maximumAge: 600000 });
+  bomDiaGpsGarantir(true).then(() => {
+    msg(bomDiaGpsAviso ? '' : '✓ Localização encontrada: ' + bomDiaLocal().cidade);
+    bomDiaPainelAberto = bomDiaPainelAberto && !!bomDiaGpsAviso;
+    carregarBomDia(true); renderBomDiaConfig();
+  });
 }
+function bomDiaUsarManual() { bomDiaDefinirModo('manual'); bomDiaGpsAviso = ''; carregarBomDia(true); renderBomDia(); renderBomDiaConfig(); }
 function bomDiaDiaSemana(iso, i) {
   if (i === 0) return 'Hoje';
   if (i === 1) return 'Amanhã';
@@ -6448,12 +6489,18 @@ async function bomDiaBuscarTempo(c) {
 }
 async function carregarBomDia(forcar) {
   if (!souSolo() || !sb) return;
-  const c = bomDiaLocal(), chave = [c.pais, c.estado, c.cidade, c.lat].join('|');
-  if (!forcar && bomDiaDados && bomDiaChave === chave && Date.now() - bomDiaQuando < 30 * 60 * 1000) return;
   if (bomDiaCarregando) return;
   bomDiaCarregando = true; bomDiaErro = '';
+  let c = bomDiaLocal(), chave = [c.pais, c.estado, c.cidade, c.lat].join('|');
+  const fresco = bomDiaDados && Date.now() - bomDiaQuando < 30 * 60 * 1000;
+  if (!forcar && fresco && bomDiaChave === chave && !(bomDiaModo() === 'auto' && !bomDiaGpsTentou)) { bomDiaCarregando = false; return; }
   renderBomDia();
   try {
+    if (bomDiaModo() === 'auto') {
+      await bomDiaGpsGarantir(false);
+      c = bomDiaLocal(); chave = [c.pais, c.estado, c.cidade, c.lat].join('|');
+      if (!forcar && fresco && bomDiaChave === chave) return;   // o GPS confirmou o mesmo local: mantém o que já está na tela
+    }
     const [tempo, noticias] = await Promise.all([
       bomDiaBuscarTempo(c).catch(e => ({ erro: e.message })),
       sb.functions.invoke('bom-dia-noticias', { body: { cidade: c.cidade, estado: c.estado, pais: c.pais } }).then(r => r.error ? { erro: r.error.message } : r.data).catch(e => ({ erro: e.message })),
@@ -6473,7 +6520,7 @@ function renderBomDiaCorpo() {
   if (!box) return;
   if (!souSolo()) { box.innerHTML = ''; return; }
   const c = bomDiaLocal();
-  const topo = `<div class="bd-topo"><h3>☀️ Bom dia · ${escapeHtml(c.cidade)}${c.estado ? ', ' + escapeHtml(c.estado) : ''}</h3><span>${c.padrao ? '<button type="button" onclick="bomDiaAlternarPainel(true)">📍 Detectar onde estou</button> ' : ''}<button type="button" onclick="bomDiaAlternarPainel()">📍 Alterar local</button></span></div><div id="bd-painel" style="${bomDiaPainelAberto ? '' : 'display:none;'}margin-bottom:12px;"></div>`;
+  const topo = `<div class="bd-topo"><h3>☀️ Bom dia · ${(bomDiaCarregando && bomDiaModo() === 'auto' && !c.gps && !bomDiaGpsAviso) ? 'detectando onde você está…' : escapeHtml(c.cidade) + (c.estado ? ', ' + escapeHtml(c.estado) : '')}${c.gps ? ' <small title="Local detectado pelo GPS do navegador" style="font-weight:600;opacity:.7;">📡 GPS</small>' : ''}</h3><span>${bomDiaModo() === 'manual' ? '<button type="button" onclick="bomDiaDetectar()">📡 Usar GPS</button> ' : ''}<button type="button" onclick="bomDiaAlternarPainel()">📍 Alterar local</button></span></div>${bomDiaGpsAviso ? `<div class="bd-vazio" style="margin:0 0 8px;">${escapeHtml(bomDiaGpsAviso)}</div>` : ''}<div id="bd-painel" style="${bomDiaPainelAberto ? '' : 'display:none;'}margin-bottom:12px;"></div>`;
   if (!bomDiaDados) { box.innerHTML = `<div class="bd-box">${topo}<div class="bd-vazio">${bomDiaCarregando ? 'Buscando o tempo e as manchetes…' : 'Carregando…'}</div></div>`; return; }
   const { tempo, noticias } = bomDiaDados;
   let clima;
