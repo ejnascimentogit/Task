@@ -1628,6 +1628,17 @@
           <div class="config-section-header" onclick="toggleConfigSection('feriados-datas')"><h2>🎉 Feriados &amp; Datas</h2><span class="config-chevron" id="chevron-feriados-datas">▸</span></div>
           <div class="config-section-body" id="body-feriados-datas" style="display:none">
             <p class="config-hint">Feriados nacionais já aparecem sozinhos no Calendário da Agenda (via API pública). Cadastre aqui feriados estaduais/municipais e datas comerciais (ex: Black Friday) — repetem todo ano, sem precisar do ano.</p>
+            <div class="resumo-box" id="feriados-locais-box" style="margin:0 0 14px;padding:14px;">
+              <h3 style="margin:0 0 6px;font-size:14px;">📍 Feriados do estado e do município</h3>
+              <p class="config-hint" style="margin:0 0 10px;">Escolha onde fica o espaço: as datas do estado e do município (e, no Grande Recife, o Dia do Comerciário) entram sozinhas no Calendário. A lista é embutida; confira com o calendário oficial da sua cidade e complete o que faltar na lista abaixo.</p>
+              <div class="etapas-add-row">
+                <select id="feriados-uf" style="flex:0 0 130px;" onchange="feriadosLocaisUfMudou()"><option value="">Estado...</option></select>
+                <input type="text" id="feriados-municipio" list="feriados-municipios-lista" placeholder="Município, ex: Recife" style="flex:2;">
+                <datalist id="feriados-municipios-lista"></datalist>
+                <button class="btn btn-green btn-sm" onclick="withLock(this, salvarFeriadosLocais)">Salvar local</button>
+              </div>
+              <div id="feriados-locais-resumo" style="font-size:12.5px;color:var(--gray-text);margin-top:8px;"></div>
+            </div>
             <div class="etapas-add-row">
               <button class="btn btn-sm" onclick="sincronizarFeriadosComerciais()">🔄 Sincronizar datas comerciais conhecidas</button>
             </div>
@@ -4880,7 +4891,7 @@ async function loadWorkspaces() {
   workspaces = wsRows.map(w => ({
     id: w.id, nome: w.nome, perfilTipo: w.perfil_tipo, ownerId: w.owner_id,
     inviteCode: w.invite_code, entidadeLabel: w.entidade_label, corDestaque: w.cor_destaque || DEFAULT_COR_DESTAQUE,
-    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato', recontatoDias: w.recontato_dias || 0,
+    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato', recontatoDias: w.recontato_dias || 0, feriadosUf: w.feriados_uf || '', feriadosMunicipio: w.feriados_municipio || '',
     role: membrosRows.find(m => m.workspace_id === w.id).role,
   }));
   const savedId = localStorage.getItem('ws_active_id');
@@ -5633,12 +5644,114 @@ function dataComercial(d, ano) {
 const ACENTOS_DATAS = { 'Dia das Criancas': 'Dia das Crianças', 'Dia Internacional do Cafe': 'Dia Internacional do Café', 'Dia Mundial do Cafe': 'Dia Mundial do Café', 'Dia das Maes': 'Dia das Mães', 'Dia da Arvore': 'Dia da Árvore', 'Dia do Frete Gratis': 'Dia do Frete Grátis', 'Sao Joao': 'São João', 'Volta as Aulas': 'Volta às Aulas', 'Dia dos Avos': 'Dia dos Avós' };
 function datasPadraoLigadas() { try { return localStorage.getItem('ws_datas_padrao') !== '0'; } catch (e) { return true; } }
 function alternarDatasPadrao(on) { try { localStorage.setItem('ws_datas_padrao', on ? '1' : '0'); } catch (e) {} renderAgenda(); }
+// ── Feriados do estado e do município (2026-10-19) ──
+// Fonte embutida (datas fixas mais conhecidas) escolhida pelo local do espaço (workspaces.feriados_uf / feriados_municipio).
+// Não cobre todo município do Brasil: o que faltar entra pela lista própria do espaço (Configurações → Feriados & Datas).
+const UFS_BR = { AC:'Acre', AL:'Alagoas', AP:'Amapá', AM:'Amazonas', BA:'Bahia', CE:'Ceará', DF:'Distrito Federal', ES:'Espírito Santo', GO:'Goiás', MA:'Maranhão', MT:'Mato Grosso', MS:'Mato Grosso do Sul', MG:'Minas Gerais', PA:'Pará', PB:'Paraíba', PR:'Paraná', PE:'Pernambuco', PI:'Piauí', RJ:'Rio de Janeiro', RN:'Rio Grande do Norte', RS:'Rio Grande do Sul', RO:'Rondônia', RR:'Roraima', SC:'Santa Catarina', SP:'São Paulo', SE:'Sergipe', TO:'Tocantins' };
+const FERIADOS_ESTADUAIS = {
+  AC: [[1,23,'Dia do Evangélico'],[6,15,'Aniversário do Acre'],[9,5,'Dia da Amazônia'],[11,17,'Tratado de Petrópolis']],
+  AL: [[6,29,'São Pedro'],[9,16,'Emancipação Política de Alagoas']],
+  AM: [[9,5,'Elevação do Amazonas à categoria de província']],
+  AP: [[3,19,'Dia de São José (padroeiro do Amapá)'],[10,5,'Criação do Estado do Amapá']],
+  BA: [[7,2,'Independência da Bahia']],
+  CE: [[3,25,'Data Magna do Ceará']],
+  DF: [[11,30,'Dia do Evangélico']],
+  MA: [[7,28,'Adesão do Maranhão à Independência']],
+  MS: [[10,11,'Criação do Estado de Mato Grosso do Sul']],
+  PA: [[8,15,'Adesão do Grão-Pará à Independência']],
+  PB: [[8,5,'Fundação do Estado da Paraíba']],
+  PE: [[3,6,'Data Magna de Pernambuco'],[6,24,'São João']],
+  PI: [[10,19,'Dia do Piauí']],
+  PR: [[12,19,'Emancipação Política do Paraná']],
+  RJ: [[4,23,'Dia de São Jorge']],
+  RN: [[10,3,'Mártires de Cunhaú e Uruaçu']],
+  RO: [[1,4,'Criação do Estado de Rondônia'],[6,18,'Dia do Evangélico']],
+  RR: [[10,5,'Criação do Estado de Roraima']],
+  RS: [[9,20,'Revolução Farroupilha']],
+  SC: [[8,11,'Dia de Santa Catarina']],
+  SE: [[7,8,'Emancipação Política de Sergipe']],
+  SP: [[7,9,'Revolução Constitucionalista']],
+  TO: [[3,18,'Autonomia do Estado do Tocantins'],[9,8,'Nossa Senhora da Natividade'],[10,5,'Criação do Estado do Tocantins']],
+};
+const FERIADOS_MUNICIPAIS = {   // chave: UF|município sem acento e em minúsculas
+  'PE|recife': [[7,16,'Nossa Senhora do Carmo (padroeira do Recife)']],
+  'PE|olinda': [[3,12,'Aniversário de Olinda']],
+  'SP|sao paulo': [[1,25,'Aniversário da cidade de São Paulo']],
+  'RJ|rio de janeiro': [[1,20,'Dia de São Sebastião']],
+  'CE|fortaleza': [[4,13,'Aniversário de Fortaleza'],[8,15,'Nossa Senhora da Assunção']],
+  'MG|belo horizonte': [[8,15,'Assunção de Nossa Senhora'],[12,12,'Aniversário de Belo Horizonte']],
+  'PR|curitiba': [[9,8,'Nossa Senhora da Luz dos Pinhais']],
+  'RS|porto alegre': [[2,2,'Nossa Senhora dos Navegantes']],
+  'PA|belem': [[1,12,'Aniversário de Belém']],
+  'AM|manaus': [[10,24,'Aniversário de Manaus']],
+  'RN|natal': [[11,21,'Nossa Senhora da Apresentação']],
+  'SE|aracaju': [[3,17,'Aniversário de Aracaju']],
+  'PI|teresina': [[8,16,'Aniversário de Teresina']],
+  'MA|sao luis': [[9,8,'Aniversário de São Luís']],
+  'GO|goiania': [[10,24,'Aniversário de Goiânia']],
+  'MT|cuiaba': [[4,8,'Aniversário de Cuiabá']],
+  'MS|campo grande': [[8,26,'Aniversário de Campo Grande']],
+  'SC|florianopolis': [[3,23,'Aniversário de Florianópolis']],
+  'ES|vitoria': [[9,8,'Nossa Senhora da Vitória']],
+};
+// Municípios do Grande Recife: o Dia do Comerciário (3ª segunda-feira de outubro) muda o funcionamento do comércio. Confirme todo ano na convenção coletiva.
+const GRANDE_RECIFE = ['recife','olinda','jaboatao dos guararapes','paulista','camaragibe','sao lourenco da mata','cabo de santo agostinho','abreu e lima','igarassu','itapissuma','ilha de itamaraca','ipojuca','moreno'];
+function semAcento(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' '); }
+function feriadosLocaisDoMes(ano, mes) {
+  const uf = activeWorkspace && activeWorkspace.feriadosUf; if (!uf) return [];
+  const cidade = semAcento(activeWorkspace.feriadosMunicipio);
+  const iso = (m, d) => `${ano}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const out = [];
+  (FERIADOS_ESTADUAIS[uf] || []).forEach(([m, d, nome]) => { if (m === mes) out.push({ data: iso(m, d), nome, tipo: 'estadual' }); });
+  if (uf === 'ES') { const p = somaDias(pascoaDe(ano), 1); if (p.getMonth() + 1 === mes) out.push({ data: isoDe(p), nome: 'Nossa Senhora da Penha', tipo: 'estadual' }); }
+  if (cidade) {
+    (FERIADOS_MUNICIPAIS[uf + '|' + cidade] || []).forEach(([m, d, nome]) => { if (m === mes) out.push({ data: iso(m, d), nome, tipo: 'municipal' }); });
+    if (uf === 'PE' && GRANDE_RECIFE.includes(cidade) && mes === 10) out.push({ data: iso(10, nesimoDiaSemana(ano, 10, 1, 3)), nome: 'Dia do Comerciário (comércio do Grande Recife)', tipo: 'municipal' });
+  }
+  return out;
+}
+function renderFeriadosLocaisConfig() {
+  const selUf = document.getElementById('feriados-uf'); if (!selUf || !activeWorkspace) return;
+  const souAdmin = activeWorkspace.role === 'admin';
+  selUf.innerHTML = '<option value="">Estado...</option>' + Object.entries(UFS_BR).map(([sg, n]) => `<option value="${sg}">${sg} · ${n}</option>`).join('');
+  selUf.value = activeWorkspace.feriadosUf || '';
+  document.getElementById('feriados-municipio').value = activeWorkspace.feriadosMunicipio || '';
+  selUf.disabled = !souAdmin; document.getElementById('feriados-municipio').disabled = !souAdmin;
+  feriadosLocaisUfMudou(true);
+  const uf = activeWorkspace.feriadosUf, c = semAcento(activeWorkspace.feriadosMunicipio);
+  const estado = uf ? (FERIADOS_ESTADUAIS[uf] || []).length + (uf === 'ES' ? 1 : 0) : 0;
+  const muni = uf && c ? (FERIADOS_MUNICIPAIS[uf + '|' + c] || []).length + (uf === 'PE' && GRANDE_RECIFE.includes(c) ? 1 : 0) : 0;
+  document.getElementById('feriados-locais-resumo').textContent = !uf ? 'Nenhum local escolhido: só aparecem os feriados nacionais e as datas comemorativas.'
+    : `${UFS_BR[uf]}${activeWorkspace.feriadosMunicipio ? ' · ' + activeWorkspace.feriadosMunicipio : ''}: ${estado} data(s) do estado e ${muni} do município no Calendário.` + (activeWorkspace.feriadosMunicipio && !muni ? ' Este município ainda não tem datas embutidas: cadastre as dele na lista abaixo.' : '') + (!souAdmin ? ' (Só o administrador altera.)' : '');
+}
+function feriadosLocaisUfMudou(semLimpar) {
+  const uf = document.getElementById('feriados-uf').value;
+  const nomes = {};   // sugestões de município: as que têm datas embutidas naquele estado
+  Object.keys(FERIADOS_MUNICIPAIS).filter(k => k.startsWith(uf + '|')).forEach(k => { nomes[k.slice(3)] = 1; });
+  if (uf === 'PE') GRANDE_RECIFE.forEach(c => { nomes[c] = 1; });
+  const bonito = c => c.replace(/(^|\s)(\S)/g, (m, a, b) => a + b.toUpperCase()).replace(/ De /g, ' de ').replace(/ Dos /g, ' dos ').replace(/ Do /g, ' do ');
+  document.getElementById('feriados-municipios-lista').innerHTML = uf ? Object.keys(nomes).map(c => `<option value="${escapeHtml(bonito(c))}">`).join('') : '';
+  if (!semLimpar) document.getElementById('feriados-municipio').value = '';
+}
+async function salvarFeriadosLocais() {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); return; }
+  const uf = document.getElementById('feriados-uf').value || null;
+  const municipio = uf ? (document.getElementById('feriados-municipio').value.trim() || null) : null;
+  const { error } = await sb.from('workspaces').update({ feriados_uf: uf, feriados_municipio: municipio }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); return; }
+  activeWorkspace.feriadosUf = uf || ''; activeWorkspace.feriadosMunicipio = municipio || '';
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) { w.feriadosUf = uf || ''; w.feriadosMunicipio = municipio || ''; }
+  renderFeriadosLocaisConfig();
+  if (activeTab === 'agenda') renderAgenda();
+  alert('Local dos feriados salvo.');
+}
 function feriadosDoMes(ano, mes) {
   const out = [];
   const api = FERIADOS_NACIONAIS_CACHE[ano];
   const nacionais = Array.isArray(api) && api.length ? api : feriadosNacionaisLocal(ano);
   nacionais.forEach(f => { if (Number(f.date.slice(5, 7)) === mes) out.push({ data: f.date, nome: f.name, tipo: 'nacional' }); });
   const proprios = feriadosDatas.filter(f => f.mes === mes);
+  feriadosLocaisDoMes(ano, mes).forEach(l => { if (!proprios.some(f => `${ano}-${String(mes).padStart(2, '0')}-${String(f.dia).padStart(2, '0')}` === l.data && f.nome.toLowerCase() === l.nome.toLowerCase())) out.push(l); });
   proprios.forEach(f => out.push({ data: `${ano}-${String(mes).padStart(2, '0')}-${String(f.dia).padStart(2, '0')}`, nome: f.nome, tipo: f.tipo }));
   if (datasPadraoLigadas()) {
     DEFAULT_FERIADOS_COMERCIAIS.forEach(d => {
@@ -7340,6 +7453,7 @@ async function sincronizarFeriadosComerciais() {
 }
 const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function renderFeriadosDatasList() {
+  renderFeriadosLocaisConfig();
   { const ck = document.getElementById('datas-padrao-check'); if (ck) ck.checked = datasPadraoLigadas(); }
   const lista = [...feriadosDatas].sort((a,b) => a.mes-b.mes || a.dia-b.dia);
   document.getElementById('feriados-datas-list').innerHTML = lista.map(f => `

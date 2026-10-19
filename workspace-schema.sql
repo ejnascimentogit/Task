@@ -1599,3 +1599,6 @@ revoke all on function public._gerar_recontatos(uuid) from public, anon, authent
 
 -- WhatsApp: hora em que a mensagem devia sair (base do prazo de espera da fila: programada 24 h, "Agora" 1 h)
 alter table public.whatsapp_mensagens add column if not exists programada_para timestamptz;
+
+-- Feriados do estado e do município (local do espaço; a lista embutida fica no index.html)
+alter table public.workspaces add column if not exists feriados_uf text, add column if not exists feriados_municipio text;
