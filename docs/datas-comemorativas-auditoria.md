@@ -98,3 +98,8 @@ Dia do Comércio Exterior | 28/01 | não adicionada. Fonte única (blog), junto 
 Não adicionadas por terem fonte única, serem móveis ou divergirem: Dia do Analista de Sistemas (fontes divergem: 24/09 x 15/08), Profissional de Sistemas de Informação (14/03, só um blog), Telemarketing (04/07), Comércio Exterior (28/01), Geólogo (lei estadual), Marketing (08/05, origem incerta), Representante Comercial (mesma data do Vendedor), Administrador de Sistemas (móvel, última sexta de julho).
 
 Sem fonte encontrada: Dia do Hacker, Usuário de Computador, Atendente, Gerente, Profissional de Vendas, Cientista de Dados, Desenvolvedor.
+
+## Decisão (2026-10-19)
+
+- **Dia Nacional da Poesia** passou de 14/03 para **31/10** (Lei 13.131/2015, segundo as fontes; texto oficial no Planalto não foi aberto). O 14/03 é só tradição (aniversário de Castro Alves). Quem já sincronizou a data antiga no espaço precisa apagá-la em Configurações → Feriados & Datas.
+- Valentine's Day, Dia Mundial do Café (14/04) e Volta às Aulas ficaram como estão.
