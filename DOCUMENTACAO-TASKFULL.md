@@ -221,3 +221,7 @@ Todas as telas principais abrem com o título grande, no mesmo estilo de Ativida
 - **Nova pendência direto da aba Pendências (2026-10-12):** botão "+ Nova pendência" no cabeçalho da tela: escolhe o cliente/projeto/setor, de quem é (deles ou nossa), escreve o texto e, se quiser, uma observação. Também continua possível criar dentro da ficha de cada cliente.
 
 - **Ajuste (2026-10-12):** a raia "Concluído" não mostra mais os botões de renomear/remover no cabeçalho (ela é fixa); as demais raias mostram ✎ e ✕ para quem administra o workspace.
+
+
+### Datas comemorativas: auditoria e botão no calendário (2026-10-19)
+A lista embutida `DEFAULT_FERIADOS_COMERCIAIS` passou de 102 para **117 datas** (tecnologia e profissões: Dia do Profissional de TI 19/10, da Informática, do Backup, da Segurança da Informação, da Internet, da Proteção de Dados, do Publicitário, do Profissional de RH, entre outras). A conferência das datas está em `docs/datas-comemorativas-auditoria.md` (nada foi removido; divergências ficam para decisão). No Calendário da Agenda, o botão **🎉 + Data comemorativa** e o link que aparece ao passar o mouse num dia abrem uma janela para cadastrar uma data do espaço (nome, dia, mês e tipo); ela repete todo ano e fica em Configurações → Feriados & Datas.

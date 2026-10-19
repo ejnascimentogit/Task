@@ -1002,6 +1002,9 @@
   .cal-cel:hover { background: var(--accent-soft); }
   .cal-cel .cal-novo { display:none; margin-top:auto; font-size:11.5px; font-weight:700; color:var(--accent-ink); }
   .cal-cel:not(.fora):hover .cal-novo { display:block; }
+  .cal-cel .cal-data-add { display:none; font-size:11px; font-weight:700; color:var(--gray-text); }
+  .cal-cel:not(.fora):hover .cal-data-add { display:block; }
+  .cal-cel .cal-data-add:hover { color:var(--accent-ink); text-decoration:underline; }
   .ag-proximo { border:1px dashed var(--border-light); border-radius:12px; padding:10px 12px; }
   .ag-proximo-dica { font-weight:400; color:var(--gray-text); font-size:12px; }
   .ag-proximo-linha { display:grid; grid-template-columns:150px 110px 1fr; gap:8px; }
@@ -1372,6 +1375,7 @@
             <strong id="agenda-mensal-label" style="min-width:160px;text-align:center;"></strong>
             <button class="btn btn-sm" onclick="navegarMesAgenda(1)">▶</button>
             <button class="btn btn-sm" onclick="irParaMesAtualAgenda()">Hoje</button>
+            <button class="btn btn-sm" onclick="abrirDataComemorativa()">🎉 + Data comemorativa</button>
             <input type="month" id="agenda-mensal-picker" onchange="irParaMesEspecifico(this.value)" style="font-family:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border-light);">
           </div>
           <div id="agenda-mensal-wrap" style="display:none"></div>
@@ -1837,6 +1841,29 @@
       <div style="display:flex;gap:8px;margin-left:auto;">
         <button class="btn" onclick="closeModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="withLock(this, saveEntidade)">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL DATA COMEMORATIVA ══ -->
+<div class="modal-overlay" id="data-com-modal-overlay" onclick="if(event.target===this) fecharDataComemorativa()">
+  <div class="modal-box" style="max-width:440px;">
+    <h2>🎉 Nova data comemorativa</h2>
+    <p class="config-hint" style="margin:-4px 0 12px;">Aparece no Calendário todo ano, neste dia, só para o seu espaço.</p>
+    <div class="form-grid">
+      <div class="form-field full"><label>Nome</label><input type="text" id="dc-nome" maxlength="80" placeholder="Ex.: Dia do Profissional de TI"></div>
+      <div class="form-field"><label>Dia</label><input type="number" id="dc-dia" min="1" max="31"></div>
+      <div class="form-field"><label>Mês</label><select id="dc-mes">
+        <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+        <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select></div>
+      <div class="form-field full"><label>Tipo</label><select id="dc-tipo"><option value="comercial">Comercial / profissão</option><option value="estadual">Estadual</option><option value="municipal">Municipal</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:8px;margin-left:auto;">
+        <button class="btn" onclick="fecharDataComemorativa()">Cancelar</button>
+        <button class="btn btn-primary" onclick="withLock(this, salvarDataComemorativa)">Salvar</button>
       </div>
     </div>
   </div>
@@ -5839,6 +5866,7 @@ function renderAgendaMensal(groups, dias, today) {
     html += `<div class="cal-cel ${fora ? 'fora' : ''} ${chave === today ? 'hoje' : ''}" ${fora ? '' : `onclick="novoAgendamentoNoDia('${chave}')"`}>
       <span class="cal-num">${d.getDate()}</span>
       ${fora || evs.some(a => !a.feriado) ? '' : '<span class="cal-novo">+ Novo agendamento</span>'}
+      ${fora ? '' : `<span class="cal-data-add" onclick="event.stopPropagation(); abrirDataComemorativa('${chave}')">🎉 + data comemorativa</span>`}
       ${evs.map(a => a.feriado ? `<div class="cal-evento-chip cal-evento-feriado feriado-${a.tipo}" title="${escapeHtml(a.titulo)} (${a.tipo})" onclick="event.stopPropagation()">🎉 ${escapeHtml(a.titulo)}</div>` : `<div class="cal-evento-chip ${a.feito ? 'feito' : ''}" style="--c:${corDoTipo(a.tipo)}" title="${escapeHtml(a.titulo)}${a.entidadeNome ? ' — ' + escapeHtml(a.entidadeNome) : ''}" onclick="event.stopPropagation(); openAgendamentoModal('${a.id}')"><input type="checkbox" ${a.feito ? 'checked' : ''} onclick="event.stopPropagation();" onchange="withLock(this, () => toggleAgendamentoFeito('${a.id}', this.checked))" aria-label="Marcar como feito">${a.hora ? `<span class="cal-evento-hora">${a.hora}</span>` : ''}${escapeHtml(a.titulo)}${a.entidadeNome ? ` — <span class="cal-evento-entidade">${escapeHtml(a.entidadeNome)}</span>` : ''}</div>`).join('')}
     </div>`;
   }
@@ -7436,6 +7464,21 @@ const DEFAULT_FERIADOS_COMERCIAIS = [
   ['Dia do Marinheiro', 12, 13],
   ['Dia do Arquiteto', 12, 15],
   ['Véspera de Natal', 12, 24],
+  ['Dia do Profissional de TI', 10, 19],
+  ['Dia da Informática', 8, 15],
+  ['Dia Mundial do Backup', 3, 31],
+  ['Dia Internacional da Segurança da Informação', 11, 30],
+  ['Dia Internacional da Internet', 10, 29],
+  ['Dia Internacional da Proteção de Dados', 1, 28],
+  ['Dia do Publicitário', 2, 1],
+  ['Dia do Técnico e Auxiliar de Enfermagem', 5, 20],
+  ['Dia do Profissional de RH', 6, 3],
+  ['Dia do Economista', 8, 13],
+  ['Dia do Fisioterapeuta e do Terapeuta Ocupacional', 10, 13],
+  ['Dia do Corretor de Imóveis', 8, 27],
+  ['Dia do Corretor de Seguros', 10, 12],
+  ['Dia do Técnico e do Engenheiro de Segurança do Trabalho', 11, 27],
+  ['Dia do Profissional de Relações Públicas', 12, 2],
 ].map(([nome, mes, dia]) => ({ nome, mes, dia, tipo: 'comercial' }));
 async function sincronizarFeriadosComerciais() {
   const faltando = DEFAULT_FERIADOS_COMERCIAIS.filter(d =>
@@ -7463,6 +7506,32 @@ function renderFeriadosDatasList() {
       <span class="role-tag">${f.tipo}</span>
       <button class="icon-btn danger" onclick="withLock(this, () => deleteFeriadoData('${f.id}'))">🗑</button>
     </div>`).join('') || `<div style="font-size:12.5px;color:var(--gray-text);">Nenhum cadastrado ainda.</div>`;
+}
+function abrirDataComemorativa(chave) {
+  const hoje = chave ? new Date(chave + 'T12:00:00') : new Date();
+  document.getElementById('dc-nome').value = '';
+  document.getElementById('dc-dia').value = hoje.getDate();
+  document.getElementById('dc-mes').value = String(hoje.getMonth() + 1);
+  document.getElementById('dc-tipo').value = 'comercial';
+  document.getElementById('data-com-modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('dc-nome').focus(), 50);
+}
+function fecharDataComemorativa() { document.getElementById('data-com-modal-overlay').classList.remove('open'); }
+async function salvarDataComemorativa() {
+  const nome = document.getElementById('dc-nome').value.trim();
+  const dia = Number(document.getElementById('dc-dia').value);
+  const mes = Number(document.getElementById('dc-mes').value);
+  const tipo = document.getElementById('dc-tipo').value;
+  if (!nome) { alert('Digite o nome da data.'); return; }
+  if (!dia || dia < 1 || dia > 31) { alert('Dia inválido.'); return; }
+  if (feriadosDatas.some(f => f.mes === mes && f.dia === dia && f.nome.toLowerCase() === nome.toLowerCase())) { alert('Essa data já está na lista.'); return; }
+  const { data, error } = await sb.from('feriados_datas').insert({ workspace_id: activeWorkspace.id, nome, mes, dia, tipo }).select().single();
+  if (error) { alert(error.message); return; }
+  feriadosDatas.push({ id: data.id, nome, mes, dia, tipo });
+  fecharDataComemorativa();
+  if (document.getElementById('feriados-datas-list')) renderFeriadosDatasList();
+  if (activeTab === 'agenda') renderAgenda();
+  avisoToast('🎉 Data adicionada: ' + nome + ' (' + String(dia).padStart(2, '0') + '/' + String(mes).padStart(2, '0') + ').');
 }
 async function addFeriadoData() {
   const nomeInput = document.getElementById('new-feriado-nome');
