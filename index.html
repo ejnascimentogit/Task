@@ -7476,7 +7476,7 @@ table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}th{text-
 <p class="txt">Recebemos de <b>${esc(r.cliente_nome)}</b> a quantia de <b>${fmtBRL(r.valor)}</b> (${esc(extenso)})${r.descricao ? ', referente a ' + esc(r.descricao) : ''}, e damos plena quitação do valor acima.</p>
 <div class="sig"><div><div class="sigimg">${assLoja}</div><div class="line">${esc(nomeExib || '')}<small>Assinatura de quem recebeu</small></div></div>
 <div><div class="sigimg">${assCli}</div><div class="line">${esc(r.cliente_nome)}<small>${r.assinado_em ? 'Assinou em ' + new Date(r.assinado_em).toLocaleDateString('pt-BR') + ' às ' + new Date(r.assinado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' na tela' : 'Assinatura do cliente (opcional)'}</small></div></div></div>
-${sit}<div class="ver"><b>Recibo nº ${recNumero(r.numero)}</b> · Código <b>${esc(r.codigo)}</b> · Emitido eletronicamente em ${quando} (horário de Brasília)<br>Código de verificação (SHA-256): <span class="mono">${esc(r.hash || '')}</span></div></body></html>`;
+${sit}<div class="ver"><b>Recibo nº ${recNumero(r.numero)}</b> · Código <b>${esc(r.codigo)}</b> · Emitido eletronicamente em ${quando} (horário de Brasília)<br>Código de autenticidade (SHA-256): <span class="mono">${esc(r.hash || '')}</span><br>É a “impressão digital” deste recibo: se qualquer dado for alterado, o código deixa de bater.</div></body></html>`;
 }
 async function abrirReciboVer(id) {
   const r = recibosLista.find(x => x.id === id) || (reciboAtual && reciboAtual.id === id ? reciboAtual : null); if (!r) return;
@@ -7507,9 +7507,23 @@ async function recCanvas(r) {
     await new Promise(res => { fr.onload = res; fr.srcdoc = reciboHtml(r, { logo, loja, cliente }); });
     const doc = fr.contentDocument;
     await Promise.all([...doc.images].map(i => (i.decode ? i.decode().catch(() => {}) : null)));
+    const altura = Math.max(1123, doc.body.scrollHeight);
+    try { return await recCanvasNativo(doc, altura); }   // o próprio navegador desenha o texto (sem os espaços/letras fora do lugar do html2canvas)
+    catch (e) { console.warn('recibo: desenho nativo falhou, usando html2canvas:', e); }
     recTirarColorFn(doc);
-    return await html2canvas(doc.body, { backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 794, height: Math.max(1123, doc.body.scrollHeight) });
+    return await html2canvas(doc.body, { backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 794, height: altura });
   } finally { fr.remove(); }
+}
+// Desenho nativo: o recibo vira uma imagem SVG (foreignObject) e o navegador mesmo faz o layout do texto, igual ao que aparece na tela.
+async function recCanvasNativo(doc, altura) {
+  const html = new XMLSerializer().serializeToString(doc.documentElement);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="794" height="${altura}"><foreignObject x="0" y="0" width="794" height="${altura}">${html}</foreignObject></svg>`;
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('Não foi possível montar a imagem do recibo.')); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
+  const c = document.createElement('canvas'); c.width = 794 * 2; c.height = altura * 2;
+  const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+  c.toDataURL('image/png');   // dá erro se o navegador marcou a imagem como "contaminada": aí cai no html2canvas
+  return c;
 }
 // Segurança extra: o html2canvas não lê cores no formato color(...); troca qualquer uma que apareça por rgba().
 function recTirarColorFn(doc) {
