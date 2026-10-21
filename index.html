@@ -2734,6 +2734,7 @@ let autoRefreshTimer = null;
 let autoRefreshEmCurso = false;
 function telaOcupada() {
   if (document.querySelector('.modal-overlay.open')) return true;
+  if (activeTab === 'configuracoes') return true; // formulários de Configurações (ex.: Meus dados) não podem ser apagados por uma recarga
   const el = document.activeElement;
   return !!el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
 }
