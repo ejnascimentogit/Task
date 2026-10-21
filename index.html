@@ -5287,7 +5287,12 @@ function fecharMenuMobile() {
   document.getElementById('btn-menu-mobile')?.setAttribute('aria-expanded', 'false');
 }
 // Instalável no celular (PWA): o service worker só guarda arquivos do próprio site, nunca dados do banco.
-if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+if ('serviceWorker' in navigator) {
+  // Se já havia um service worker e uma versão nova assume o controle, recarrega uma vez para o app não ficar com o código antigo.
+  const tinhaSW = !!navigator.serviceWorker.controller; let recarregou = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (tinhaSW && !recarregou) { recarregou = true; try { if (!telaOcupada()) location.reload(); } catch (e) { location.reload(); } } });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+}
 
 function setTab(tab) {
   if (tab !== 'configuracoes' && tab !== 'ajuda' && !temAba(tab)) tab = abasAtivas()[0] || 'configuracoes';
