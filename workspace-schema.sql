@@ -1700,3 +1700,10 @@ alter table public.emissor_dados add column if not exists redes_sociais text not
 -- Documento do cliente (CPF/CNPJ), 2026-10-21
 alter table public.entidades add column if not exists documento_tipo text not null default 'pf';
 alter table public.entidades add column if not exists documento text not null default '';
+-- WhatsApp: anexos (imagem/PDF) nas mensagens, 2026-10-21. Bucket privado; a pasta é o id de quem envia; o arquivo é apagado quando a mensagem sai.
+alter table public.whatsapp_mensagens add column if not exists anexo_path text;
+alter table public.whatsapp_mensagens add column if not exists anexo_nome text;
+alter table public.whatsapp_mensagens add column if not exists anexo_tipo text;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('whatsapp-anexos', 'whatsapp-anexos', false, 8388608, array['image/png','image/jpeg','application/pdf']) on conflict (id) do nothing;
+create policy "whatsapp-anexos insert" on storage.objects for insert to authenticated with check (bucket_id = 'whatsapp-anexos' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "whatsapp-anexos select" on storage.objects for select to authenticated using (bucket_id = 'whatsapp-anexos' and (storage.foldername(name))[1] = auth.uid()::text);

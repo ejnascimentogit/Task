@@ -38,6 +38,8 @@ export const wz = {
   qr: (c: Cfg, token: string) => chamar(c, "/session/qr", { token }),
   sair: (c: Cfg, token: string) => chamar(c, "/session/logout", { token, corpo: {} }),
   checar: (c: Cfg, token: string, fone: string) => chamar(c, "/user/check", { token, corpo: { Phone: [fone] } }),
+  imagem: (c: Cfg, token: string, fone: string, dataUrl: string, legenda: string) => chamar(c, "/chat/send/image", { token, corpo: { Phone: fone, Image: dataUrl, Caption: legenda } }),
+  documento: (c: Cfg, token: string, fone: string, dataUrl: string, nome: string) => chamar(c, "/chat/send/document", { token, corpo: { Phone: fone, Document: dataUrl, FileName: nome } }),
   texto: (c: Cfg, token: string, fone: string, corpo: string) => chamar(c, "/chat/send/text", { token, corpo: { Phone: fone, Body: corpo } }),
   erro: msgErro,
 };
@@ -66,6 +68,10 @@ export async function enviarMensagem(sb: any, cfg: Cfg, m: any): Promise<{ statu
   const fecha = async (campos: Record<string, unknown>) => {
     const { error } = await sb.from("whatsapp_mensagens").update(campos).eq("id", m.id);
     if (error) console.error("whatsapp: não consegui gravar o resultado:", error.message);
+    if (m.anexo_path && ["enviada", "erro", "cancelada"].includes(String(campos.status))) {   // terminou: o arquivo não precisa mais ficar guardado
+      const { error: e2 } = await sb.storage.from(BUCKET_ANEXOS).remove([m.anexo_path]);
+      if (e2) console.error("whatsapp: não consegui apagar o anexo:", e2.message);
+    }
     return { status: String(campos.status), erro: campos.erro as string | undefined };
   };
   const { data: liberado } = await sb.rpc("tem_recurso", { p_user: m.user_id, p_recurso: "whatsapp" });
@@ -92,7 +98,16 @@ export async function enviarMensagem(sb: any, cfg: Cfg, m: any): Promise<{ statu
   if (chk.ok && u && u.IsInWhatsapp === false) return fecha({ status: "erro", erro: "Este número não tem WhatsApp" });
   const destino = String(u?.JID ?? "").split("@")[0].split(":")[0] || fone;   // o JID já vem com o formato certo (ex.: nono dígito)
 
-  const r = await wz.texto(cfg, token, destino, String(m.texto));
+  let r: Resp;
+  if (m.anexo_path) {
+    const arq = await lerAnexo(sb, m);
+    if (!arq) return fecha({ status: "erro", erro: "O arquivo anexado não foi encontrado. Envie de novo." });
+    if (arq.tipo.startsWith("image/")) r = await wz.imagem(cfg, token, destino, arq.dataUrl, String(m.texto));
+    else {   // PDF: sai o arquivo e, em seguida, o texto como mensagem normal
+      r = await wz.documento(cfg, token, destino, arq.dataUrl, arq.nome);
+      if (r.ok) await wz.texto(cfg, token, destino, String(m.texto));
+    }
+  } else r = await wz.texto(cfg, token, destino, String(m.texto));
   if (r.ok) return fecha({ status: "enviada", enviado_em: new Date().toISOString(), erro: null });
   const erro = wz.erro(r);
   if (/not (logged|connected)|no session|disconnected/i.test(erro) || r.status === 401) {
@@ -101,6 +116,22 @@ export async function enviarMensagem(sb: any, cfg: Cfg, m: any): Promise<{ statu
   }
   if (r.status === 0 || r.status >= 500) return esperarOuExpirar(fecha, m, "Servidor do WhatsApp fora do ar: " + erro + ".", 5);
   return tentarDeNovo(fecha, m, erro);
+}
+
+// Anexos (imagem ou PDF) ficam num bucket privado só até a mensagem sair; a pasta é o id de quem enviou.
+export const BUCKET_ANEXOS = "whatsapp-anexos";
+export const TIPOS_ANEXO: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", pdf: "application/pdf" };
+export function tipoDoAnexo(caminho: string): string | null { return TIPOS_ANEXO[String(caminho).split(".").pop()!.toLowerCase()] ?? null; }
+function paraBase64(bytes: Uint8Array): string {
+  let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+async function lerAnexo(sb: any, m: any): Promise<{ dataUrl: string; tipo: string; nome: string } | null> {
+  const tipo = m.anexo_tipo || tipoDoAnexo(m.anexo_path); if (!tipo) return null;
+  const { data, error } = await sb.storage.from(BUCKET_ANEXOS).download(m.anexo_path);
+  if (error || !data) return null;
+  const bytes = new Uint8Array(await data.arrayBuffer());
+  return { dataUrl: `data:${tipo};base64,${paraBase64(bytes)}`, tipo, nome: String(m.anexo_nome || "arquivo." + (tipo === "application/pdf" ? "pdf" : "png")).replace(/[^\w.\- ]+/g, "_").slice(0, 80) };
 }
 
 // Prazo de espera quando o servidor ou a sessão estão fora do ar: mensagem programada espera até 24 h; a enviada com "Agora", 1 h.

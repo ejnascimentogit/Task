@@ -3,7 +3,7 @@
 // Só quem o master liberou (recurso "whatsapp") usa. O envio programado é feito por whatsapp-agendadas (cron a cada minuto).
 // Segredos: WUZAPI_URL e WUZAPI_ADMIN_TOKEN. O token de cada pessoa no WuzAPI fica no Vault (RPCs whatsapp_salvar_token / whatsapp_token).
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { cfgDoAmbiente, enviarMensagem, normalizarTelefone, wz } from "./envio.ts";
+import { BUCKET_ANEXOS, cfgDoAmbiente, enviarMensagem, normalizarTelefone, tipoDoAnexo, wz } from "./envio.ts";
 
 const URL_SB = Deno.env.get("SUPABASE_URL")!;
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Content-Type": "application/json" };
@@ -142,6 +142,12 @@ Deno.serve(async (req) => {
         const texto = String(b.texto ?? "").trim();
         if (!texto) return resp({ ok: false, erro: "Escreva a mensagem." });
         if (texto.length > 1500) return resp({ ok: false, erro: "Mensagem muito longa (máximo 1500 caracteres)." });
+        let anexo: { path: string; nome: string; tipo: string } | null = null;
+        if (b.anexo?.path) {   // arquivo enviado pela própria pessoa para a pasta dela no bucket de anexos
+          const path = String(b.anexo.path), tipo = tipoDoAnexo(path);
+          if (!path.startsWith(user.id + "/") || path.includes("..") || !tipo) return resp({ ok: false, erro: "Anexo inválido." });
+          anexo = { path, tipo, nome: String(b.anexo.nome ?? "").slice(0, 80) };
+        }
         let quando = new Date();
         if (b.quando) {
           quando = new Date(b.quando);
@@ -157,6 +163,7 @@ Deno.serve(async (req) => {
           enviar_em: (imediata ? new Date() : quando).toISOString(), programada_para: (imediata ? new Date() : quando).toISOString(), status: imediata ? "enviando" : "agendada",
           tentativas: imediata ? 1 : 0, reservada_em: imediata ? new Date().toISOString() : null,
           origem: ["manual", "agenda", "atividade"].includes(b.origem) ? b.origem : "manual", origem_id: b.origem_id ?? null,
+          anexo_path: anexo?.path ?? null, anexo_nome: anexo?.nome ?? null, anexo_tipo: anexo?.tipo ?? null,
         }).select().single();
         if (error) return resp({ ok: false, erro: "Não consegui salvar a mensagem: " + error.message });
         if (!imediata) return resp({ ok: true, status: "agendada", id: m.id });
@@ -168,6 +175,8 @@ Deno.serve(async (req) => {
         const { data, error } = await admin.from("whatsapp_mensagens").update({ status: "cancelada", erro: "Cancelada por você" })
           .eq("id", b.id).eq("user_id", user.id).eq("status", "agendada").select("id");
         if (error) return resp({ ok: false, erro: error.message });
+        const { data: com } = await admin.from("whatsapp_mensagens").select("anexo_path").eq("id", b.id).eq("user_id", user.id).maybeSingle();
+        if (com?.anexo_path && (data ?? []).length) await admin.storage.from(BUCKET_ANEXOS).remove([com.anexo_path]);
         return resp({ ok: (data ?? []).length > 0, erro: (data ?? []).length ? undefined : "Esta mensagem não está mais aguardando envio." });
       }
 

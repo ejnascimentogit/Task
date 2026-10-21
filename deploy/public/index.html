@@ -1950,6 +1950,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;">
         <button class="btn btn-sm btn-primary" onclick="reciboImprimir()">🖨 Imprimir / Salvar PDF</button>
         <button class="btn btn-sm" onclick="withLock(this, reciboBaixarImagem)">📸 Baixar imagem</button>
+        <button class="btn btn-sm" onclick="withLock(this, reciboBaixarPdf)">📄 Baixar PDF</button>
         <button class="btn btn-sm" id="rv-wa" onclick="withLock(this, reciboEnviarWa)">📲 Enviar por WhatsApp</button>
         <button class="btn btn-sm" id="rv-assinar" onclick="reciboAbrirAssinatura()">✍️ Coletar assinatura do cliente</button>
         <button class="btn btn-sm" onclick="fecharReciboVer()">Fechar</button>
@@ -2200,11 +2201,12 @@
   <div class="modal-box" style="max-width:520px;">
     <h2>Nova mensagem de WhatsApp</h2>
     <div class="form-grid">
-      <div class="form-field full"><label>Preencher a partir de (opcional)</label><select id="wa-modelo" onchange="waAplicarModelo()"></select></div>
+      <div class="form-field full"><label>Preencher a partir de (opcional)</label><div style="position:relative;"><input type="text" id="wa-modelo-busca" placeholder="Digite para buscar um compromisso ou atividade, ou deixe em branco" autocomplete="off" oninput="waModeloSugerir()" onfocus="waModeloSugerir()" onblur="setTimeout(waModeloFechar, 200)"><div id="wa-modelo-sug" class="rn-sugestoes" style="display:none;"></div></div><select id="wa-modelo" style="display:none" onchange="waAplicarModelo()"></select></div>
       <div class="form-field full"><label>Escolher um contato (opcional)</label><select id="wa-contato" onchange="waAplicarContato()"></select></div>
       <div class="form-field"><label>Número (com DDD)</label><input type="text" id="wa-telefone" placeholder="(81) 99999-0000" inputmode="tel" autocomplete="off"></div>
       <div class="form-field"><label>Nome (opcional)</label><input type="text" id="wa-nome" maxlength="80" placeholder="Para lembrar quem é"></div>
       <div class="form-field full"><label>Mensagem <span id="wa-contagem" style="color:var(--gray-text);font-weight:400;"></span></label><textarea id="wa-texto" rows="5" maxlength="1500" oninput="waContar()" placeholder="Escreva a mensagem..."></textarea></div>
+      <div class="form-field full" id="wa-anexo-box" style="display:none"><label id="wa-anexo-rot">Anexo</label><select id="wa-anexo"><option value="imagem">Enviar o recibo como imagem (PNG)</option><option value="pdf">Enviar o recibo como PDF</option><option value="">Só o texto, sem arquivo</option></select></div>
       <div class="form-field full">
         <label>Quando enviar</label>
         <select id="wa-quando-tipo" onchange="waTipoQuando()"><option value="agora">Agora</option><option value="programar">Programar para uma data e hora</option></select>
@@ -4104,6 +4106,7 @@ function waAplicarContato() {
   document.getElementById('wa-telefone').value = c.tel;
   if (c.nome) document.getElementById('wa-nome').value = c.nome;
 }
+let waAnexoRecibo = null;
 function abrirNovaMensagemWa(agId, atId) {
   waMontarContatos();
   const hoje = todayStr();
@@ -4133,6 +4136,8 @@ function abrirNovaMensagemWa(agId, atId) {
   }
   document.getElementById('wa-quando-tipo').value = 'agora';
   document.getElementById('wa-quando').value = '';
+  waAnexoRecibo = null; document.getElementById('wa-anexo-box').style.display = 'none';
+  waModeloSincronizar();
   waTipoQuando(); waContar();
   document.getElementById('wa-modal-overlay').classList.add('open');
   if (agId || atId) setTimeout(() => document.getElementById('wa-telefone')?.focus(), 50);
@@ -4211,6 +4216,17 @@ async function compartilharAgendamentoWa() {
   abrirNovaMensagemWa(id);
 }
 function fecharNovaMensagemWa() { document.getElementById('wa-modal-overlay').classList.remove('open'); }
+function waModeloSugerir() {
+  const sel = document.getElementById('wa-modelo'), box = document.getElementById('wa-modelo-sug'), q = document.getElementById('wa-modelo-busca').value.trim().toLowerCase();
+  if (!q && sel.value) { sel.value = ''; }
+  const itens = [...sel.options].filter(o => o.value && (!q || o.textContent.toLowerCase().includes(q))).slice(0, 30);
+  if (!itens.length) { box.style.display = 'none'; return; }
+  box.innerHTML = itens.map(o => `<div class="rn-sug" onmousedown="event.preventDefault()" onclick="waModeloEscolher('${o.value}')"><b>${escapeHtml(o.textContent)}</b><small>${escapeHtml((o.parentElement && o.parentElement.label) || '')}</small></div>`).join('');
+  box.style.display = '';
+}
+function waModeloFechar() { const b = document.getElementById('wa-modelo-sug'); if (b) b.style.display = 'none'; }
+function waModeloEscolher(v) { document.getElementById('wa-modelo').value = v; waModeloSincronizar(); waModeloFechar(); waAplicarModelo(); }
+function waModeloSincronizar() { const sel = document.getElementById('wa-modelo'); const o = sel.options[sel.selectedIndex]; document.getElementById('wa-modelo-busca').value = (sel.value && o) ? o.textContent : ''; }
 function waAplicarModelo() {
   const v = document.getElementById('wa-modelo').value;
   const t = document.getElementById('wa-texto');
@@ -4235,8 +4251,19 @@ async function enviarMensagemWa() {
     texto: document.getElementById('wa-texto').value, quando: programar ? new Date(q).toISOString() : null,
     origem: modelo.startsWith('ag:') ? 'agenda' : modelo.startsWith('at:') ? 'atividade' : 'manual', origem_id: modelo ? modelo.split(':')[1] : null,
   };
+  let anexoPath = null;
+  const tipoAnexo = waAnexoRecibo ? document.getElementById('wa-anexo').value : '';
+  if (tipoAnexo) {   // gera o recibo em imagem/PDF e guarda só até a mensagem sair
+    try {
+      const blob = await recGerarArquivo(waAnexoRecibo, tipoAnexo), ext = tipoAnexo === 'pdf' ? 'pdf' : 'png';
+      anexoPath = currentUser.id + '/' + crypto.randomUUID() + '.' + ext;
+      const { error: eUp } = await sb.storage.from('whatsapp-anexos').upload(anexoPath, blob, { contentType: tipoAnexo === 'pdf' ? 'application/pdf' : 'image/png' });
+      if (eUp) { alert('Não foi possível enviar o arquivo do recibo: ' + eUp.message); return; }
+      corpo.anexo = { path: anexoPath, nome: 'recibo-' + recNumero(waAnexoRecibo.numero) + '.' + ext };
+    } catch (e) { alert('Não consegui gerar o arquivo do recibo: ' + (e && e.message || e)); return; }
+  }
   const r = await waChamar(corpo);
-  if (!r.ok && r.status !== 'agendada') { alert(r.erro || 'Não foi possível enviar.'); await carregarWhatsapp(); return; }
+  if (!r.ok && r.status !== 'agendada') { if (anexoPath) sb.storage.from('whatsapp-anexos').remove([anexoPath]); alert(r.erro || 'Não foi possível enviar.'); await carregarWhatsapp(); return; }
   fecharNovaMensagemWa();
   await carregarWhatsapp();
   if (r.status === 'agendada' && !programar) alert('A mensagem ficou na fila: ' + (r.erro || 'será enviada em breve.'));
@@ -7462,6 +7489,46 @@ async function reciboBaixarImagem() {
   const a = document.createElement('a'); a.href = canvas.toDataURL('image/png');
   a.download = 'recibo-' + recNumero(reciboAtual.numero) + '.png'; a.click();
 }
+// Recibo como arquivo (imagem ou PDF): desenha o recibo num iframe fora da tela e fotografa com html2canvas.
+async function recCanvas(r) {
+  const em = await garantirEmissor();
+  const [logo, loja, cliente] = await Promise.all([recImagemDataUrl(em && em.logo_path), recImagemDataUrl(em && em.assinatura_path), recImagemDataUrl(r.assinatura_cliente_path)]);
+  const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;';
+  document.body.appendChild(fr);
+  try {
+    await new Promise(res => { fr.onload = res; fr.srcdoc = reciboHtml(r, { logo, loja, cliente }); });
+    const doc = fr.contentDocument;
+    await Promise.all([...doc.images].map(i => (i.decode ? i.decode().catch(() => {}) : null)));
+    return await html2canvas(doc.body, { backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 794, height: Math.max(1123, doc.body.scrollHeight) });
+  } finally { fr.remove(); }
+}
+// PDF de uma página com a imagem do recibo (JPEG dentro do PDF), sem biblioteca externa.
+function recPdfDeCanvas(canvas) {
+  const b64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1], bin = atob(b64), jpeg = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) jpeg[i] = bin.charCodeAt(i);
+  const w = canvas.width, h = canvas.height, larg = 595.28, alt = +(larg * h / w).toFixed(2), enc = new TextEncoder(), partes = [], offs = [];
+  let pos = 0; const add = x => { const b = typeof x === 'string' ? enc.encode(x) : x; partes.push(b); pos += b.length; };
+  add('%PDF-1.4\n');
+  offs[1] = pos; add('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  offs[2] = pos; add('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  offs[3] = pos; add(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${larg} ${alt}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`);
+  offs[4] = pos; add(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`); add(jpeg); add('\nendstream\nendobj\n');
+  const cont = `q ${larg} 0 0 ${alt} 0 0 cm /Im0 Do Q`;
+  offs[5] = pos; add(`5 0 obj\n<< /Length ${cont.length} >>\nstream\n${cont}\nendstream\nendobj\n`);
+  const xref = pos; add('xref\n0 6\n0000000000 65535 f \n' + [1, 2, 3, 4, 5].map(i => String(offs[i]).padStart(10, '0') + ' 00000 n \n').join(''));
+  add(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(partes, { type: 'application/pdf' });
+}
+async function recGerarArquivo(r, tipo) {
+  const canvas = await recCanvas(r);
+  if (tipo === 'pdf') return recPdfDeCanvas(canvas);
+  return await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('Não foi possível gerar a imagem.')), 'image/png'));
+}
+async function reciboBaixarPdf() {
+  const blob = await recGerarArquivo(reciboAtual, 'pdf');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'recibo-' + recNumero(reciboAtual.numero) + '.pdf'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
 async function reciboEnviarWa() {
   const r = reciboAtual; if (!r) return;
   if (!waEstado) await carregarWhatsapp();
@@ -7472,6 +7539,8 @@ async function reciboEnviarWa() {
   fecharReciboVer();
   abrirNovaMensagemWa();
   document.getElementById('wa-texto').value = texto; document.getElementById('wa-nome').value = r.cliente_nome; waContar();
+  waAnexoRecibo = r; document.getElementById('wa-anexo').value = 'imagem'; document.getElementById('wa-anexo-rot').textContent = 'Anexo: recibo nº ' + recNumero(r.numero);
+  document.getElementById('wa-anexo-box').style.display = '';
 }
 function reciboAbrirAssinatura() {
   const r = reciboAtual; if (!r) return;
