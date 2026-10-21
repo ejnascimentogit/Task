@@ -1734,7 +1734,7 @@
               <div class="form-field"><label id="em-doc-label">CPF</label><input type="text" id="em-documento" inputmode="numeric" maxlength="18" oninput="emMascararDoc()" placeholder="000.000.000-00"></div>
               <div class="form-field full"><label id="em-nome-label">Nome completo</label><input type="text" id="em-nome" maxlength="120"></div>
               <div class="form-field full" id="em-fantasia-field" style="display:none"><label>Nome fantasia (opcional)</label><input type="text" id="em-fantasia" maxlength="120"></div>
-              <div class="form-field"><label>Telefone / WhatsApp</label><input type="text" id="em-telefone" inputmode="tel" maxlength="20" placeholder="(81) 90000-0000"></div>
+              <div class="form-field"><label>Telefone / WhatsApp</label><input type="text" id="em-telefone" inputmode="tel" maxlength="15" placeholder="(81) 90000-0000" oninput="emMascararTel()"></div>
               <div class="form-field"><label>E-mail</label><input type="email" id="em-email" maxlength="120"></div>
               <div class="form-field"><label>CEP</label><div style="display:flex;gap:8px;"><input type="text" id="em-cep" inputmode="numeric" maxlength="9" placeholder="00000-000" oninput="emMascararCep()" style="flex:1"><button class="btn btn-sm" type="button" onclick="emBuscarCep()">Buscar</button></div></div>
               <div class="form-field"><label>Número</label><input type="text" id="em-numero" maxlength="12"></div>
@@ -6999,6 +6999,13 @@ function emFormatarDoc(v, tipo) {
   return d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
 }
 function emMascararDoc() { const el = document.getElementById('em-documento'); el.value = emFormatarDoc(el.value, document.getElementById('em-tipo').value); }
+function emFormatarTel(v) {
+  let d = emSoDigitos(v); if (d.length > 11 && d.startsWith('55')) d = d.slice(2); d = d.slice(0, 11);
+  if (d.length <= 2) return d ? '(' + d : '';
+  const meio = d.length > 10 ? 7 : 6; // celular (11 dígitos): 98445-3645; fixo (10): 3456-7890
+  return '(' + d.slice(0, 2) + ') ' + d.slice(2, meio) + (d.length > meio ? '-' + d.slice(meio) : '');
+}
+function emMascararTel() { const el = document.getElementById('em-telefone'); el.value = emFormatarTel(el.value); }
 function emMascararCep() { const el = document.getElementById('em-cep'); const d = emSoDigitos(el.value).slice(0, 8); el.value = d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d; }
 function emTipoMudou() {
   const pj = document.getElementById('em-tipo').value === 'pj';
@@ -7041,7 +7048,7 @@ async function renderEmissor() {
   emTipoMudou();
   const set = (id, v) => { document.getElementById(id).value = v || ''; };
   set('em-documento', emFormatarDoc(d.documento, d.tipo)); set('em-nome', d.nome); set('em-fantasia', d.nome_fantasia);
-  set('em-telefone', d.telefone); set('em-email', d.email); set('em-cep', d.cep); set('em-numero', d.numero);
+  set('em-telefone', emFormatarTel(d.telefone || '')); set('em-email', d.email); set('em-cep', d.cep); set('em-numero', d.numero);
   document.getElementById('em-cor').value = /^#[0-9a-fA-F]{6}$/.test(d.cor_recibo || '') ? d.cor_recibo : '#7a2e4d';
   set('em-logradouro', d.logradouro); set('em-complemento', d.complemento); set('em-bairro', d.bairro); set('em-cidade', d.cidade); set('em-uf', d.uf);
   emMascararCep();
