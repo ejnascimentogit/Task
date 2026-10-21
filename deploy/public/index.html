@@ -4260,7 +4260,7 @@ async function enviarMensagemWa() {
       const { error: eUp } = await sb.storage.from('whatsapp-anexos').upload(anexoPath, blob, { contentType: tipoAnexo === 'pdf' ? 'application/pdf' : 'image/png' });
       if (eUp) { alert('Não foi possível enviar o arquivo do recibo: ' + eUp.message); return; }
       corpo.anexo = { path: anexoPath, nome: 'recibo-' + recNumero(waAnexoRecibo.numero) + '.' + ext };
-    } catch (e) { alert('Não consegui gerar o arquivo do recibo: ' + (e && e.message || e)); return; }
+    } catch (e) { alert('Não consegui gerar o arquivo do recibo (versão 2): ' + (e && e.message || e)); return; }
   }
   const r = await waChamar(corpo);
   if (!r.ok && r.status !== 'agendada') { if (anexoPath) sb.storage.from('whatsapp-anexos').remove([anexoPath]); alert(r.erro || 'Não foi possível enviar.'); await carregarWhatsapp(); return; }
@@ -7502,8 +7502,25 @@ async function recCanvas(r) {
     await new Promise(res => { fr.onload = res; fr.srcdoc = reciboHtml(r, { logo, loja, cliente }); });
     const doc = fr.contentDocument;
     await Promise.all([...doc.images].map(i => (i.decode ? i.decode().catch(() => {}) : null)));
+    recTirarColorFn(doc);
     return await html2canvas(doc.body, { backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 794, height: Math.max(1123, doc.body.scrollHeight) });
   } finally { fr.remove(); }
+}
+// Segurança extra: o html2canvas não lê cores no formato color(...); troca qualquer uma que apareça por rgba().
+function recTirarColorFn(doc) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d', { willReadFrequently: true });
+  const props = ['color', 'backgroundColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'outlineColor', 'textDecorationColor'];
+  const win = doc.defaultView;
+  doc.querySelectorAll('*').forEach(el => {
+    const cs = win.getComputedStyle(el);
+    for (const p of props) {
+      const v = cs[p];
+      if (v && v.indexOf('color(') === 0) {
+        cx.clearRect(0, 0, 1, 1); cx.fillStyle = '#000'; cx.fillStyle = v; cx.fillRect(0, 0, 1, 1);
+        const d = cx.getImageData(0, 0, 1, 1).data; el.style[p] = `rgba(${d[0]},${d[1]},${d[2]},${(d[3] / 255).toFixed(3)})`;
+      }
+    }
+  });
 }
 // PDF de uma página com a imagem do recibo (JPEG dentro do PDF), sem biblioteca externa.
 function recPdfDeCanvas(canvas) {
