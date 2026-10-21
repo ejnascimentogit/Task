@@ -1911,7 +1911,7 @@
     <h2>🧾 Novo recibo</h2>
     <div class="form-grid">
       <div class="form-field full"><label>Recebemos de (nome do cliente)</label><input type="text" id="rn-cliente" list="rn-clientes-lista" maxlength="120" oninput="rnEscolherCliente()" autocomplete="off"><datalist id="rn-clientes-lista"></datalist></div>
-      <div class="form-field"><label>CPF/CNPJ do cliente (opcional)</label><input type="text" id="rn-doc" inputmode="numeric" maxlength="18" oninput="rnMascararDoc()"></div>
+      <div class="form-field"><label>CPF/CNPJ do cliente (opcional)</label><input type="text" id="rn-doc" inputmode="numeric" maxlength="18" oninput="rnMascararDoc()"><label id="rn-mostrar-box" style="display:none;gap:6px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;font-size:12px;margin-top:6px;color:var(--text-main);"><input type="checkbox" id="rn-mostrar" checked> Mostrar o CPF no recibo</label></div>
       <div class="form-field"><label>Data</label><input type="date" id="rn-data"></div>
       <div class="form-field full"><label>Referente a</label><input type="text" id="rn-descricao" maxlength="160" placeholder="Ex.: óculos de grau, pedido de 10/03/2026"></div>
       <div class="form-field"><label>Valor total (R$)</label><input type="text" id="rn-valor" inputmode="decimal" placeholder="0,00" oninput="rnAtualizar()"></div>
@@ -7221,12 +7221,13 @@ async function abrirNovoRecibo() {
   document.getElementById('rn-parcelas').innerHTML = Array.from({ length: 23 }, (_, i) => `<option value="${i + 2}">${i + 2}×</option>`).join('');
   document.getElementById('rn-prim').value = recSomarMeses(todayStr(), 1);
   document.getElementById('rn-assina').checked = false;
+  document.getElementById('rn-mostrar').checked = true; document.getElementById('rn-mostrar-box').style.display = 'none';
   rnAtualizar();
   document.getElementById('recibo-novo-overlay').classList.add('open');
   setTimeout(() => document.getElementById('rn-cliente').focus(), 50);
 }
 function fecharNovoRecibo() { document.getElementById('recibo-novo-overlay').classList.remove('open'); }
-function rnMascararDoc() { const el = document.getElementById('rn-doc'); const d = emSoDigitos(el.value); el.value = emFormatarDoc(el.value, d.length > 11 ? 'pj' : 'pf'); }
+function rnMascararDoc() { const el = document.getElementById('rn-doc'); const d = emSoDigitos(el.value); el.value = emFormatarDoc(el.value, d.length > 11 ? 'pj' : 'pf'); document.getElementById('rn-mostrar-box').style.display = d.length > 0 && d.length <= 11 ? 'flex' : 'none'; }
 function rnEscolherCliente() {
   const nome = document.getElementById('rn-cliente').value.trim().toLowerCase();
   const e = (state.entidades || []).find(x => x.nome.toLowerCase() === nome);
@@ -7251,11 +7252,13 @@ async function salvarNovoRecibo() {
   const forma = document.getElementById('rn-forma').value;
   const parcelas = forma === 'credito_parcelado' ? Number(document.getElementById('rn-parcelas').value) : 1;
   const prim = forma === 'credito_parcelado' ? document.getElementById('rn-prim').value : null;
-  const docCli = emSoDigitos(document.getElementById('rn-doc').value);
+  let docCli = emSoDigitos(document.getElementById('rn-doc').value);
+  const cpfValido = docCli.length === 11 && emCpfValido(docCli);
   if (!cliente) { alert('Informe o nome do cliente.'); return; }
   if (!valor || valor <= 0) { alert('Informe o valor do recibo.'); return; }
   if (docCli && !(docCli.length === 11 ? emCpfValido(docCli) : (docCli.length === 14 && emCnpjValido(docCli)))) { alert('O CPF/CNPJ do cliente está inválido. Confira os números ou deixe em branco.'); return; }
   if (forma === 'credito_parcelado' && !prim) { alert('Informe o vencimento da primeira parcela.'); return; }
+  if (cpfValido && !document.getElementById('rn-mostrar').checked) docCli = ''; // CPF oculto: não entra no recibo nem é guardado
   const snap = { tipo: em.tipo, nome: em.nome, nome_fantasia: em.nome_fantasia || '', documento: em.documento, telefone: em.telefone || '', email: em.email || '', cep: em.cep || '',
     logradouro: em.logradouro || '', numero: em.numero || '', complemento: em.complemento || '', bairro: em.bairro || '', cidade: em.cidade || '', uf: em.uf || '', cor: em.cor_recibo || '#7a2e4d' };
   const row = { workspace_id: activeWorkspace.id, data_emissao: document.getElementById('rn-data').value || todayStr(), cliente_nome: cliente, cliente_documento: docCli,
