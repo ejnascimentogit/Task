@@ -1002,6 +1002,14 @@
   .cal-cel:hover { background: var(--accent-soft); }
   .cal-cel .cal-novo { display:none; margin-top:auto; font-size:11.5px; font-weight:700; color:var(--accent-ink); }
   .cal-cel:not(.fora):hover .cal-novo { display:block; }
+  .em-imgs { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+  @media (max-width: 860px) { .em-imgs { grid-template-columns:1fr; } }
+  .em-img-box { border:1px solid var(--border-light); border-radius:14px; padding:14px; }
+  .em-img-tit { font-weight:700; margin-bottom:8px; }
+  .em-prev { min-height:90px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--border-light); border-radius:10px; color:var(--gray-text); font-size:13px; margin-bottom:8px; background:#fff; }
+  .em-prev img { max-width:100%; max-height:120px; object-fit:contain; }
+  .em-canvas { width:100%; max-width:440px; height:150px; border:1px solid var(--border-light); border-radius:10px; background:#fff; touch-action:none; cursor:crosshair; display:block; margin-bottom:8px; }
+  .em-btns { display:flex; gap:8px; flex-wrap:wrap; }
   .cal-cel .cal-data-add { display:none; font-size:11px; font-weight:700; color:var(--gray-text); }
   .cal-cel:not(.fora):hover .cal-data-add { display:block; }
   .cal-cel .cal-data-add:hover { color:var(--accent-ink); text-decoration:underline; }
@@ -1700,6 +1708,43 @@
               <p class="config-hint" style="margin-bottom:8px;">Escolha quais campos aparecem no cadastro de cliente. Esconder um campo não apaga o que já foi preenchido.</p>
               <button class="btn btn-sm" id="btn-campos-cliente" onclick="abrirCamposCliente()">⚙️ Escolher os campos do cadastro</button>
             </div>
+          </div>
+        </div>
+
+        <div class="resumo-box config-section" id="section-emissor" style="display:none">
+          <div class="config-section-header" onclick="toggleConfigSection('emissor')"><h2>🧾 Meus dados e logo (recibos)</h2><span class="config-chevron" id="chevron-emissor">▸</span></div>
+          <div class="config-section-body" id="body-emissor" style="display:none">
+            <p class="config-hint">Estes dados saem no cabeçalho dos seus recibos: logo, nome, CPF ou CNPJ e endereço. Preencha uma vez; a assinatura salva aqui entra sozinha em todo recibo.</p>
+            <div class="form-grid">
+              <div class="form-field"><label>Você emite como</label>
+                <select id="em-tipo" onchange="emTipoMudou()"><option value="pf">Pessoa física (CPF)</option><option value="pj">Pessoa jurídica (CNPJ)</option></select></div>
+              <div class="form-field"><label id="em-doc-label">CPF</label><input type="text" id="em-documento" inputmode="numeric" maxlength="18" oninput="emMascararDoc()" placeholder="000.000.000-00"></div>
+              <div class="form-field full"><label id="em-nome-label">Nome completo</label><input type="text" id="em-nome" maxlength="120"></div>
+              <div class="form-field full" id="em-fantasia-field" style="display:none"><label>Nome fantasia (opcional)</label><input type="text" id="em-fantasia" maxlength="120"></div>
+              <div class="form-field"><label>Telefone / WhatsApp</label><input type="text" id="em-telefone" inputmode="tel" maxlength="20" placeholder="(81) 90000-0000"></div>
+              <div class="form-field"><label>E-mail</label><input type="email" id="em-email" maxlength="120"></div>
+              <div class="form-field"><label>CEP</label><div style="display:flex;gap:8px;"><input type="text" id="em-cep" inputmode="numeric" maxlength="9" placeholder="00000-000" oninput="emMascararCep()" style="flex:1"><button class="btn btn-sm" type="button" onclick="emBuscarCep()">Buscar</button></div></div>
+              <div class="form-field"><label>Número</label><input type="text" id="em-numero" maxlength="12"></div>
+              <div class="form-field full"><label>Rua / Avenida</label><input type="text" id="em-logradouro" maxlength="120"></div>
+              <div class="form-field"><label>Complemento</label><input type="text" id="em-complemento" maxlength="60"></div>
+              <div class="form-field"><label>Bairro</label><input type="text" id="em-bairro" maxlength="80"></div>
+              <div class="form-field"><label>Cidade</label><input type="text" id="em-cidade" maxlength="80"></div>
+              <div class="form-field"><label>UF</label><input type="text" id="em-uf" maxlength="2" style="text-transform:uppercase" placeholder="PE"></div>
+            </div>
+            <div class="em-imgs">
+              <div class="em-img-box"><div class="em-img-tit">Logo</div>
+                <div class="em-prev" id="em-logo-prev">Sem logo</div>
+                <input type="file" id="em-logo-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none" onchange="withLock(this, () => emEnviarLogo(this.files[0]))">
+                <div class="em-btns"><button class="btn btn-sm" type="button" onclick="document.getElementById('em-logo-input').click()">📁 Importar logo</button><button class="btn btn-sm" type="button" id="em-logo-rem" onclick="withLock(this, () => emRemoverImagem('logo'))" style="display:none">Remover</button></div>
+                <div class="config-hint" style="margin-top:6px">PNG, JPG, WEBP ou SVG, até 5 MB. Fundo transparente fica melhor.</div></div>
+              <div class="em-img-box"><div class="em-img-tit">Assinatura</div>
+                <div class="em-prev" id="em-ass-prev">Sem assinatura</div>
+                <canvas id="em-ass-canvas" width="440" height="150" class="em-canvas"></canvas>
+                <div class="em-btns"><button class="btn btn-sm" type="button" onclick="emLimparAssinatura()">Limpar</button><button class="btn btn-sm btn-green" type="button" onclick="withLock(this, emSalvarAssinaturaDesenhada)">Salvar assinatura desenhada</button><button class="btn btn-sm" type="button" onclick="document.getElementById('em-ass-input').click()">📁 Importar imagem</button><button class="btn btn-sm" type="button" id="em-ass-rem" onclick="withLock(this, () => emRemoverImagem('assinatura'))" style="display:none">Remover</button></div>
+                <input type="file" id="em-ass-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="withLock(this, () => emEnviarAssinatura(this.files[0]))">
+                <div class="config-hint" style="margin-top:6px">Desenhe com o dedo ou o mouse na área acima, ou importe uma foto da assinatura.</div></div>
+            </div>
+            <div style="margin-top:14px"><button class="btn btn-primary" id="em-salvar" onclick="withLock(this, salvarEmissor)">Salvar meus dados</button></div>
           </div>
         </div>
 
@@ -6833,6 +6878,8 @@ function renderConfiguracoes() {
   document.getElementById('section-assessor').style.display = souSolo() ? '' : 'none';
   document.getElementById('section-bomdia').style.display = souSolo() ? '' : 'none';
   document.getElementById('section-clientes-pessoal').style.display = souSolo() ? '' : 'none';
+  document.getElementById('section-emissor').style.display = souSolo() ? '' : 'none';
+  if (souSolo()) renderEmissor();
   document.getElementById('section-recontato').style.display = temAba('entidades') ? '' : 'none';
   document.getElementById('wcfg-recontato').checked = !!activeWorkspace.recontatoAuto;
   document.getElementById('wcfg-recontato').disabled = !souAdmin;
@@ -6859,6 +6906,152 @@ function renderConfiguracoes() {
   renderTiposAgendaList();
   renderFeriadosDatasList();
   renderTreinamentosPadraoList();
+}
+// ── Meus dados e logo (emissor de recibos, perfil Pessoal) ──
+let emissorDados = null, emissorCarregado = null, emDesenhando = false, emTemTraco = false;
+const EMISSOR_BUCKET = 'emissor-imagens';
+function emSoDigitos(v) { return String(v || '').replace(/\D/g, ''); }
+function emCpfValido(c) {
+  c = emSoDigitos(c); if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false;
+  for (let t = 9; t < 11; t++) { let s = 0; for (let i = 0; i < t; i++) s += Number(c[i]) * (t + 1 - i); const d = ((s * 10) % 11) % 10; if (d !== Number(c[t])) return false; }
+  return true;
+}
+function emCnpjValido(c) {
+  c = emSoDigitos(c); if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false;
+  const calc = (n) => { let s = 0, p = n - 7; for (let i = 0; i < n; i++) { s += Number(c[i]) * p--; if (p < 2) p = 9; } const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return calc(12) === Number(c[12]) && calc(13) === Number(c[13]);
+}
+function emFormatarDoc(v, tipo) {
+  const d = emSoDigitos(v).slice(0, tipo === 'pj' ? 14 : 11);
+  if (tipo === 'pj') return d.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
+  return d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+}
+function emMascararDoc() { const el = document.getElementById('em-documento'); el.value = emFormatarDoc(el.value, document.getElementById('em-tipo').value); }
+function emMascararCep() { const el = document.getElementById('em-cep'); const d = emSoDigitos(el.value).slice(0, 8); el.value = d.length > 5 ? d.slice(0, 5) + '-' + d.slice(5) : d; }
+function emTipoMudou() {
+  const pj = document.getElementById('em-tipo').value === 'pj';
+  document.getElementById('em-doc-label').textContent = pj ? 'CNPJ' : 'CPF';
+  document.getElementById('em-documento').placeholder = pj ? '00.000.000/0000-00' : '000.000.000-00';
+  document.getElementById('em-nome-label').textContent = pj ? 'Razão social' : 'Nome completo';
+  document.getElementById('em-fantasia-field').style.display = pj ? '' : 'none';
+  emMascararDoc();
+}
+async function emBuscarCep() {
+  const cep = emSoDigitos(document.getElementById('em-cep').value);
+  if (cep.length !== 8) { alert('Digite o CEP com 8 números.'); return; }
+  try {
+    const r = await fetch('https://viacep.com.br/ws/' + cep + '/json/');
+    const j = await r.json();
+    if (j.erro) { alert('CEP não encontrado. Preencha o endereço à mão.'); return; }
+    document.getElementById('em-logradouro').value = j.logradouro || '';
+    document.getElementById('em-bairro').value = j.bairro || '';
+    document.getElementById('em-cidade').value = j.localidade || '';
+    document.getElementById('em-uf').value = j.uf || '';
+    document.getElementById('em-numero').focus();
+  } catch (e) { alert('Não foi possível buscar o CEP agora. Preencha o endereço à mão.'); }
+}
+async function emUrlImagem(path) {
+  if (!path) return null;
+  const { data, error } = await sb.storage.from(EMISSOR_BUCKET).createSignedUrl(path, 3600);
+  return error ? null : data.signedUrl;
+}
+async function renderEmissor() {
+  if (!activeWorkspace || !souSolo()) return;
+  const souAdmin = activeWorkspace.role === 'admin';
+  if (emissorCarregado !== activeWorkspace.id) {
+    const { data, error } = await sb.from('emissor_dados').select('*').eq('workspace_id', activeWorkspace.id).maybeSingle();
+    if (error) { alert('Não foi possível carregar os dados do emissor: ' + error.message); return; }
+    emissorDados = data || { workspace_id: activeWorkspace.id, tipo: 'pf' };
+    emissorCarregado = activeWorkspace.id;
+  }
+  const d = emissorDados;
+  document.getElementById('em-tipo').value = d.tipo || 'pf';
+  emTipoMudou();
+  const set = (id, v) => { document.getElementById(id).value = v || ''; };
+  set('em-documento', emFormatarDoc(d.documento, d.tipo)); set('em-nome', d.nome); set('em-fantasia', d.nome_fantasia);
+  set('em-telefone', d.telefone); set('em-email', d.email); set('em-cep', d.cep); set('em-numero', d.numero);
+  set('em-logradouro', d.logradouro); set('em-complemento', d.complemento); set('em-bairro', d.bairro); set('em-cidade', d.cidade); set('em-uf', d.uf);
+  emMascararCep();
+  document.querySelectorAll('#body-emissor input, #body-emissor select, #body-emissor button').forEach(el => { if (!el.closest('.config-section-header')) el.disabled = !souAdmin; });
+  await emAtualizarPreviews();
+  emIniciarCanvas();
+}
+async function emAtualizarPreviews() {
+  const d = emissorDados || {};
+  const [lu, au] = await Promise.all([emUrlImagem(d.logo_path), emUrlImagem(d.assinatura_path)]);
+  document.getElementById('em-logo-prev').innerHTML = lu ? `<img src="${lu}" alt="Logo">` : 'Sem logo';
+  document.getElementById('em-ass-prev').innerHTML = au ? `<img src="${au}" alt="Assinatura">` : 'Sem assinatura';
+  document.getElementById('em-logo-rem').style.display = lu && activeWorkspace.role === 'admin' ? '' : 'none';
+  document.getElementById('em-ass-rem').style.display = au && activeWorkspace.role === 'admin' ? '' : 'none';
+}
+async function salvarEmissor() {
+  const tipo = document.getElementById('em-tipo').value;
+  const doc = emSoDigitos(document.getElementById('em-documento').value);
+  if (doc && (tipo === 'pj' ? !emCnpjValido(doc) : !emCpfValido(doc))) { alert((tipo === 'pj' ? 'CNPJ' : 'CPF') + ' inválido. Confira os números.'); return; }
+  const v = (id) => document.getElementById(id).value.trim();
+  const uf = v('em-uf').toUpperCase();
+  const row = { workspace_id: activeWorkspace.id, tipo, nome: v('em-nome'), nome_fantasia: tipo === 'pj' ? v('em-fantasia') : '', documento: doc,
+    telefone: v('em-telefone'), email: v('em-email'), cep: emSoDigitos(v('em-cep')), logradouro: v('em-logradouro'), numero: v('em-numero'),
+    complemento: v('em-complemento'), bairro: v('em-bairro'), cidade: v('em-cidade'), uf, updated_at: new Date().toISOString() };
+  if (!row.nome) { alert('Informe o ' + (tipo === 'pj' ? 'nome da empresa (razão social).' : 'seu nome.')); return; }
+  const { error } = await sb.from('emissor_dados').upsert(row, { onConflict: 'workspace_id' });
+  if (error) { alert('Não foi possível salvar: ' + error.message); return; }
+  emissorDados = { ...emissorDados, ...row };
+  avisoToast('✅ Dados do emissor salvos.');
+}
+async function emPrepararImagem(file, maxLado) {
+  if (!file) return null;
+  if (file.size > 5 * 1024 * 1024) { alert('A imagem passa de 5 MB. Use uma menor.'); return null; }
+  if (file.type === 'image/svg+xml') return { blob: file, ext: 'svg', tipo: file.type };
+  const bmp = await createImageBitmap(file);
+  const esc = Math.min(1, maxLado / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * esc); c.height = Math.round(bmp.height * esc);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  return { blob, ext: 'png', tipo: 'image/png' };
+}
+async function emGravarImagem(campo, img) {
+  const col = campo === 'logo' ? 'logo_path' : 'assinatura_path';
+  const path = activeWorkspace.id + '/' + campo + '-' + Date.now() + '.' + img.ext;
+  const { error: upErr } = await sb.storage.from(EMISSOR_BUCKET).upload(path, img.blob, { contentType: img.tipo });
+  if (upErr) { alert('Não foi possível enviar a imagem: ' + upErr.message); return false; }
+  const antigo = (emissorDados || {})[col];
+  const { error } = await sb.from('emissor_dados').upsert({ workspace_id: activeWorkspace.id, [col]: path, updated_at: new Date().toISOString() }, { onConflict: 'workspace_id' });
+  if (error) { alert('Não foi possível salvar a imagem: ' + error.message); return false; }
+  if (antigo) await sb.storage.from(EMISSOR_BUCKET).remove([antigo]);
+  emissorDados = { ...(emissorDados || { workspace_id: activeWorkspace.id }), [col]: path };
+  await emAtualizarPreviews();
+  avisoToast(campo === 'logo' ? '✅ Logo salva.' : '✅ Assinatura salva.');
+  return true;
+}
+async function emEnviarLogo(file) { const img = await emPrepararImagem(file, 800); if (img) await emGravarImagem('logo', img); document.getElementById('em-logo-input').value = ''; }
+async function emEnviarAssinatura(file) { const img = await emPrepararImagem(file, 700); if (img) await emGravarImagem('assinatura', img); document.getElementById('em-ass-input').value = ''; }
+async function emRemoverImagem(campo) {
+  const col = campo === 'logo' ? 'logo_path' : 'assinatura_path';
+  const antigo = (emissorDados || {})[col]; if (!antigo) return;
+  if (!confirm('Remover ' + (campo === 'logo' ? 'a logo' : 'a assinatura') + '?')) return;
+  const { error } = await sb.from('emissor_dados').update({ [col]: null, updated_at: new Date().toISOString() }).eq('workspace_id', activeWorkspace.id);
+  if (error) { alert(error.message); return; }
+  await sb.storage.from(EMISSOR_BUCKET).remove([antigo]);
+  emissorDados[col] = null;
+  await emAtualizarPreviews();
+}
+function emIniciarCanvas() {
+  const c = document.getElementById('em-ass-canvas'); if (!c || c.dataset.pronto) return;
+  c.dataset.pronto = '1';
+  const ctx = c.getContext('2d'); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1d3b6f';
+  const pos = (e) => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; };
+  c.addEventListener('pointerdown', (e) => { if (activeWorkspace.role !== 'admin') return; emDesenhando = true; c.setPointerCapture(e.pointerId); const [x, y] = pos(e); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 0.1, y + 0.1); ctx.stroke(); emTemTraco = true; });
+  c.addEventListener('pointermove', (e) => { if (!emDesenhando) return; const [x, y] = pos(e); ctx.lineTo(x, y); ctx.stroke(); });
+  const fim = () => { emDesenhando = false; };
+  c.addEventListener('pointerup', fim); c.addEventListener('pointercancel', fim);
+}
+function emLimparAssinatura() { const c = document.getElementById('em-ass-canvas'); c.getContext('2d').clearRect(0, 0, c.width, c.height); emTemTraco = false; }
+async function emSalvarAssinaturaDesenhada() {
+  if (!emTemTraco) { alert('Desenhe a assinatura na área acima primeiro.'); return; }
+  const c = document.getElementById('em-ass-canvas');
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  if (await emGravarImagem('assinatura', { blob, ext: 'png', tipo: 'image/png' })) emLimparAssinatura();
 }
 function abrirCamposCliente() {
   const sel = activeWorkspace.camposCliente || CAMPOS_CLIENTE_PADRAO_PESSOAL;

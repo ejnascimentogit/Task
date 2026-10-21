@@ -1602,3 +1602,26 @@ alter table public.whatsapp_mensagens add column if not exists programada_para t
 
 -- Feriados do estado e do município (local do espaço; a lista embutida fica no index.html)
 alter table public.workspaces add column if not exists feriados_uf text, add column if not exists feriados_municipio text;
+
+-- ══════════════════════════════════════════════════════════════
+-- Recibos (perfil Pessoal): dados do emissor, logo e assinatura (2026-10-21, aplicada no Supabase)
+-- ══════════════════════════════════════════════════════════════
+create table if not exists public.emissor_dados (
+  workspace_id uuid primary key references public.workspaces(id) on delete cascade,
+  tipo text not null default 'pf' check (tipo in ('pf','pj')),
+  nome text not null default '', nome_fantasia text not null default '', documento text not null default '',
+  telefone text not null default '', email text not null default '',
+  cep text not null default '', logradouro text not null default '', numero text not null default '', complemento text not null default '',
+  bairro text not null default '', cidade text not null default '', uf text not null default '',
+  logo_path text, assinatura_path text, updated_at timestamptz not null default now()
+);
+alter table public.emissor_dados enable row level security;
+create policy "emissor select membros" on public.emissor_dados for select using (public.is_member(workspace_id));
+create policy "emissor insert admin" on public.emissor_dados for insert with check (public.is_admin(workspace_id));
+create policy "emissor update admin" on public.emissor_dados for update using (public.is_admin(workspace_id)) with check (public.is_admin(workspace_id));
+-- bucket PRIVADO (logo e assinatura); a tela usa URL assinada de 1 h. Pasta = id do workspace.
+insert into storage.buckets (id, name, public) values ('emissor-imagens', 'emissor-imagens', false) on conflict (id) do nothing;
+create policy "emissor-imagens select" on storage.objects for select using (bucket_id = 'emissor-imagens' and public.is_member((storage.foldername(name))[1]::uuid));
+create policy "emissor-imagens insert" on storage.objects for insert with check (bucket_id = 'emissor-imagens' and public.is_admin((storage.foldername(name))[1]::uuid));
+create policy "emissor-imagens update" on storage.objects for update using (bucket_id = 'emissor-imagens' and public.is_admin((storage.foldername(name))[1]::uuid));
+create policy "emissor-imagens delete" on storage.objects for delete using (bucket_id = 'emissor-imagens' and public.is_admin((storage.foldername(name))[1]::uuid));
