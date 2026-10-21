@@ -1696,3 +1696,4 @@ do $$ begin
   if not exists (select 1 from pg_policies where tablename = 'recibos' and policyname = 'recibos update admin') then
     create policy "recibos update admin" on public.recibos for update using (public.is_admin(workspace_id)) with check (public.is_admin(workspace_id)); end if;
 end $$;
+alter table public.emissor_dados add column if not exists redes_sociais text not null default '';

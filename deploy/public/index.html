@@ -1736,6 +1736,7 @@
               <div class="form-field full" id="em-fantasia-field" style="display:none"><label>Nome fantasia (opcional)</label><input type="text" id="em-fantasia" maxlength="120"></div>
               <div class="form-field"><label>Telefone / WhatsApp</label><input type="text" id="em-telefone" inputmode="tel" maxlength="15" placeholder="(81) 90000-0000" oninput="emMascararTel()"></div>
               <div class="form-field"><label>E-mail</label><input type="email" id="em-email" maxlength="120"></div>
+              <div class="form-field full"><label>Redes sociais (aparecem no recibo)</label><input type="text" id="em-redes" maxlength="160" placeholder="Ex.: Instagram @minhaloja · facebook.com/minhaloja"></div>
               <div class="form-field"><label>CEP</label><div style="display:flex;gap:8px;"><input type="text" id="em-cep" inputmode="numeric" maxlength="9" placeholder="00000-000" oninput="emMascararCep()" style="flex:1"><button class="btn btn-sm" type="button" onclick="emBuscarCep()">Buscar</button></div></div>
               <div class="form-field"><label>Número</label><input type="text" id="em-numero" maxlength="12"></div>
               <div class="form-field full"><label>Rua / Avenida</label><input type="text" id="em-logradouro" maxlength="120"></div>
@@ -7049,7 +7050,7 @@ async function renderEmissor() {
   emTipoMudou();
   const set = (id, v) => { document.getElementById(id).value = v || ''; };
   set('em-documento', emFormatarDoc(d.documento, d.tipo)); set('em-nome', d.nome); set('em-fantasia', d.nome_fantasia);
-  set('em-telefone', emFormatarTel(d.telefone || '')); set('em-email', d.email); set('em-cep', d.cep); set('em-numero', d.numero);
+  set('em-telefone', emFormatarTel(d.telefone || '')); set('em-email', d.email); set('em-redes', d.redes_sociais); set('em-cep', d.cep); set('em-numero', d.numero);
   document.getElementById('em-cor').value = /^#[0-9a-fA-F]{6}$/.test(d.cor_recibo || '') ? d.cor_recibo : '#7a2e4d';
   set('em-logradouro', d.logradouro); set('em-complemento', d.complemento); set('em-bairro', d.bairro); set('em-cidade', d.cidade); set('em-uf', d.uf);
   emMascararCep();
@@ -7072,7 +7073,7 @@ async function salvarEmissor() {
   const v = (id) => document.getElementById(id).value.trim();
   const uf = v('em-uf').toUpperCase();
   const row = { workspace_id: activeWorkspace.id, tipo, nome: v('em-nome'), nome_fantasia: tipo === 'pj' ? v('em-fantasia') : '', documento: doc,
-    telefone: v('em-telefone'), email: v('em-email'), cep: emSoDigitos(v('em-cep')), logradouro: v('em-logradouro'), numero: v('em-numero'),
+    telefone: v('em-telefone'), email: v('em-email'), redes_sociais: v('em-redes'), cep: emSoDigitos(v('em-cep')), logradouro: v('em-logradouro'), numero: v('em-numero'),
     complemento: v('em-complemento'), bairro: v('em-bairro'), cidade: v('em-cidade'), uf, cor_recibo: document.getElementById('em-cor').value, updated_at: new Date().toISOString() };
   if (!row.nome) { alert('Informe o ' + (tipo === 'pj' ? 'nome da empresa (razão social).' : 'seu nome.')); return; }
   const { error } = await sb.from('emissor_dados').upsert(row, { onConflict: 'workspace_id' });
@@ -7281,7 +7282,7 @@ async function salvarNovoRecibo() {
   if (docCli && !(docCli.length === 11 ? emCpfValido(docCli) : (docCli.length === 14 && emCnpjValido(docCli)))) { alert('O CPF/CNPJ do cliente está inválido. Confira os números ou deixe em branco.'); return; }
   if (forma === 'credito_parcelado' && !prim) { alert('Informe o vencimento da primeira parcela.'); return; }
   if (cpfValido && !document.getElementById('rn-mostrar').checked) docCli = ''; // CPF oculto: não entra no recibo nem é guardado
-  const snap = { tipo: em.tipo, nome: em.nome, nome_fantasia: em.nome_fantasia || '', documento: em.documento, telefone: em.telefone || '', email: em.email || '', cep: em.cep || '',
+  const snap = { tipo: em.tipo, nome: em.nome, nome_fantasia: em.nome_fantasia || '', documento: em.documento, telefone: em.telefone || '', email: em.email || '', redes_sociais: em.redes_sociais || '', cep: em.cep || '',
     logradouro: em.logradouro || '', numero: em.numero || '', complemento: em.complemento || '', bairro: em.bairro || '', cidade: em.cidade || '', uf: em.uf || '', cor: em.cor_recibo || '#7a2e4d' };
   const row = { workspace_id: activeWorkspace.id, data_emissao: document.getElementById('rn-data').value || todayStr(), cliente_nome: cliente, cliente_documento: docCli,
     entidade_id: rnEntidadeId || null, descricao: document.getElementById('rn-descricao').value.trim(), valor, forma_pagamento: forma, parcelas, primeira_parcela: prim, emissor: snap };
@@ -7327,6 +7328,7 @@ function reciboHtml(r, imgs) {
   const end = [[e.logradouro, e.numero].filter(Boolean).join(', '), e.complemento, e.bairro].filter(Boolean).join(' – ');
   const cidade = [e.cidade, e.uf].filter(Boolean).join('/') + (e.cep ? ' · CEP ' + e.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2') : '');
   const contato = [e.telefone, e.email].filter(Boolean).join(' · ');
+  const redes = e.redes_sociais || '';
   const extenso = valorPorExtenso(Number(r.valor));
   const parcelas = r.forma_pagamento === 'credito_parcelado' ? recCalcParcelas(Number(r.valor), r.parcelas, r.primeira_parcela || r.data_emissao) : null;
   const criado = new Date(r.created_at);
@@ -7354,7 +7356,7 @@ table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}th{text-
 .sig{display:flex;gap:40px;margin-top:20px}.sig>div{flex:1;text-align:center}.sigimg{height:90px;display:flex;align-items:flex-end;justify-content:center}.line{border-top:1.5px solid #1c2733;padding-top:6px;font-size:12px;font-weight:600}.line small{display:block;font-size:10px;color:#6b7783;font-weight:400;margin-top:2px}
 .ver{position:absolute;left:50px;right:50px;bottom:26px;border-top:1px solid color-mix(in srgb,var(--c) 18%,white);padding-top:10px;font-size:9.5px;color:#6b7783;line-height:1.5}.ver b{color:#1c2733}.mono{font-family:Consolas,monospace;word-break:break-all}
 </style></head><body><div class="bar"></div><div class="wrap">
-<div class="head"><div style="display:flex;align-items:center">${imgs.logo ? `<img class="logo" src="${imgs.logo}">` : ''}<div class="emp"><h1>${esc(nomeExib || '')}</h1><p>${pj && e.nome_fantasia ? esc(e.nome) + '<br>' : ''}${pj ? 'CNPJ' : 'CPF'} ${esc(emFormatarDoc(e.documento, e.tipo))}${end ? '<br>' + esc(end) : ''}${cidade.trim() ? '<br>' + esc(cidade) : ''}${contato ? '<br>' + esc(contato) : ''}</p></div></div>
+<div class="head"><div style="display:flex;align-items:center">${imgs.logo ? `<img class="logo" src="${imgs.logo}">` : ''}<div class="emp"><h1>${esc(nomeExib || '')}</h1><p>${pj && e.nome_fantasia ? esc(e.nome) + '<br>' : ''}${pj ? 'CNPJ' : 'CPF'} ${esc(emFormatarDoc(e.documento, e.tipo))}${end ? '<br>' + esc(end) : ''}${cidade.trim() ? '<br>' + esc(cidade) : ''}${contato ? '<br>' + esc(contato) : ''}${redes ? '<br>' + esc(redes) : ''}</p></div></div>
 <div class="num"><div class="t">RECIBO Nº</div><div class="n">${recNumero(r.numero)}</div><div class="d">Emitido em ${formatDate(r.data_emissao)}</div></div></div>
 <h2>RECIBO DE PAGAMENTO</h2><div class="sub">Documento de quitação, sem valor de nota fiscal.</div>
 <div class="card"><div class="lbl">Recebemos de</div><div class="val">${esc(r.cliente_nome)}</div><div style="font-size:11px;color:#6b7783;margin-top:3px">${r.cliente_documento ? (r.cliente_documento.length > 11 ? 'CNPJ ' : 'CPF ') + esc(emFormatarDoc(r.cliente_documento, r.cliente_documento.length > 11 ? 'pj' : 'pf')) : ''}${r.cliente_documento && r.descricao ? ' · ' : ''}${r.descricao ? 'Referente a ' + esc(r.descricao) : ''}</div></div>
