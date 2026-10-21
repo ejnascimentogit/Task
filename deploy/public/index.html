@@ -1294,6 +1294,7 @@
       </div>
 
       <button class="btn-sidebar" onclick="withLock(this, doLogout)">🚪 Sair</button>
+      <div style="font-size:10px;opacity:.45;text-align:center;margin-top:6px;" title="Versão do código que está aberta">versão 21/10 · c</div>
     </div>
   </aside>
 
@@ -6228,7 +6229,7 @@ function ajustarAlturaKanban() {
 window.addEventListener('resize', ajustarAlturaKanban);
 function renderAtividades() {
   renderPessoaFiltro('pessoa-filter-atividades', 'setPessoaFiltroAtividades');
-  setTimeout(ajustarAlturaKanban, 0);
+  [0, 150, 600].forEach(ms => setTimeout(ajustarAlturaKanban, ms));
   const board = document.getElementById('kanban-board');
   const souAdminRaias = activeWorkspace && activeWorkspace.role === 'admin';
   board.innerHTML = colunasAtivas().map(col => {
