@@ -1697,3 +1697,6 @@ do $$ begin
     create policy "recibos update admin" on public.recibos for update using (public.is_admin(workspace_id)) with check (public.is_admin(workspace_id)); end if;
 end $$;
 alter table public.emissor_dados add column if not exists redes_sociais text not null default '';
+-- Documento do cliente (CPF/CNPJ), 2026-10-21
+alter table public.entidades add column if not exists documento_tipo text not null default 'pf';
+alter table public.entidades add column if not exists documento text not null default '';

@@ -1811,6 +1811,7 @@
     <div class="form-grid">
       <div class="form-field"><label>Código</label><input type="text" id="f-codigo" placeholder="Ex: 21" autocomplete="off"></div>
       <div class="form-field"><label>Nome</label><input type="text" id="f-nome"></div>
+      <div class="form-field"><label>Documento</label><div style="display:flex;gap:8px;"><select id="f-doc-tipo" style="width:110px;flex:none;" onchange="fDocMascarar()"><option value="pf">CPF</option><option value="pj">CNPJ</option></select><input type="text" id="f-documento" inputmode="numeric" maxlength="18" placeholder="Opcional" oninput="fDocMascarar()" style="min-width:0;"></div></div>
       <div class="form-field"><label>Responsável</label><input type="text" id="f-responsavel"></div>
       <div class="form-field"><label>Analista responsável (equipe)</label><select id="f-analista"></select></div>
       <div class="form-field" id="f-previsao-field" style="display:none;"><label>Previsão de entrega</label><input type="date" id="f-previsao"></div>
@@ -5203,7 +5204,7 @@ async function loadWorkspaceData() {
   state.entidades = (entidadesRows||[]).map(c => ({
     id:c.id, codigo:c.codigo||'', nome:c.nome, responsavel:c.responsavel||'', etapa:c.etapa, fase:c.fase||'implantacao',
     saude:c.saude||'verde', saudeMotivo:c.saude_motivo||'', observacao:c.observacao||'', inicio:c.inicio,
-    ultimoContato:c.ultimo_contato, proximoContato:c.proximo_contato, analista:c.analista_responsavel||'', previsaoEntrega:c.previsao_entrega||null,
+    ultimoContato:c.ultimo_contato, proximoContato:c.proximo_contato, analista:c.analista_responsavel||'', previsaoEntrega:c.previsao_entrega||null, documentoTipo:c.documento_tipo||'pf', documento:c.documento||'',
     contatos: contatos.filter(ct => ct.entidade_id===c.id).map(ct => ({ id:ct.id, nome:ct.nome, telefone:ct.telefone||'', cargo:ct.cargo||'' })),
     pendencias: pendencias.filter(p => p.entidade_id===c.id).map(p => ({ id:p.id, texto:p.texto, responsavel:p.responsavel, feito:p.feito, observacao:p.observacao||'', ordem:p.ordem, mostrarLamina:p.mostrar_lamina !== false })).sort((a, b) => (a.ordem ?? 1e9) - (b.ordem ?? 1e9)),
     historico: historico.filter(h => h.entidade_id===c.id).map(h => ({ id:h.id, data:h.data, texto:h.texto })),
@@ -5438,6 +5439,8 @@ function openModal(id) {
   document.getElementById('f-codigo').readOnly = !!activeWorkspace.codigoAutomatico;
   if (!c && !campoCliente('codigo')) document.getElementById('f-codigo').value = proximoCodigoAutomatico();   // código escondido: numera sozinho
   document.getElementById('f-nome').value = c ? c.nome : '';
+  document.getElementById('f-doc-tipo').value = c ? (c.documentoTipo || 'pf') : 'pf';
+  document.getElementById('f-documento').value = c ? emFormatarDoc(c.documento || '', c.documentoTipo || 'pf') : '';
   document.getElementById('f-responsavel').value = c ? c.responsavel : (campoCliente('responsavel') ? '' : meuNome());
   populateStageOptions();
   document.getElementById('f-etapa').value = c ? c.etapa : (STAGES[0] ? STAGES[0].id : '');
@@ -5591,11 +5594,15 @@ async function registrarContatoModal() {
   renderHistoricoList();
 }
 
+function fDocMascarar() { const el = document.getElementById('f-documento'), t = document.getElementById('f-doc-tipo').value; el.value = emFormatarDoc(el.value, t); }
 async function saveEntidade() {
+  const docTipo = document.getElementById('f-doc-tipo').value, docDig = emSoDigitos(document.getElementById('f-documento').value);
+  if (docDig && !(docTipo === 'pj' ? emCnpjValido(docDig) : emCpfValido(docDig))) { alert('O ' + (docTipo === 'pj' ? 'CNPJ' : 'CPF') + ' está inválido. Confira os números ou deixe o campo em branco.'); return; }
   const payload = {
     workspace_id: activeWorkspace.id,
     codigo: document.getElementById('f-codigo').value.trim() || null,
     nome: document.getElementById('f-nome').value.trim(),
+    documento_tipo: docTipo, documento: docDig,
     responsavel: document.getElementById('f-responsavel').value.trim(),
     etapa: document.getElementById('f-etapa').value,
     fase: document.getElementById('f-fase').value,
@@ -5616,12 +5623,12 @@ async function saveEntidade() {
     Object.assign(state.entidades.find(c=>c.id===editingEntidadeId), {
       codigo: payload.codigo||'', nome: payload.nome, responsavel: payload.responsavel, etapa: payload.etapa,
       fase: payload.fase, saude: payload.saude, saudeMotivo: payload.saude_motivo, observacao: payload.observacao,
-      inicio: payload.inicio, proximoContato: payload.proximo_contato, analista: payload.analista_responsavel || '', previsaoEntrega: payload.previsao_entrega,
+      inicio: payload.inicio, proximoContato: payload.proximo_contato, analista: payload.analista_responsavel || '', previsaoEntrega: payload.previsao_entrega, documentoTipo: docTipo, documento: docDig,
     });
   } else {
     const { data, error } = await sb.from('entidades').insert(payload).select().single();
     if (error) { alert(mensagemErroAmigavel(error, 'codigo-entidade')); return; }
-    state.entidades.push({ ...payload, id:data.id, proximoContato:payload.proximo_contato, analista: payload.analista_responsavel || '', previsaoEntrega: payload.previsao_entrega, contatos:[], pendencias:[], historico:[] });
+    state.entidades.push({ ...payload, id:data.id, proximoContato:payload.proximo_contato, analista: payload.analista_responsavel || '', previsaoEntrega: payload.previsao_entrega, documentoTipo: docTipo, documento: docDig, contatos:[], pendencias:[], historico:[] });
     editingEntidadeId = data.id;
   }
   closeModal();
@@ -7255,6 +7262,7 @@ function rnEscolherCliente() {
   const nome = document.getElementById('rn-cliente').value.trim().toLowerCase();
   const e = (state.entidades || []).find(x => x.nome.toLowerCase() === nome);
   rnEntidadeId = e ? e.id : null;
+  if (e && e.documento) { document.getElementById('rn-doc').value = emFormatarDoc(e.documento, e.documentoTipo || 'pf'); rnMascararDoc(); }
 }
 let rnEntidadeId = null;
 function rnAtualizar() {
