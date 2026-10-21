@@ -1961,10 +1961,10 @@
 </div>
 
 <div class="modal-overlay" id="recibo-ass-overlay">
-  <div class="modal-box" style="max-width:520px;">
+  <div class="modal-box" style="max-width:760px;">
     <h2>✍️ Assinatura do cliente</h2>
     <p class="config-hint" id="ra-quem" style="margin:-4px 0 10px;"></p>
-    <canvas id="ra-canvas" width="460" height="200" class="em-canvas" style="max-width:100%"></canvas>
+    <canvas id="ra-canvas" width="900" height="420" class="em-canvas" style="max-width:100%;width:100%;height:min(58vh,420px);"></canvas>
     <p class="config-hint">Peça para o cliente assinar com o dedo (ou o mouse) na área acima.</p>
     <div class="modal-footer"><div></div><div style="display:flex;gap:8px;margin-left:auto;">
       <button class="btn" onclick="raLimpar()">Limpar</button>
@@ -7585,10 +7585,10 @@ function reciboAbrirAssinatura() {
   const r = reciboAtual; if (!r) return;
   document.getElementById('ra-quem').textContent = r.cliente_nome + ' · Recibo nº ' + recNumero(r.numero) + ' · ' + fmtBRL(r.valor);
   const c = document.getElementById('ra-canvas');
-  c.getContext('2d').clearRect(0, 0, c.width, c.height); raTemTraco = false;
+  raTemTraco = false;
   if (!c.dataset.pronto) {
     c.dataset.pronto = '1';
-    const ctx = c.getContext('2d'); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1d3b6f';
+    const ctx = c.getContext('2d');
     const pos = (ev) => { const b = c.getBoundingClientRect(); return [(ev.clientX - b.left) * c.width / b.width, (ev.clientY - b.top) * c.height / b.height]; };
     c.addEventListener('pointerdown', (ev) => { raDesenhando = true; c.setPointerCapture(ev.pointerId); const [x, y] = pos(ev); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 0.1, y + 0.1); ctx.stroke(); raTemTraco = true; });
     c.addEventListener('pointermove', (ev) => { if (!raDesenhando) return; const [x, y] = pos(ev); ctx.lineTo(x, y); ctx.stroke(); });
@@ -7596,6 +7596,13 @@ function reciboAbrirAssinatura() {
   }
   fecharReciboVer();
   document.getElementById('recibo-ass-overlay').classList.add('open');
+  raAjustarTamanho();
+}
+// A área de assinatura ocupa o espaço que a tela dá (grande no celular); o desenho usa o dobro de pontos para ficar nítido.
+function raAjustarTamanho() {
+  const c = document.getElementById('ra-canvas'), b = c.getBoundingClientRect(); if (!b.width) return;
+  c.width = Math.round(b.width * 2); c.height = Math.round(b.height * 2);   // mudar o tamanho limpa o desenho e as configurações
+  const ctx = c.getContext('2d'); ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1d3b6f';
 }
 function raLimpar() { const c = document.getElementById('ra-canvas'); c.getContext('2d').clearRect(0, 0, c.width, c.height); raTemTraco = false; }
 function fecharAssinaturaRecibo() { document.getElementById('recibo-ass-overlay').classList.remove('open'); if (reciboAtual) abrirReciboVer(reciboAtual.id); }
