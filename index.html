@@ -1908,7 +1908,8 @@
 <!-- ══ MODAIS DE RECIBOS ══ -->
 <div class="modal-overlay" id="recibo-novo-overlay">
   <div class="modal-box" style="max-width:560px;">
-    <h2>🧾 Novo recibo</h2>
+    <h2 id="rn-titulo">🧾 Novo recibo</h2>
+    <div id="rn-aviso-edicao" class="config-hint" style="display:none;margin-bottom:10px;">Um recibo emitido não pode ser alterado. Ao salvar, este recibo é <b>cancelado</b> e um <b>novo</b> é emitido com as mudanças (com um novo número).</div>
     <div class="form-grid">
       <div class="form-field full"><label>Recebemos de (nome do cliente)</label><input type="text" id="rn-cliente" list="rn-clientes-lista" maxlength="120" oninput="rnEscolherCliente()" autocomplete="off"><datalist id="rn-clientes-lista"></datalist></div>
       <div class="form-field"><label>CPF/CNPJ do cliente (opcional)</label><input type="text" id="rn-doc" inputmode="numeric" maxlength="18" oninput="rnMascararDoc()"><label id="rn-mostrar-box" style="display:none;gap:6px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;font-size:12px;margin-top:6px;color:var(--text-main);"><input type="checkbox" id="rn-mostrar" checked> Mostrar o CPF no recibo</label></div>
@@ -7217,9 +7218,10 @@ async function renderRecibos(semRecarregar) {
       <td>${escapeHtml(FORMAS_RECIBO[r.forma_pagamento])}${r.forma_pagamento === 'credito_parcelado' ? ' ' + r.parcelas + '×' : ''}</td>
       <td style="text-align:right;white-space:nowrap">${fmtBRL(r.valor)}</td>
       <td>${r.status === 'cancelado' ? 'Cancelado' : (r.assinatura_cliente_path ? '✅ Cliente assinou' : '—')}</td>
-      <td style="white-space:nowrap"><button class="btn btn-sm" onclick="abrirReciboVer('${r.id}')">Abrir</button>${r.status === 'emitido' ? ` <button class="btn btn-sm" onclick="withLock(this, () => cancelarRecibo('${r.id}'))">Cancelar</button>` : ''}</td></tr>`).join('') + '</tbody></table>';
+      <td style="white-space:nowrap"><button class="btn btn-sm" onclick="abrirReciboVer('${r.id}')">Abrir</button>${r.status === 'emitido' ? ` <button class="btn btn-sm" onclick="abrirNovoRecibo('${r.id}')">✏️ Editar</button> <button class="btn btn-sm" onclick="withLock(this, () => cancelarRecibo('${r.id}'))">Cancelar</button>` : ''}</td></tr>`).join('') + '</tbody></table>';
 }
-async function abrirNovoRecibo() {
+let rnSubstitui = null;
+async function abrirNovoRecibo(substituirId) {
   const em = await garantirEmissor(); if (!em) return;
   if (!em.nome || !em.documento) { alert('Antes de emitir, preencha seu nome, CPF ou CNPJ em Configurações → Meus dados e logo (recibos).'); setTab('configuracoes'); return; }
   document.getElementById('rn-clientes-lista').innerHTML = (temAba('entidades') ? (state.entidades || []) : []).map(e => `<option value="${escapeHtml(e.nome)}"></option>`).join('');
@@ -7230,6 +7232,18 @@ async function abrirNovoRecibo() {
   document.getElementById('rn-prim').value = recSomarMeses(todayStr(), 1);
   document.getElementById('rn-assina').checked = false;
   document.getElementById('rn-mostrar').checked = true; document.getElementById('rn-mostrar-box').style.display = 'none';
+  rnSubstitui = null; rnEntidadeId = null;
+  const velho = typeof substituirId === 'string' ? recibosLista.find(x => x.id === substituirId) : null;
+  if (velho) {
+    rnSubstitui = velho; rnEntidadeId = velho.entidade_id || null;
+    document.getElementById('rn-cliente').value = velho.cliente_nome; document.getElementById('rn-doc').value = emFormatarDoc(velho.cliente_documento || '', (velho.cliente_documento || '').length > 11 ? 'pj' : 'pf');
+    rnMascararDoc();
+    document.getElementById('rn-descricao').value = velho.descricao || ''; document.getElementById('rn-valor').value = Number(velho.valor).toFixed(2).replace('.', ',');
+    document.getElementById('rn-data').value = velho.data_emissao; document.getElementById('rn-forma').value = velho.forma_pagamento;
+    if (velho.forma_pagamento === 'credito_parcelado') { document.getElementById('rn-parcelas').value = String(velho.parcelas); document.getElementById('rn-prim').value = velho.primeira_parcela || document.getElementById('rn-prim').value; }
+  }
+  document.getElementById('rn-titulo').textContent = velho ? '✏️ Editar recibo nº ' + recNumero(velho.numero) : '🧾 Novo recibo';
+  document.getElementById('rn-aviso-edicao').style.display = velho ? '' : 'none';
   rnAtualizar();
   document.getElementById('recibo-novo-overlay').classList.add('open');
   setTimeout(() => document.getElementById('rn-cliente').focus(), 50);
@@ -7271,8 +7285,15 @@ async function salvarNovoRecibo() {
     logradouro: em.logradouro || '', numero: em.numero || '', complemento: em.complemento || '', bairro: em.bairro || '', cidade: em.cidade || '', uf: em.uf || '', cor: em.cor_recibo || '#7a2e4d' };
   const row = { workspace_id: activeWorkspace.id, data_emissao: document.getElementById('rn-data').value || todayStr(), cliente_nome: cliente, cliente_documento: docCli,
     entidade_id: rnEntidadeId || null, descricao: document.getElementById('rn-descricao').value.trim(), valor, forma_pagamento: forma, parcelas, primeira_parcela: prim, emissor: snap };
+  if (rnSubstitui && !confirm('Salvar vai cancelar o recibo nº ' + recNumero(rnSubstitui.numero) + ' e emitir um novo no lugar. Continuar?')) return;
   const { data, error } = await sb.from('recibos').insert(row).select().single();
   if (error) { alert('Não foi possível emitir o recibo: ' + error.message); return; }
+  if (rnSubstitui) {
+    const { error: eC } = await sb.from('recibos').update({ status: 'cancelado', cancelado_em: new Date().toISOString() }).eq('id', rnSubstitui.id);
+    if (eC) alert('O novo recibo foi emitido, mas não consegui cancelar o nº ' + recNumero(rnSubstitui.numero) + ': ' + eC.message + '. Cancele-o pela lista.');
+    else rnSubstitui.status = 'cancelado';
+    rnSubstitui = null;
+  }
   const hash = await recSha256([data.id, data.numero, data.codigo, data.data_emissao, data.cliente_nome, data.cliente_documento, data.valor, data.forma_pagamento, data.parcelas, data.primeira_parcela || '', snap.documento, data.created_at].join('|'));
   const { error: e2 } = await sb.from('recibos').update({ hash }).eq('id', data.id);
   if (e2) { alert('O recibo foi emitido, mas não consegui gravar o código de verificação: ' + e2.message); } else data.hash = hash;
