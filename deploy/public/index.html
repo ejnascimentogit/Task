@@ -1482,6 +1482,18 @@
         </div>
       </section>
 
+      <section id="view-recibos" style="display:none">
+        <div class="resumo-box">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <h2 class="view-titulo" style="margin:0;">Recibos</h2>
+            <button class="btn btn-primary" style="margin-left:auto;" onclick="abrirNovoRecibo()">+ Novo recibo</button>
+          </div>
+          <div class="resumo-sub">Recibos de pagamento com a sua logo, o valor por extenso, a condição de pagamento e a assinatura. Um recibo emitido não muda: se errar, cancele e emita outro.</div>
+          <div style="margin:14px 0 10px;"><input type="text" id="rec-busca" placeholder="Buscar por cliente, número ou código..." oninput="renderRecibos(true)" style="width:100%;max-width:380px;"></div>
+          <div id="rec-lista" style="overflow-x:auto;"></div>
+        </div>
+      </section>
+
       <section id="view-whatsapp" style="display:none">
         <div class="resumo-box">
           <h2 class="view-titulo">WhatsApp</h2>
@@ -1714,6 +1726,7 @@
         <div class="resumo-box config-section" id="section-emissor" style="display:none">
           <div class="config-section-header" onclick="toggleConfigSection('emissor')"><h2>🧾 Meus dados e logo (recibos)</h2><span class="config-chevron" id="chevron-emissor">▸</span></div>
           <div class="config-section-body" id="body-emissor" style="display:none">
+            <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer;margin-bottom:12px;"><input type="checkbox" id="wcfg-usa-recibos" onchange="withLock(this, () => salvarUsaRecibos(this.checked))"> Emitir recibos neste espaço (aparece a aba <b>Recibos</b>)</label>
             <p class="config-hint">Estes dados saem no cabeçalho dos seus recibos: logo, nome, CPF ou CNPJ e endereço. Preencha uma vez; a assinatura salva aqui entra sozinha em todo recibo.</p>
             <div class="form-grid">
               <div class="form-field"><label>Você emite como</label>
@@ -1730,6 +1743,7 @@
               <div class="form-field"><label>Bairro</label><input type="text" id="em-bairro" maxlength="80"></div>
               <div class="form-field"><label>Cidade</label><input type="text" id="em-cidade" maxlength="80"></div>
               <div class="form-field"><label>UF</label><input type="text" id="em-uf" maxlength="2" style="text-transform:uppercase" placeholder="PE"></div>
+              <div class="form-field"><label>Cor do recibo</label><input type="color" id="em-cor" value="#7a2e4d" style="height:40px;padding:2px;"></div>
             </div>
             <div class="em-imgs">
               <div class="em-img-box"><div class="em-img-tit">Logo</div>
@@ -1888,6 +1902,59 @@
         <button class="btn btn-primary" onclick="withLock(this, saveEntidade)">Salvar</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══ MODAIS DE RECIBOS ══ -->
+<div class="modal-overlay" id="recibo-novo-overlay">
+  <div class="modal-box" style="max-width:560px;">
+    <h2>🧾 Novo recibo</h2>
+    <div class="form-grid">
+      <div class="form-field full"><label>Recebemos de (nome do cliente)</label><input type="text" id="rn-cliente" list="rn-clientes-lista" maxlength="120" oninput="rnEscolherCliente()" autocomplete="off"><datalist id="rn-clientes-lista"></datalist></div>
+      <div class="form-field"><label>CPF/CNPJ do cliente (opcional)</label><input type="text" id="rn-doc" inputmode="numeric" maxlength="18" oninput="rnMascararDoc()"></div>
+      <div class="form-field"><label>Data</label><input type="date" id="rn-data"></div>
+      <div class="form-field full"><label>Referente a</label><input type="text" id="rn-descricao" maxlength="160" placeholder="Ex.: óculos de grau, pedido de 10/03/2026"></div>
+      <div class="form-field"><label>Valor total (R$)</label><input type="text" id="rn-valor" inputmode="decimal" placeholder="0,00" oninput="rnAtualizar()"></div>
+      <div class="form-field"><label>Condição de pagamento</label><select id="rn-forma" onchange="rnAtualizar()">
+        <option value="pix">Pix</option><option value="dinheiro">Dinheiro</option><option value="debito">Cartão de débito</option>
+        <option value="credito_vista">Cartão de crédito à vista</option><option value="credito_parcelado">Cartão de crédito parcelado</option><option value="transferencia">Transferência bancária</option></select></div>
+      <div class="form-field" id="rn-parc-box" style="display:none"><label>Parcelas</label><select id="rn-parcelas" onchange="rnAtualizar()"></select></div>
+      <div class="form-field" id="rn-prim-box" style="display:none"><label>Vencimento da 1ª parcela</label><input type="date" id="rn-prim" onchange="rnAtualizar()"></div>
+      <div class="form-field full"><div id="rn-resumo" style="font-size:13px;color:var(--gray-text);line-height:1.5;"></div></div>
+      <div class="form-field full"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text-main);"><input type="checkbox" id="rn-assina"> O cliente vai assinar na tela agora</label></div>
+    </div>
+    <div class="modal-footer"><div></div><div style="display:flex;gap:8px;margin-left:auto;">
+      <button class="btn" onclick="fecharNovoRecibo()">Cancelar</button>
+      <button class="btn btn-primary" onclick="withLock(this, salvarNovoRecibo)">Emitir recibo</button></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recibo-ver-overlay" onclick="if(event.target===this) fecharReciboVer()">
+  <div class="modal-box" style="max-width:900px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <h2 style="margin:0;" id="rv-titulo">Recibo</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;">
+        <button class="btn btn-sm btn-primary" onclick="reciboImprimir()">🖨 Imprimir / Salvar PDF</button>
+        <button class="btn btn-sm" onclick="withLock(this, reciboBaixarImagem)">📸 Baixar imagem</button>
+        <button class="btn btn-sm" id="rv-wa" onclick="withLock(this, reciboEnviarWa)">📲 Enviar por WhatsApp</button>
+        <button class="btn btn-sm" id="rv-assinar" onclick="reciboAbrirAssinatura()">✍️ Coletar assinatura do cliente</button>
+        <button class="btn btn-sm" onclick="fecharReciboVer()">Fechar</button>
+      </div>
+    </div>
+    <div id="rv-moldura" style="overflow:auto;max-height:70vh;border:1px solid var(--border-light);border-radius:10px;background:#eee;"><iframe id="rv-frame" style="width:794px;height:1123px;border:0;background:#fff;display:block;margin:0 auto;"></iframe></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recibo-ass-overlay">
+  <div class="modal-box" style="max-width:520px;">
+    <h2>✍️ Assinatura do cliente</h2>
+    <p class="config-hint" id="ra-quem" style="margin:-4px 0 10px;"></p>
+    <canvas id="ra-canvas" width="460" height="200" class="em-canvas" style="max-width:100%"></canvas>
+    <p class="config-hint">Peça para o cliente assinar com o dedo (ou o mouse) na área acima.</p>
+    <div class="modal-footer"><div></div><div style="display:flex;gap:8px;margin-left:auto;">
+      <button class="btn" onclick="raLimpar()">Limpar</button>
+      <button class="btn" onclick="fecharAssinaturaRecibo()">Cancelar</button>
+      <button class="btn btn-primary" onclick="withLock(this, raSalvar)">Salvar assinatura</button></div></div>
   </div>
 </div>
 
@@ -2321,6 +2388,7 @@ const ENTIDADE_LABEL_PADRAO = { pessoal: null, equipe: 'Clientes', projeto: 'Pro
 const _ni = d => `<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7'), whatsapp: _ni('M21 12a8 8 0 0 1-11.8 7L3 21l2-5.7A8 8 0 1 1 21 12zM9 9c0 3 3 6 6 6l1.5-1.5-2-1-1 .7c-1-.4-2-1.4-2.4-2.4l.7-1-1-2z'), usuarios: _ni('M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8') };
 const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails', whatsapp: 'WhatsApp', usuarios: 'Usuários' };
+NAV_ICON.recibos = _ni('M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8'); NAV_NOME_FIXO.recibos = 'Recibos';
 
 const DEFAULT_ETAPAS = [
   { id: 'kickoff', nome: 'Kickoff', cor: '#3B82F6', ordem: 1 },
@@ -4856,7 +4924,8 @@ function souMaster() { return !!currentUser && (currentUser.email || '').toLower
 function abasAtivas() {
   if (!activeWorkspace) return [];
   // Perfil Pessoal pode ligar a aba de Clientes em Configurações (workspaces.usa_clientes); os outros perfis já têm.
-  const base = (activeWorkspace.perfilTipo === 'pessoal' && activeWorkspace.usaClientes) ? ['entidades'].concat(PERFIL_ABAS.pessoal) : PERFIL_ABAS[activeWorkspace.perfilTipo];
+  let base = (activeWorkspace.perfilTipo === 'pessoal' && activeWorkspace.usaClientes) ? ['entidades'].concat(PERFIL_ABAS.pessoal) : PERFIL_ABAS[activeWorkspace.perfilTipo];
+  if (activeWorkspace.perfilTipo === 'pessoal' && activeWorkspace.usaRecibos) { base = base.slice(); const i = base.indexOf('whatsapp'); base.splice(i < 0 ? base.length : i, 0, 'recibos'); }
   const abas = base.filter(a => (a !== 'buscar' || temRecurso('buscar')) && (a !== 'emails' || temRecurso('assessor_email')) && (a !== 'whatsapp' || temRecurso('whatsapp')));
   return souMaster() ? abas.concat('usuarios') : abas;
 }
@@ -4963,7 +5032,7 @@ async function loadWorkspaces() {
   workspaces = wsRows.map(w => ({
     id: w.id, nome: w.nome, perfilTipo: w.perfil_tipo, ownerId: w.owner_id,
     inviteCode: w.invite_code, entidadeLabel: w.entidade_label, corDestaque: w.cor_destaque || DEFAULT_COR_DESTAQUE,
-    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato', recontatoDias: w.recontato_dias || 0, feriadosUf: w.feriados_uf || '', feriadosMunicipio: w.feriados_municipio || '',
+    corFundo: w.cor_fundo || DEFAULT_COR_FUNDO, codigoAutomatico: w.codigo_automatico, usaClientes: !!w.usa_clientes, usaRecibos: !!w.usa_recibos, camposCliente: Array.isArray(w.campos_cliente) ? w.campos_cliente : null, recontatoAuto: !!w.recontato_auto, recontatoColuna: w.recontato_coluna || 're_contato', recontatoDias: w.recontato_dias || 0, feriadosUf: w.feriados_uf || '', feriadosMunicipio: w.feriados_municipio || '',
     role: membrosRows.find(m => m.workspace_id === w.id).role,
   }));
   const savedId = localStorage.getItem('ws_active_id');
@@ -5184,7 +5253,7 @@ function setTab(tab) {
   activeTab = tab;
   fecharMenuMobile();
   if (tab !== 'whatsapp') waParar();
-  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','whatsapp','usuarios','configuracoes','ajuda'].forEach(t => {
+  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','recibos','whatsapp','usuarios','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
     if (navBtn) navBtn.classList.toggle('active', t===tab);
     const view = document.getElementById('view-'+t);
@@ -5213,6 +5282,7 @@ function render() {
   else if (activeTab === 'emails') renderEmails();
   else if (activeTab === 'usuarios') renderUsuarios();
   else if (activeTab === 'whatsapp') renderWhatsapp();
+  else if (activeTab === 'recibos') renderRecibos();
   else if (activeTab === 'lamina') renderLamina();
   else if (activeTab === 'cronograma') renderCronograma();
   else if (activeTab === 'treinamentos') renderTreinamentos();
@@ -6893,6 +6963,7 @@ function renderConfiguracoes() {
   selCol.disabled = !souAdmin;
   document.getElementById('wcfg-recontato-dias').value = activeWorkspace.recontatoDias || 0;
   document.getElementById('wcfg-recontato-dias').disabled = !souAdmin;
+  const chkRec = document.getElementById('wcfg-usa-recibos'); if (chkRec) { chkRec.checked = !!activeWorkspace.usaRecibos; chkRec.disabled = !souAdmin; }
   const chkClientes = document.getElementById('wcfg-usa-clientes');
   chkClientes.checked = !!activeWorkspace.usaClientes;
   chkClientes.disabled = !souAdmin;
@@ -6970,6 +7041,7 @@ async function renderEmissor() {
   const set = (id, v) => { document.getElementById(id).value = v || ''; };
   set('em-documento', emFormatarDoc(d.documento, d.tipo)); set('em-nome', d.nome); set('em-fantasia', d.nome_fantasia);
   set('em-telefone', d.telefone); set('em-email', d.email); set('em-cep', d.cep); set('em-numero', d.numero);
+  document.getElementById('em-cor').value = /^#[0-9a-fA-F]{6}$/.test(d.cor_recibo || '') ? d.cor_recibo : '#7a2e4d';
   set('em-logradouro', d.logradouro); set('em-complemento', d.complemento); set('em-bairro', d.bairro); set('em-cidade', d.cidade); set('em-uf', d.uf);
   emMascararCep();
   document.querySelectorAll('#body-emissor input, #body-emissor select, #body-emissor button').forEach(el => { if (!el.closest('.config-section-header')) el.disabled = !souAdmin; });
@@ -6992,7 +7064,7 @@ async function salvarEmissor() {
   const uf = v('em-uf').toUpperCase();
   const row = { workspace_id: activeWorkspace.id, tipo, nome: v('em-nome'), nome_fantasia: tipo === 'pj' ? v('em-fantasia') : '', documento: doc,
     telefone: v('em-telefone'), email: v('em-email'), cep: emSoDigitos(v('em-cep')), logradouro: v('em-logradouro'), numero: v('em-numero'),
-    complemento: v('em-complemento'), bairro: v('em-bairro'), cidade: v('em-cidade'), uf, updated_at: new Date().toISOString() };
+    complemento: v('em-complemento'), bairro: v('em-bairro'), cidade: v('em-cidade'), uf, cor_recibo: document.getElementById('em-cor').value, updated_at: new Date().toISOString() };
   if (!row.nome) { alert('Informe o ' + (tipo === 'pj' ? 'nome da empresa (razão social).' : 'seu nome.')); return; }
   const { error } = await sb.from('emissor_dados').upsert(row, { onConflict: 'workspace_id' });
   if (error) { alert('Não foi possível salvar: ' + error.message); return; }
@@ -7052,6 +7124,277 @@ async function emSalvarAssinaturaDesenhada() {
   const c = document.getElementById('em-ass-canvas');
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   if (await emGravarImagem('assinatura', { blob, ext: 'png', tipo: 'image/png' })) emLimparAssinatura();
+}
+// ── Recibos (perfil Pessoal) ──
+let recibosLista = [], recibosCarregados = null, reciboAtual = null, reciboImgs = {}, raDesenhando = false, raTemTraco = false;
+const FORMAS_RECIBO = { pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Cartão de débito', credito_vista: 'Cartão de crédito à vista', credito_parcelado: 'Cartão de crédito parcelado', transferencia: 'Transferência bancária' };
+function fmtBRL(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+function valorPorExtenso(v) {
+  const un = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const dz = ['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const ct = ['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  const ate999 = (n) => {
+    if (n === 100) return 'cem';
+    const s = [], c = Math.floor(n / 100), r = n % 100;
+    if (c) s.push(ct[c]);
+    if (r) { if (r < 20) s.push(un[r]); else { const d = Math.floor(r / 10), u = r % 10; s.push(dz[d] + (u ? ' e ' + un[u] : '')); } }
+    return s.join(' e ');
+  };
+  const cents = Math.round(v * 100), reais = Math.floor(cents / 100), cent = cents % 100;
+  const milhoes = Math.floor(reais / 1000000), resto = reais % 1000000, mil = Math.floor(resto / 1000), r = resto % 1000;
+  const partes = [];
+  if (milhoes) partes.push(milhoes === 1 ? 'um milhão' : ate999(milhoes) + ' milhões');
+  if (mil) partes.push(mil === 1 ? 'mil' : ate999(mil) + ' mil');
+  if (r) partes.push(ate999(r));
+  let texto = partes.length ? partes.join(' ') : 'zero';
+  if (reais >= 1000000 && !resto) texto += ' de';
+  let out = texto + (reais === 1 ? ' real' : ' reais');
+  if (cent) out += ' e ' + ate999(cent) + (cent === 1 ? ' centavo' : ' centavos');
+  return out;
+}
+function recSomarMeses(iso, n) {
+  const [a, m, d] = iso.split('-').map(Number);
+  const alvo = new Date(a, m - 1 + n, 1), ult = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+  return alvo.getFullYear() + '-' + String(alvo.getMonth() + 1).padStart(2, '0') + '-' + String(Math.min(d, ult)).padStart(2, '0');
+}
+function recCalcParcelas(total, n, primeira) {
+  const cents = Math.round(total * 100), base = Math.floor(cents / n), sobra = cents - base * n, out = [];
+  for (let i = 0; i < n; i++) out.push({ n: i + 1, venc: recSomarMeses(primeira, i), valor: (i === n - 1 ? base + sobra : base) / 100 });
+  return out;
+}
+function recParseValor(s) { const t = String(s || '').replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''); const v = Number(t); return isFinite(v) ? Math.round(v * 100) / 100 : 0; }
+function recNumero(n) { return String(n).padStart(4, '0'); }
+function recDescricaoPagamento(r) {
+  if (r.forma_pagamento !== 'credito_parcelado') return FORMAS_RECIBO[r.forma_pagamento] || r.forma_pagamento;
+  const p = recCalcParcelas(Number(r.valor), r.parcelas, r.primeira_parcela || r.data_emissao);
+  const ult = p[p.length - 1].valor, uns = p[0].valor;
+  return 'Cartão de crédito parcelado em ' + r.parcelas + '× de ' + fmtBRL(uns) + (ult !== uns ? ' (última parcela ' + fmtBRL(ult) + ')' : '');
+}
+async function recSha256(texto) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function salvarUsaRecibos(ligar) {
+  if (activeWorkspace.role !== 'admin') { alert('Só o administrador do espaço pode mudar isso.'); renderConfiguracoes(); return; }
+  const { error } = await sb.from('workspaces').update({ usa_recibos: ligar }).eq('id', activeWorkspace.id);
+  if (error) { alert('Não foi possível salvar: ' + error.message); renderConfiguracoes(); return; }
+  activeWorkspace.usaRecibos = ligar;
+  const w = workspaces.find(x => x.id === activeWorkspace.id); if (w) w.usaRecibos = ligar;
+  buildSidebarNav();
+  avisoToast(ligar ? '✅ Aba Recibos ligada. Preencha "Meus dados e logo" antes de emitir.' : 'Aba Recibos desligada (os recibos continuam guardados).');
+}
+async function garantirEmissor() {
+  if (emissorCarregado === activeWorkspace.id && emissorDados) return emissorDados;
+  const { data, error } = await sb.from('emissor_dados').select('*').eq('workspace_id', activeWorkspace.id).maybeSingle();
+  if (error) { alert('Não foi possível carregar os dados do emissor: ' + error.message); return null; }
+  emissorDados = data || { workspace_id: activeWorkspace.id, tipo: 'pf' };
+  emissorCarregado = activeWorkspace.id;
+  return emissorDados;
+}
+async function carregarRecibos(forcar) {
+  if (!forcar && recibosCarregados === activeWorkspace.id) return;
+  const { data, error } = await sb.from('recibos').select('*').eq('workspace_id', activeWorkspace.id).order('numero', { ascending: false });
+  if (error) { alert('Não foi possível carregar os recibos: ' + error.message); return; }
+  recibosLista = data || []; recibosCarregados = activeWorkspace.id;
+}
+async function renderRecibos(semRecarregar) {
+  const box = document.getElementById('rec-lista'); if (!box) return;
+  if (!semRecarregar) await carregarRecibos(true);
+  const q = (document.getElementById('rec-busca').value || '').trim().toLowerCase();
+  const lista = recibosLista.filter(r => !q || r.cliente_nome.toLowerCase().includes(q) || recNumero(r.numero).includes(q) || r.codigo.toLowerCase().includes(q));
+  if (!lista.length) { box.innerHTML = '<p class="config-hint">' + (recibosLista.length ? 'Nenhum recibo encontrado.' : 'Nenhum recibo ainda. Clique em "+ Novo recibo".') + '</p>'; return; }
+  box.innerHTML = `<table class="data-table" style="width:100%;font-size:14px;"><thead><tr><th>Nº</th><th>Data</th><th>Cliente</th><th>Pagamento</th><th style="text-align:right">Valor</th><th>Assinatura</th><th></th></tr></thead><tbody>` +
+    lista.map(r => `<tr${r.status === 'cancelado' ? ' style="opacity:.55;text-decoration:line-through"' : ''}>
+      <td><b>${recNumero(r.numero)}</b></td><td>${formatDate(r.data_emissao)}</td><td>${escapeHtml(r.cliente_nome)}</td>
+      <td>${escapeHtml(FORMAS_RECIBO[r.forma_pagamento])}${r.forma_pagamento === 'credito_parcelado' ? ' ' + r.parcelas + '×' : ''}</td>
+      <td style="text-align:right;white-space:nowrap">${fmtBRL(r.valor)}</td>
+      <td>${r.status === 'cancelado' ? 'Cancelado' : (r.assinatura_cliente_path ? '✅ Cliente assinou' : '—')}</td>
+      <td style="white-space:nowrap"><button class="btn btn-sm" onclick="abrirReciboVer('${r.id}')">Abrir</button>${r.status === 'emitido' ? ` <button class="btn btn-sm" onclick="withLock(this, () => cancelarRecibo('${r.id}'))">Cancelar</button>` : ''}</td></tr>`).join('') + '</tbody></table>';
+}
+async function abrirNovoRecibo() {
+  const em = await garantirEmissor(); if (!em) return;
+  if (!em.nome || !em.documento) { alert('Antes de emitir, preencha seu nome, CPF ou CNPJ em Configurações → Meus dados e logo (recibos).'); setTab('configuracoes'); return; }
+  document.getElementById('rn-clientes-lista').innerHTML = (temAba('entidades') ? (state.entidades || []) : []).map(e => `<option value="${escapeHtml(e.nome)}"></option>`).join('');
+  ['rn-cliente', 'rn-doc', 'rn-descricao', 'rn-valor'].forEach(i => { document.getElementById(i).value = ''; });
+  document.getElementById('rn-data').value = todayStr();
+  document.getElementById('rn-forma').value = 'pix';
+  document.getElementById('rn-parcelas').innerHTML = Array.from({ length: 23 }, (_, i) => `<option value="${i + 2}">${i + 2}×</option>`).join('');
+  document.getElementById('rn-prim').value = recSomarMeses(todayStr(), 1);
+  document.getElementById('rn-assina').checked = false;
+  rnAtualizar();
+  document.getElementById('recibo-novo-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('rn-cliente').focus(), 50);
+}
+function fecharNovoRecibo() { document.getElementById('recibo-novo-overlay').classList.remove('open'); }
+function rnMascararDoc() { const el = document.getElementById('rn-doc'); const d = emSoDigitos(el.value); el.value = emFormatarDoc(el.value, d.length > 11 ? 'pj' : 'pf'); }
+function rnEscolherCliente() {
+  const nome = document.getElementById('rn-cliente').value.trim().toLowerCase();
+  const e = (state.entidades || []).find(x => x.nome.toLowerCase() === nome);
+  rnEntidadeId = e ? e.id : null;
+}
+let rnEntidadeId = null;
+function rnAtualizar() {
+  const forma = document.getElementById('rn-forma').value, parc = forma === 'credito_parcelado';
+  document.getElementById('rn-parc-box').style.display = parc ? '' : 'none';
+  document.getElementById('rn-prim-box').style.display = parc ? '' : 'none';
+  const v = recParseValor(document.getElementById('rn-valor').value), r = document.getElementById('rn-resumo');
+  if (!v) { r.innerHTML = ''; return; }
+  let html = 'Valor por extenso: <b>' + escapeHtml(valorPorExtenso(v)) + '</b>';
+  const prim = document.getElementById('rn-prim').value, n = Number(document.getElementById('rn-parcelas').value);
+  if (parc && prim && n) html += '<br>' + recCalcParcelas(v, n, prim).map(p => p.n + '/' + n + ' · ' + formatDate(p.venc) + ' · ' + fmtBRL(p.valor)).join('<br>');
+  r.innerHTML = html;
+}
+async function salvarNovoRecibo() {
+  const em = await garantirEmissor(); if (!em) return;
+  const cliente = document.getElementById('rn-cliente').value.trim();
+  const valor = recParseValor(document.getElementById('rn-valor').value);
+  const forma = document.getElementById('rn-forma').value;
+  const parcelas = forma === 'credito_parcelado' ? Number(document.getElementById('rn-parcelas').value) : 1;
+  const prim = forma === 'credito_parcelado' ? document.getElementById('rn-prim').value : null;
+  const docCli = emSoDigitos(document.getElementById('rn-doc').value);
+  if (!cliente) { alert('Informe o nome do cliente.'); return; }
+  if (!valor || valor <= 0) { alert('Informe o valor do recibo.'); return; }
+  if (docCli && !(docCli.length === 11 ? emCpfValido(docCli) : (docCli.length === 14 && emCnpjValido(docCli)))) { alert('O CPF/CNPJ do cliente está inválido. Confira os números ou deixe em branco.'); return; }
+  if (forma === 'credito_parcelado' && !prim) { alert('Informe o vencimento da primeira parcela.'); return; }
+  const snap = { tipo: em.tipo, nome: em.nome, nome_fantasia: em.nome_fantasia || '', documento: em.documento, telefone: em.telefone || '', email: em.email || '', cep: em.cep || '',
+    logradouro: em.logradouro || '', numero: em.numero || '', complemento: em.complemento || '', bairro: em.bairro || '', cidade: em.cidade || '', uf: em.uf || '', cor: em.cor_recibo || '#7a2e4d' };
+  const row = { workspace_id: activeWorkspace.id, data_emissao: document.getElementById('rn-data').value || todayStr(), cliente_nome: cliente, cliente_documento: docCli,
+    entidade_id: rnEntidadeId || null, descricao: document.getElementById('rn-descricao').value.trim(), valor, forma_pagamento: forma, parcelas, primeira_parcela: prim, emissor: snap };
+  const { data, error } = await sb.from('recibos').insert(row).select().single();
+  if (error) { alert('Não foi possível emitir o recibo: ' + error.message); return; }
+  const hash = await recSha256([data.id, data.numero, data.codigo, data.data_emissao, data.cliente_nome, data.cliente_documento, data.valor, data.forma_pagamento, data.parcelas, data.primeira_parcela || '', snap.documento, data.created_at].join('|'));
+  const { error: e2 } = await sb.from('recibos').update({ hash }).eq('id', data.id);
+  if (e2) { alert('O recibo foi emitido, mas não consegui gravar o código de verificação: ' + e2.message); } else data.hash = hash;
+  const querAssinar = document.getElementById('rn-assina').checked;
+  fecharNovoRecibo();
+  recibosLista.unshift(data); recibosCarregados = activeWorkspace.id;
+  if (activeTab === 'recibos') renderRecibos(true);
+  avisoToast('✅ Recibo nº ' + recNumero(data.numero) + ' emitido.');
+  if (querAssinar) { reciboAtual = data; reciboAbrirAssinatura(); } else await abrirReciboVer(data.id);
+}
+async function cancelarRecibo(id) {
+  if (!confirm('Cancelar este recibo? Ele continua na lista, marcado como cancelado, e o número não é reaproveitado.')) return;
+  const { error } = await sb.from('recibos').update({ status: 'cancelado', cancelado_em: new Date().toISOString() }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  const r = recibosLista.find(x => x.id === id); if (r) { r.status = 'cancelado'; }
+  renderRecibos(true);
+}
+async function recImagemDataUrl(path) {
+  if (!path) return null;
+  if (reciboImgs[path]) return reciboImgs[path];
+  const url = await emUrlImagem(path); if (!url) return null;
+  try {
+    const blob = await (await fetch(url)).blob();
+    const dataUrl = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
+    reciboImgs[path] = dataUrl; return dataUrl;
+  } catch (e) { return url; }
+}
+function reciboHtml(r, imgs) {
+  const e = r.emissor || {}, cor = /^#[0-9a-fA-F]{6}$/.test(e.cor || '') ? e.cor : '#7a2e4d', pj = e.tipo === 'pj';
+  const nomeExib = (pj && e.nome_fantasia) ? e.nome_fantasia : e.nome;
+  const end = [[e.logradouro, e.numero].filter(Boolean).join(', '), e.complemento, e.bairro].filter(Boolean).join(' – ');
+  const cidade = [e.cidade, e.uf].filter(Boolean).join('/') + (e.cep ? ' · CEP ' + e.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2') : '');
+  const contato = [e.telefone, e.email].filter(Boolean).join(' · ');
+  const extenso = valorPorExtenso(Number(r.valor));
+  const parcelas = r.forma_pagamento === 'credito_parcelado' ? recCalcParcelas(Number(r.valor), r.parcelas, r.primeira_parcela || r.data_emissao) : null;
+  const criado = new Date(r.created_at);
+  const quando = criado.toLocaleDateString('pt-BR') + ' às ' + criado.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const assLoja = imgs.loja ? `<img src="${imgs.loja}" style="max-height:100px;max-width:240px">` : '';
+  const assCli = imgs.cliente ? `<img src="${imgs.cliente}" style="max-height:100px;max-width:240px">` : '';
+  const sit = r.status === 'cancelado' ? '<div style="position:absolute;top:420px;left:120px;font-size:120px;font-weight:800;color:rgba(200,0,0,.18);transform:rotate(-20deg);letter-spacing:10px">CANCELADO</div>' : '';
+  const esc = escapeHtml;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo ${recNumero(r.numero)}</title><style>
+@page{size:A4;margin:0}*{box-sizing:border-box;margin:0;padding:0}
+body{width:794px;min-height:1123px;margin:0 auto;font-family:Inter,Arial,Helvetica,sans-serif;color:#1c2733;background:#fff;position:relative;--c:${cor};-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.bar{height:10px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 45%,white),var(--c))}
+.wrap{padding:34px 50px 0}
+.head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:2px solid color-mix(in srgb,var(--c) 18%,white)}
+.logo{width:96px;height:96px;object-fit:contain;border-radius:12px;margin-right:18px}
+.emp h1{font-size:25px;color:var(--c);line-height:1.15}.emp p{font-size:11.5px;color:#5b6773;margin-top:3px;line-height:1.4}
+.num{text-align:right}.num .t{font-size:10px;letter-spacing:2px;color:color-mix(in srgb,var(--c) 60%,#888);font-weight:700}.num .n{font-size:26px;font-weight:800;color:var(--c)}.num .d{font-size:11px;color:#5b6773;margin-top:3px}
+h2{font-size:28px;letter-spacing:4px;margin:24px 0 4px}.sub{font-size:11.5px;color:#6b7783;margin-bottom:16px}
+.card{border:1px solid color-mix(in srgb,var(--c) 18%,white);border-radius:12px;padding:13px 16px;background:color-mix(in srgb,var(--c) 5%,white);margin-bottom:11px}
+.lbl{font-size:9px;letter-spacing:1.5px;font-weight:700;color:color-mix(in srgb,var(--c) 60%,#888);text-transform:uppercase;margin-bottom:4px}.val{font-size:15px;font-weight:600}
+.total{display:flex;justify-content:space-between;align-items:center;background:var(--c);color:#fff;border-radius:12px;padding:14px 20px;margin:12px 0}
+.total .l{font-size:9.5px;letter-spacing:2px;font-weight:700;opacity:.85}.total .v{font-size:32px;font-weight:800}.total .e{font-size:11px;opacity:.92;max-width:360px;text-align:right;line-height:1.35}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}th{text-align:left;font-size:9px;letter-spacing:1.5px;color:color-mix(in srgb,var(--c) 60%,#888);padding:5px 7px;border-bottom:1px solid color-mix(in srgb,var(--c) 18%,white)}td{padding:6px 7px;border-bottom:1px solid #f1ece8}.r{text-align:right}
+.txt{font-size:13px;line-height:1.55;margin:16px 0}.txt b{color:var(--c)}
+.sig{display:flex;gap:40px;margin-top:20px}.sig>div{flex:1;text-align:center}.sigimg{height:90px;display:flex;align-items:flex-end;justify-content:center}.line{border-top:1.5px solid #1c2733;padding-top:6px;font-size:12px;font-weight:600}.line small{display:block;font-size:10px;color:#6b7783;font-weight:400;margin-top:2px}
+.ver{position:absolute;left:50px;right:50px;bottom:26px;border-top:1px solid color-mix(in srgb,var(--c) 18%,white);padding-top:10px;font-size:9.5px;color:#6b7783;line-height:1.5}.ver b{color:#1c2733}.mono{font-family:Consolas,monospace;word-break:break-all}
+</style></head><body><div class="bar"></div><div class="wrap">
+<div class="head"><div style="display:flex;align-items:center">${imgs.logo ? `<img class="logo" src="${imgs.logo}">` : ''}<div class="emp"><h1>${esc(nomeExib || '')}</h1><p>${pj && e.nome_fantasia ? esc(e.nome) + '<br>' : ''}${pj ? 'CNPJ' : 'CPF'} ${esc(emFormatarDoc(e.documento, e.tipo))}${end ? '<br>' + esc(end) : ''}${cidade.trim() ? '<br>' + esc(cidade) : ''}${contato ? '<br>' + esc(contato) : ''}</p></div></div>
+<div class="num"><div class="t">RECIBO Nº</div><div class="n">${recNumero(r.numero)}</div><div class="d">Emitido em ${formatDate(r.data_emissao)}</div></div></div>
+<h2>RECIBO DE PAGAMENTO</h2><div class="sub">Documento de quitação, sem valor de nota fiscal.</div>
+<div class="card"><div class="lbl">Recebemos de</div><div class="val">${esc(r.cliente_nome)}</div><div style="font-size:11px;color:#6b7783;margin-top:3px">${r.cliente_documento ? (r.cliente_documento.length > 11 ? 'CNPJ ' : 'CPF ') + esc(emFormatarDoc(r.cliente_documento, r.cliente_documento.length > 11 ? 'pj' : 'pf')) : ''}${r.cliente_documento && r.descricao ? ' · ' : ''}${r.descricao ? 'Referente a ' + esc(r.descricao) : ''}</div></div>
+<div class="total"><div><div class="l">VALOR TOTAL</div><div class="v">${fmtBRL(r.valor)}</div></div><div class="e">(${esc(extenso)})</div></div>
+<div class="card"><div class="lbl">Condição de pagamento</div><div class="val">${esc(recDescricaoPagamento(r))}</div>${parcelas ? `<table><tr><th>PARCELA</th><th>VENCIMENTO</th><th class="r">VALOR</th></tr>${parcelas.map(p => `<tr><td>${p.n}/${r.parcelas}</td><td>${formatDate(p.venc)}</td><td class="r">${fmtBRL(p.valor)}</td></tr>`).join('')}</table>` : ''}</div>
+<p class="txt">Recebemos de <b>${esc(r.cliente_nome)}</b> a quantia de <b>${fmtBRL(r.valor)}</b> (${esc(extenso)})${r.descricao ? ', referente a ' + esc(r.descricao) : ''}, e damos plena quitação do valor acima.</p>
+<div class="sig"><div><div class="sigimg">${assLoja}</div><div class="line">${esc(nomeExib || '')}<small>Assinatura de quem recebeu</small></div></div>
+<div><div class="sigimg">${assCli}</div><div class="line">${esc(r.cliente_nome)}<small>${r.assinado_em ? 'Assinou em ' + new Date(r.assinado_em).toLocaleDateString('pt-BR') + ' às ' + new Date(r.assinado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' na tela' : 'Assinatura do cliente (opcional)'}</small></div></div></div>
+${sit}<div class="ver"><b>Recibo nº ${recNumero(r.numero)}</b> · Código <b>${esc(r.codigo)}</b> · Emitido eletronicamente em ${quando} (horário de Brasília)<br>Código de verificação (SHA-256): <span class="mono">${esc(r.hash || '')}</span></div></body></html>`;
+}
+async function abrirReciboVer(id) {
+  const r = recibosLista.find(x => x.id === id) || (reciboAtual && reciboAtual.id === id ? reciboAtual : null); if (!r) return;
+  reciboAtual = r;
+  const em = await garantirEmissor();
+  const [logo, loja, cliente] = await Promise.all([recImagemDataUrl(em && em.logo_path), recImagemDataUrl(em && em.assinatura_path), recImagemDataUrl(r.assinatura_cliente_path)]);
+  document.getElementById('rv-titulo').textContent = 'Recibo nº ' + recNumero(r.numero);
+  document.getElementById('rv-frame').srcdoc = reciboHtml(r, { logo, loja, cliente });
+  document.getElementById('rv-wa').style.display = temRecurso('whatsapp') && r.status === 'emitido' ? '' : 'none';
+  document.getElementById('rv-assinar').style.display = r.status === 'emitido' && !r.assinatura_cliente_path ? '' : 'none';
+  document.getElementById('recibo-ver-overlay').classList.add('open');
+}
+function fecharReciboVer() { document.getElementById('recibo-ver-overlay').classList.remove('open'); }
+function reciboImprimir() { const f = document.getElementById('rv-frame'); f.contentWindow.focus(); f.contentWindow.print(); }
+async function reciboBaixarImagem() {
+  const f = document.getElementById('rv-frame'); const doc = f.contentDocument;
+  const canvas = await html2canvas(doc.body, { backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 794, height: Math.max(1123, doc.body.scrollHeight) });
+  const a = document.createElement('a'); a.href = canvas.toDataURL('image/png');
+  a.download = 'recibo-' + recNumero(reciboAtual.numero) + '.png'; a.click();
+}
+async function reciboEnviarWa() {
+  const r = reciboAtual; if (!r) return;
+  if (!waEstado) await carregarWhatsapp();
+  const c = waEstado && waEstado.conta;
+  if (!c || c.status !== 'conectada') { alert('Conecte o seu WhatsApp primeiro: aba WhatsApp → Conectar WhatsApp.'); return; }
+  const e = r.emissor || {}, nome = (e.tipo === 'pj' && e.nome_fantasia) ? e.nome_fantasia : e.nome;
+  const texto = 'Olá, ' + r.cliente_nome.split(' ')[0] + '! Segue o recibo nº ' + recNumero(r.numero) + ' de ' + nome + ': ' + fmtBRL(r.valor) + ' (' + valorPorExtenso(Number(r.valor)) + '), pago em ' + recDescricaoPagamento(r).toLowerCase() + '. Código do recibo: ' + r.codigo + '. Obrigado!';
+  fecharReciboVer();
+  abrirNovaMensagemWa();
+  document.getElementById('wa-texto').value = texto; document.getElementById('wa-nome').value = r.cliente_nome; waContar();
+}
+function reciboAbrirAssinatura() {
+  const r = reciboAtual; if (!r) return;
+  document.getElementById('ra-quem').textContent = r.cliente_nome + ' · Recibo nº ' + recNumero(r.numero) + ' · ' + fmtBRL(r.valor);
+  const c = document.getElementById('ra-canvas');
+  c.getContext('2d').clearRect(0, 0, c.width, c.height); raTemTraco = false;
+  if (!c.dataset.pronto) {
+    c.dataset.pronto = '1';
+    const ctx = c.getContext('2d'); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1d3b6f';
+    const pos = (ev) => { const b = c.getBoundingClientRect(); return [(ev.clientX - b.left) * c.width / b.width, (ev.clientY - b.top) * c.height / b.height]; };
+    c.addEventListener('pointerdown', (ev) => { raDesenhando = true; c.setPointerCapture(ev.pointerId); const [x, y] = pos(ev); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 0.1, y + 0.1); ctx.stroke(); raTemTraco = true; });
+    c.addEventListener('pointermove', (ev) => { if (!raDesenhando) return; const [x, y] = pos(ev); ctx.lineTo(x, y); ctx.stroke(); });
+    const fim = () => { raDesenhando = false; }; c.addEventListener('pointerup', fim); c.addEventListener('pointercancel', fim);
+  }
+  fecharReciboVer();
+  document.getElementById('recibo-ass-overlay').classList.add('open');
+}
+function raLimpar() { const c = document.getElementById('ra-canvas'); c.getContext('2d').clearRect(0, 0, c.width, c.height); raTemTraco = false; }
+function fecharAssinaturaRecibo() { document.getElementById('recibo-ass-overlay').classList.remove('open'); if (reciboAtual) abrirReciboVer(reciboAtual.id); }
+async function raSalvar() {
+  if (!raTemTraco) { alert('O cliente precisa assinar na área acima.'); return; }
+  const r = reciboAtual; const c = document.getElementById('ra-canvas');
+  const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+  const path = activeWorkspace.id + '/recibo-' + r.id + '.png';
+  const { error: upErr } = await sb.storage.from(EMISSOR_BUCKET).upload(path, blob, { contentType: 'image/png', upsert: true });
+  if (upErr) { alert('Não foi possível enviar a assinatura: ' + upErr.message); return; }
+  const quando = new Date().toISOString();
+  const { error } = await sb.from('recibos').update({ assinatura_cliente_path: path, assinado_em: quando }).eq('id', r.id);
+  if (error) { alert('Não foi possível salvar a assinatura: ' + error.message); return; }
+  r.assinatura_cliente_path = path; r.assinado_em = quando; delete reciboImgs[path];
+  document.getElementById('recibo-ass-overlay').classList.remove('open');
+  if (activeTab === 'recibos') renderRecibos(true);
+  await abrirReciboVer(r.id);
 }
 function abrirCamposCliente() {
   const sel = activeWorkspace.camposCliente || CAMPOS_CLIENTE_PADRAO_PESSOAL;

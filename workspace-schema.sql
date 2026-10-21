@@ -1625,3 +1625,74 @@ create policy "emissor-imagens select" on storage.objects for select using (buck
 create policy "emissor-imagens insert" on storage.objects for insert with check (bucket_id = 'emissor-imagens' and public.is_admin((storage.foldername(name))[1]::uuid));
 create policy "emissor-imagens update" on storage.objects for update using (bucket_id = 'emissor-imagens' and public.is_admin((storage.foldername(name))[1]::uuid));
 create policy "emissor-imagens delete" on storage.objects for delete using (bucket_id = 'emissor-imagens' and public.is_admin((storage.foldername(name))[1]::uuid));
+
+-- ── Recibos (perfil Pessoal, 2026-10-21) ─────────────────────────────────────
+alter table public.workspaces add column if not exists usa_recibos boolean not null default false;
+alter table public.emissor_dados add column if not exists cor_recibo text;
+create table if not exists public.recibos (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  numero integer not null default 0,
+  codigo text not null default '',
+  data_emissao date not null default current_date,
+  cliente_nome text not null,
+  cliente_documento text not null default '',
+  entidade_id uuid references public.entidades(id) on delete set null,
+  descricao text not null default '',
+  valor numeric not null check (valor > 0),
+  forma_pagamento text not null check (forma_pagamento in ('pix','dinheiro','debito','credito_vista','credito_parcelado','transferencia')),
+  parcelas integer not null default 1 check (parcelas >= 1 and parcelas <= 24),
+  primeira_parcela date,
+  observacao text not null default '',
+  emissor jsonb not null default '{}'::jsonb,
+  hash text not null default '',
+  status text not null default 'emitido' check (status in ('emitido','cancelado')),
+  cancelado_em timestamptz,
+  assinatura_cliente_path text,
+  assinado_em timestamptz,
+  criado_por uuid,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists recibos_ws_numero on public.recibos (workspace_id, numero);
+create unique index if not exists recibos_codigo on public.recibos (codigo);
+create index if not exists recibos_ws_data on public.recibos (workspace_id, data_emissao desc);
+alter table public.recibos enable row level security;
+create or replace function public.recibos_antes_inserir() returns trigger language plpgsql as $f$
+begin
+  perform pg_advisory_xact_lock(hashtext('recibo' || new.workspace_id::text));
+  select coalesce(max(numero), 0) + 1 into new.numero from public.recibos where workspace_id = new.workspace_id;
+  if new.codigo is null or new.codigo = '' then
+    new.codigo := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+  end if;
+  if new.criado_por is null then new.criado_por := auth.uid(); end if;
+  return new;
+end $f$;
+-- Recibo emitido não muda (só: hash uma vez, assinatura do cliente, cancelamento).
+create or replace function public.recibos_antes_atualizar() returns trigger language plpgsql as $f$
+begin
+  if new.workspace_id is distinct from old.workspace_id or new.numero is distinct from old.numero or new.codigo is distinct from old.codigo
+     or new.data_emissao is distinct from old.data_emissao or new.cliente_nome is distinct from old.cliente_nome
+     or new.cliente_documento is distinct from old.cliente_documento or new.descricao is distinct from old.descricao
+     or new.valor is distinct from old.valor or new.forma_pagamento is distinct from old.forma_pagamento
+     or new.parcelas is distinct from old.parcelas or new.primeira_parcela is distinct from old.primeira_parcela
+     or new.emissor is distinct from old.emissor
+     or (new.hash is distinct from old.hash and old.hash <> '') then
+    raise exception 'Um recibo emitido não pode ser alterado. Cancele e emita outro.';
+  end if;
+  if old.status = 'cancelado' and new.status <> 'cancelado' then
+    raise exception 'Recibo cancelado não pode ser reativado.';
+  end if;
+  return new;
+end $f$;
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_recibos_inserir') then
+    create trigger trg_recibos_inserir before insert on public.recibos for each row execute function public.recibos_antes_inserir(); end if;
+  if not exists (select 1 from pg_trigger where tgname = 'trg_recibos_atualizar') then
+    create trigger trg_recibos_atualizar before update on public.recibos for each row execute function public.recibos_antes_atualizar(); end if;
+  if not exists (select 1 from pg_policies where tablename = 'recibos' and policyname = 'recibos select membros') then
+    create policy "recibos select membros" on public.recibos for select using (public.is_member(workspace_id)); end if;
+  if not exists (select 1 from pg_policies where tablename = 'recibos' and policyname = 'recibos insert admin') then
+    create policy "recibos insert admin" on public.recibos for insert with check (public.is_admin(workspace_id)); end if;
+  if not exists (select 1 from pg_policies where tablename = 'recibos' and policyname = 'recibos update admin') then
+    create policy "recibos update admin" on public.recibos for update using (public.is_admin(workspace_id)) with check (public.is_admin(workspace_id)); end if;
+end $$;
