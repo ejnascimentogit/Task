@@ -1150,6 +1150,17 @@
     .toolbar > input, .toolbar > select { flex: 1 1 140px; min-width: 0; }
     .ws-dropdown { max-width: calc(100vw - 24px); }
   }
+  .rn-sugestoes { position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:50; max-height:230px; overflow:auto; background:var(--bg-card, #14202e); border:1px solid var(--border-light, #2a3a4d); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  .rn-sug { padding:10px 14px; cursor:pointer; display:flex; flex-direction:column; gap:2px; border-bottom:1px solid var(--border-light, #2a3a4d); }
+  .rn-sug:last-child { border-bottom:0; } .rn-sug:hover, .rn-sug:active { background:rgba(120,160,200,.16); }
+  .rn-sug small { font-size:12px; opacity:.7; }
+  .rn-chave { display:flex !important; align-items:center; justify-content:space-between; gap:14px; padding:14px 16px; border:1px solid var(--border-light, #2a3a4d); border-radius:14px; cursor:pointer; text-transform:none !important; letter-spacing:0 !important; font-weight:500 !important; color:var(--text-main) !important; background:rgba(120,160,200,.07); }
+  .rn-chave-txt { display:flex; flex-direction:column; gap:3px; } .rn-chave-txt b { font-size:14px; } .rn-chave-txt small { font-size:12px; opacity:.7; font-weight:400; }
+  .rn-chave input { position:absolute; opacity:0; width:0; height:0; }
+  .rn-chave-sw { flex:none; width:46px; height:26px; border-radius:999px; background:#4a5a6b; position:relative; transition:background .2s; }
+  .rn-chave-sw::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:transform .2s; }
+  .rn-chave input:checked ~ .rn-chave-sw { background:#2ea36b; } .rn-chave input:checked ~ .rn-chave-sw::after { transform:translateX(20px); }
+  .rn-chave:has(input:checked) { border-color:#2ea36b; background:rgba(46,163,107,.12); }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1913,8 +1924,8 @@
     <h2 id="rn-titulo">🧾 Novo recibo</h2>
     <div id="rn-aviso-edicao" class="config-hint" style="display:none;margin-bottom:10px;">Um recibo emitido não pode ser alterado. Ao salvar, este recibo é <b>cancelado</b> e um <b>novo</b> é emitido com as mudanças (com um novo número).</div>
     <div class="form-grid">
-      <div class="form-field full"><label>Recebemos de (nome do cliente)</label><input type="text" id="rn-cliente" list="rn-clientes-lista" maxlength="120" oninput="rnEscolherCliente()" autocomplete="off"><datalist id="rn-clientes-lista"></datalist></div>
-      <div class="form-field"><label>CPF/CNPJ do cliente (opcional)</label><input type="text" id="rn-doc" inputmode="numeric" maxlength="18" oninput="rnMascararDoc()"><label id="rn-mostrar-box" style="display:none;gap:6px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;font-size:12px;margin-top:6px;color:var(--text-main);"><input type="checkbox" id="rn-mostrar" checked> Mostrar o CPF no recibo</label></div>
+      <div class="form-field full"><label>Recebemos de (nome do cliente)</label><div style="position:relative;"><input type="text" id="rn-cliente" maxlength="120" oninput="rnEscolherCliente(); rnSugerir()" onfocus="rnSugerir()" onblur="setTimeout(rnFecharSugestoes, 200)" placeholder="Digite ou escolha um cliente cadastrado" autocomplete="off"><div id="rn-sugestoes" class="rn-sugestoes" style="display:none;"></div></div></div>
+      <div class="form-field"><label>CPF/CNPJ do cliente (opcional)</label><input type="text" id="rn-doc" inputmode="numeric" maxlength="18" oninput="rnMascararDoc()"><label id="rn-mostrar-box" class="rn-chave" style="display:none;margin-top:8px;padding:10px 14px;"><span class="rn-chave-txt"><b>Mostrar o CPF no recibo</b></span><input type="checkbox" id="rn-mostrar" checked><span class="rn-chave-sw"></span></label></div>
       <div class="form-field"><label>Data</label><input type="date" id="rn-data"></div>
       <div class="form-field full"><label>Referente a</label><input type="text" id="rn-descricao" maxlength="160" placeholder="Ex.: óculos de grau, pedido de 10/03/2026"></div>
       <div class="form-field"><label>Valor total (R$)</label><input type="text" id="rn-valor" inputmode="decimal" placeholder="0,00" oninput="rnAtualizar()"></div>
@@ -1924,7 +1935,7 @@
       <div class="form-field" id="rn-parc-box" style="display:none"><label>Parcelas</label><select id="rn-parcelas" onchange="rnAtualizar()"></select></div>
       <div class="form-field" id="rn-prim-box" style="display:none"><label>Vencimento da 1ª parcela</label><input type="date" id="rn-prim" onchange="rnAtualizar()"></div>
       <div class="form-field full"><div id="rn-resumo" style="font-size:13px;color:var(--gray-text);line-height:1.5;"></div></div>
-      <div class="form-field full"><label style="display:flex;gap:8px;align-items:center;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;color:var(--text-main);"><input type="checkbox" id="rn-assina"> O cliente vai assinar na tela agora</label></div>
+      <div class="form-field full"><label class="rn-chave"><span class="rn-chave-txt"><b>✍️ O cliente vai assinar na tela agora</b><small>Ao emitir, abre a área para o cliente assinar com o dedo.</small></span><input type="checkbox" id="rn-assina"><span class="rn-chave-sw"></span></label></div>
     </div>
     <div class="modal-footer"><div></div><div style="display:flex;gap:8px;margin-left:auto;">
       <button class="btn" onclick="fecharNovoRecibo()">Cancelar</button>
@@ -7232,7 +7243,6 @@ let rnSubstitui = null;
 async function abrirNovoRecibo(substituirId) {
   const em = await garantirEmissor(); if (!em) return;
   if (!em.nome || !em.documento) { alert('Antes de emitir, preencha seu nome, CPF ou CNPJ em Configurações → Meus dados e logo (recibos).'); setTab('configuracoes'); return; }
-  document.getElementById('rn-clientes-lista').innerHTML = (temAba('entidades') ? (state.entidades || []) : []).map(e => `<option value="${escapeHtml(e.nome)}"></option>`).join('');
   ['rn-cliente', 'rn-doc', 'rn-descricao', 'rn-valor'].forEach(i => { document.getElementById(i).value = ''; });
   document.getElementById('rn-data').value = todayStr();
   document.getElementById('rn-forma').value = 'pix';
@@ -7258,6 +7268,19 @@ async function abrirNovoRecibo(substituirId) {
 }
 function fecharNovoRecibo() { document.getElementById('recibo-novo-overlay').classList.remove('open'); }
 function rnMascararDoc() { const el = document.getElementById('rn-doc'); const d = emSoDigitos(el.value); el.value = emFormatarDoc(el.value, d.length > 11 ? 'pj' : 'pf'); document.getElementById('rn-mostrar-box').style.display = d.length > 0 && d.length <= 11 ? 'flex' : 'none'; }
+function rnClientesDisponiveis() { return temAba('entidades') ? (state.entidades || []) : []; }
+function rnSugerir() {
+  const box = document.getElementById('rn-sugestoes'), q = document.getElementById('rn-cliente').value.trim().toLowerCase();
+  const lista = rnClientesDisponiveis().filter(e => !q || e.nome.toLowerCase().includes(q)).sort((a, b) => a.nome.localeCompare(b.nome)).slice(0, 30);
+  if (!lista.length) { box.style.display = 'none'; return; }
+  box.innerHTML = lista.map(e => `<div class="rn-sug" data-id="${e.id}" onmousedown="event.preventDefault()" onclick="rnEscolherSugestao('${e.id}')"><b>${escapeHtml(e.nome)}</b>${e.documento ? '<small>' + (e.documentoTipo === 'pj' ? 'CNPJ ' : 'CPF ') + escapeHtml(emFormatarDoc(e.documento, e.documentoTipo || 'pf')) + '</small>' : ''}</div>`).join('');
+  box.style.display = '';
+}
+function rnFecharSugestoes() { const b = document.getElementById('rn-sugestoes'); if (b) b.style.display = 'none'; }
+function rnEscolherSugestao(id) {
+  const e = rnClientesDisponiveis().find(x => x.id === id); if (!e) return;
+  document.getElementById('rn-cliente').value = e.nome; rnEscolherCliente(); rnFecharSugestoes();
+}
 function rnEscolherCliente() {
   const nome = document.getElementById('rn-cliente').value.trim().toLowerCase();
   const e = (state.entidades || []).find(x => x.nome.toLowerCase() === nome);
