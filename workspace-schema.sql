@@ -1707,3 +1707,13 @@ alter table public.whatsapp_mensagens add column if not exists anexo_tipo text;
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('whatsapp-anexos', 'whatsapp-anexos', false, 8388608, array['image/png','image/jpeg','application/pdf']) on conflict (id) do nothing;
 create policy "whatsapp-anexos insert" on storage.objects for insert to authenticated with check (bucket_id = 'whatsapp-anexos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "whatsapp-anexos select" on storage.objects for select to authenticated using (bucket_id = 'whatsapp-anexos' and (storage.foldername(name))[1] = auth.uid()::text);
+-- Vigia externo (2026-10-22): ver monitor/saude_publica.sql
+-- Teste de saúde para o vigia externo (monitor/worker.js). Só devolve "o banco responde" e há quantos minutos o vigia interno
+-- (cron whatsapp-vigia) gravou o último sinal. Nenhum dado de pessoa. Pode ser chamada com a chave anon.
+create or replace function public.saude_publica() returns jsonb language sql security definer set search_path = public stable as $$
+  select jsonb_build_object(
+    'banco', true,
+    'vigia_idade_min', (select extract(epoch from (now() - max(verificado_em))) / 60 from public.whatsapp_saude_estado where chave = 'servidor')
+  );
+$$;
+grant execute on function public.saude_publica() to anon, authenticated;

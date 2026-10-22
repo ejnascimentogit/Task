@@ -1,0 +1,11 @@
+name = "taskfull-vigia"
+main = "worker.js"
+compatibility_date = "2026-09-07"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Crie o KV com:  npx wrangler kv namespace create ESTADO   e cole o id aqui
+[[kv_namespaces]]
+binding = "ESTADO"
+id = "COLE_O_ID_AQUI"
