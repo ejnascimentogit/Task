@@ -1,7 +1,7 @@
 // Vigia externo do Taskfull e do e-commerce (Cloudflare Worker com Cron, a cada 5 min).
 // Não depende do Supabase, do Docker nem do seu computador: se qualquer coisa cair, ele manda mensagem no Telegram (e, se configurado, no WhatsApp).
-// Segredos (wrangler secret put ...): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, SUPABASE_URL, SUPABASE_ANON_KEY
-// Opcionais: CALLMEBOT_PHONE + CALLMEBOT_KEY (WhatsApp), EXTRA_CHECKS (JSON com as URLs do e-commerce, ver LEIA-ME.md), WUZAPI_URL.
+// Segredos: SUPABASE_URL, SUPABASE_ANON_KEY, CALLMEBOT_PHONE + CALLMEBOT_KEY (WhatsApp no seu número), TESTE_CHAVE (uma senha qualquer para o endereço /teste)
+// Opcionais: TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (Telegram como segundo canal), EXTRA_CHECKS (JSON com as URLs do e-commerce, ver LEIA-ME.md), WUZAPI_URL.
 // Estado (quantas falhas seguidas, quando avisou) fica no KV "ESTADO".
 
 const ALERTAR_APOS = 2;        // falhas seguidas antes de avisar (evita alarme falso por um tropeço)
@@ -109,7 +109,7 @@ export default {
   async scheduled(_ev, env, ctx) { ctx.waitUntil(rodar(env)); },
   async fetch(req, env) {   // /teste manda uma mensagem de prova; /estado mostra o resultado sem avisar ninguém
     const u = new URL(req.url);
-    if (u.pathname === '/teste' && u.searchParams.get('chave') === env.TELEGRAM_BOT_TOKEN?.slice(-8)) return Response.json({ enviados: await enviar(env, '✅ Teste do Vigia Taskfull: se você leu isto, o aviso funciona.') });
+    if (u.pathname === '/teste' && env.TESTE_CHAVE && u.searchParams.get('chave') === env.TESTE_CHAVE) return Response.json({ enviados: await enviar(env, '✅ Teste do Vigia Taskfull: se você leu isto, o aviso funciona.') });
     if (u.pathname === '/estado') return Response.json({ verificacoes: await verificacoes(env), ultima_rodada: await env.ESTADO.get('ultima_rodada') });
     return new Response('Vigia Taskfull', { status: 200 });
   },
