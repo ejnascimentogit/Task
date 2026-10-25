@@ -1517,6 +1517,7 @@
           <div id="wa-conexao" style="margin-top:14px;"></div>
           <div id="wa-lista" style="margin-top:14px;overflow-x:auto;"></div>
           <div id="wa-saude" style="margin-top:20px;"></div>
+          <div id="wa-agente" style="margin-top:20px;"></div>
           <div id="wa-servidor" style="margin-top:20px;"></div>
         </div>
       </section>
@@ -3829,6 +3830,53 @@ function renderAlertaWhatsapp() {
 }
 // ── Visão do servidor (só master): endereço, caminho da conexão, instâncias do WuzAPI e fila. Nunca mostra tokens. ──
 let waServidor = null;
+// ── Agente no PC (só master): botão "Ligar servidor". O agente consulta daqui de tempos em tempos (conexão só de saída). ──
+let waAgente = null, waAgenteTimer = null, waAgenteChave = null;
+async function carregarAgenteWa() {
+  if (!souMaster() || !sb) { waAgente = null; renderAgenteWa(); return; }
+  const { data, error } = await sb.rpc('master_agente_estado');
+  waAgente = error ? { erro: error.message } : data;
+  renderAgenteWa();
+  clearTimeout(waAgenteTimer);
+  if (activeTab === 'whatsapp' && waAgente && waAgente.pedido_pendente) waAgenteTimer = setTimeout(carregarAgenteWa, 8000);
+}
+function renderAgenteWa() {
+  const box = document.getElementById('wa-agente'); if (!box) return;
+  if (!souMaster()) { box.innerHTML = ''; return; }
+  const a = waAgente, tit = '<h3 style="font-size:15px;margin-bottom:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">🔌 Agente no PC <small style="font-weight:400;color:var(--gray-text)">(liga o servidor do WhatsApp; só você vê)</small></h3>';
+  if (!a) { box.innerHTML = tit + '<p class="config-hint">Carregando...</p>'; return; }
+  if (a.erro) { box.innerHTML = tit + `<p class="config-hint">⚠️ ${escapeHtml(a.erro)}</p>`; return; }
+  if (waAgenteChave) {
+    box.innerHTML = tit + `<p style="font-size:13px;line-height:1.6;">Esta é a chave do agente. <b>Ela só aparece agora.</b> Copie e cole no instalador (<code>docs\whatsapp\servidor-teste\instalar-agente.ps1</code>) quando ele pedir. Não envie a ninguém.</p>
+      <input type="text" readonly value="${escapeHtml(waAgenteChave)}" onclick="this.select()" style="font-family:monospace;width:100%;max-width:560px;">
+      <p><button class="btn btn-sm" onclick="waAgenteChave = null; carregarAgenteWa()">Já copiei, fechar</button></p>`; return;
+  }
+  if (!a.configurado) { box.innerHTML = tit + '<p class="config-hint">O agente ainda não foi instalado neste computador. Gere a chave, depois rode o instalador no PC onde o Docker está.</p><button class="btn btn-sm btn-primary" onclick="withLock(this, waAgenteGerarChave)">Gerar chave do agente</button>'; return; }
+  const vivo = a.idade_s !== null && a.idade_s !== undefined && a.idade_s < 180;
+  const linhas = [
+    vivo ? `🟢 Agente ativo (último sinal há ${Math.round(a.idade_s)} s)` : (a.ultimo_sinal ? `🔴 Agente sem sinal desde ${escapeHtml(formatDataHora(a.ultimo_sinal))}: o PC deve estar desligado, suspenso ou sem internet` : '⚪ Ainda sem sinal do agente (instale ou reinicie o agente no PC)'),
+    a.pc_ligado_em ? `PC ligado desde ${escapeHtml(formatDataHora(a.pc_ligado_em))}` : '',
+    a.pedido_pendente ? '⏳ Pedido enviado: o agente executa em até 1 minuto...' : '',
+    a.ultimo_resultado ? `Último resultado (${escapeHtml(formatDataHora(a.ultimo_resultado_em))}): ${escapeHtml(a.ultimo_resultado)}` : '',
+  ].filter(Boolean).join('<br>');
+  box.innerHTML = tit + `<div style="font-size:13px;line-height:1.7;margin-bottom:10px;">${linhas}</div>
+    <button class="btn btn-sm btn-primary" ${vivo && !a.pedido_pendente ? '' : 'disabled'} onclick="withLock(this, waAgenteLigar)">▶ Ligar servidor</button>
+    <button class="btn btn-sm" onclick="carregarAgenteWa()">Atualizar</button>
+    <button class="btn btn-sm" onclick="withLock(this, waAgenteGerarChave)" title="Troca a chave: o agente instalado para de funcionar até ser reinstalado">Gerar nova chave</button>`;
+}
+async function waAgenteLigar() {
+  if (!confirm('Pedir ao agente do seu PC para ligar o servidor do WhatsApp (Docker + WuzAPI)?')) return;
+  const { error } = await sb.rpc('master_pedir_ligar');
+  if (error) { alert('Não foi possível pedir: ' + error.message); return; }
+  avisoToast('▶ Pedido enviado. O agente liga o servidor em até 1 minuto.');
+  await carregarAgenteWa();
+}
+async function waAgenteGerarChave() {
+  if (waAgente && waAgente.configurado && !confirm('Gerar uma nova chave desliga o agente atual até você reinstalar com a chave nova. Continuar?')) return;
+  const { data, error } = await sb.rpc('master_agente_gerar_chave');
+  if (error) { alert('Não foi possível gerar a chave: ' + error.message); return; }
+  waAgenteChave = data; await carregarAgenteWa();
+}
 async function carregarServidorWa() {
   if (!souMaster() || !sb) { waServidor = null; renderServidorWa(); return; }
   const r = await waChamar({ acao: 'servidor' });
@@ -4006,7 +4054,7 @@ async function carregarWhatsapp() {
   } finally { waCarregando = false; }
   if (activeTab === 'whatsapp') renderWhatsapp(true);
   carregarAlertasWhatsapp();
-  if (souMaster() && activeTab === 'whatsapp') carregarServidorWa();
+  if (souMaster() && activeTab === 'whatsapp') { carregarServidorWa(); carregarAgenteWa(); }
 }
 function renderWhatsapp(semRecarregar) {
   const box = document.getElementById('wa-conexao');

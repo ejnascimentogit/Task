@@ -1,6 +1,7 @@
 # Liga o servidor do WhatsApp (WuzAPI) com um clique. NÃO TESTADO no Windows real (não há PowerShell no ambiente de desenvolvimento).
 # Uso: botão direito neste arquivo > "Executar com o PowerShell"  (ou, no terminal, dentro desta pasta:  .\iniciar.ps1)
 # Só liga o que já existe (Docker Desktop e os contêineres); não apaga nada e não mostra segredos.
+param([switch]$SemPausa)   # -SemPausa: usado pelo agente (não espera tecla nem pergunta nada)
 $ErrorActionPreference = 'Continue'
 Set-Location -Path $PSScriptRoot
 
@@ -13,7 +14,7 @@ if (-not (Docker-Pronto)) {
   else { Write-Host '   Docker Desktop não encontrado. Abra-o manualmente.' -ForegroundColor Yellow }
   for ($i = 0; $i -lt 36 -and -not (Docker-Pronto); $i++) { Start-Sleep -Seconds 5 }
 }
-if (-not (Docker-Pronto)) { Write-Host '   O Docker não ficou pronto. Abra o Docker Desktop, espere o ícone ficar verde e rode de novo.' -ForegroundColor Red; Read-Host 'Enter para fechar'; exit 1 }
+if (-not (Docker-Pronto)) { Write-Host '   O Docker não ficou pronto. Abra o Docker Desktop, espere o ícone ficar verde e rode de novo.' -ForegroundColor Red; if (-not $SemPausa) { Read-Host 'Enter para fechar' }; exit 1 }
 Write-Host '   Docker ok.' -ForegroundColor Green
 
 Write-Host '2/4 Subindo os contêineres...' -ForegroundColor Cyan
@@ -36,4 +37,5 @@ if (Get-Command tailscale -ErrorAction SilentlyContinue) {
 
 Write-Host ''
 Write-Host 'Pronto. No Taskfull, aba WhatsApp, clique em Atualizar. Se a sessão caiu, leia o QR de novo.' -ForegroundColor Green
-Read-Host 'Enter para fechar'
+if (-not $SemPausa) { Read-Host 'Enter para fechar' }
+if (-not $ok) { exit 2 }

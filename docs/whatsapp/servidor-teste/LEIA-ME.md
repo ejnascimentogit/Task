@@ -80,3 +80,10 @@ Alugue uma VPS (cerca de US$ 4 a 6 por mês, ou a Oracle "Always Free" se estive
 ## Ligar com um clique e ligar sozinho (2026-10-25)
 - **`iniciar.ps1`**: botão direito → "Executar com o PowerShell". Abre o Docker Desktop se estiver fechado, sobe os contêineres (`docker compose up -d`), testa `http://127.0.0.1:8080/dashboard` e confere/liga o Tailscale Funnel na porta 8080. Não apaga nada e não mostra segredos. **Não testado em Windows real.**
 - **Ligar sozinho quando o computador ligar:** (1) Docker Desktop → Settings → General → **Start Docker Desktop when you sign in** (os contêineres já têm `restart: unless-stopped` e voltam com o Docker); (2) Tailscale já roda como serviço; (3) em Configurações do Windows, desligue a suspensão automática se o computador ficar ligado só para isso. Sem (1), depois de reiniciar o PC o WuzAPI fica fora do ar e o Taskfull mostra **HTTP 502**.
+
+## Botão "Ligar servidor" e agente no PC (2026-10-25)
+No Taskfull (conta master) → aba WhatsApp → **🔌 Agente no PC**. **Não testado no Windows real.**
+1. **Gerar chave do agente** (aparece uma vez). 2. No PC onde o Docker roda, dentro desta pasta: `powershell -ExecutionPolicy Bypass -File .\instalar-agente.ps1` e cole a chave. 3. Em 1 a 2 minutos a tela mostra "Agente ativo" e a hora em que o PC ligou. 4. **▶ Ligar servidor** pede ao agente para rodar o `iniciar.ps1` (abre o Docker Desktop e sobe os contêineres); o resultado volta para a tela.
+- **Segurança:** o agente só faz conexões de saída (nada entra no PC) e só sabe rodar o `iniciar.ps1` desta pasta; o "pedido" é um simples sim/não, nunca um comando. A chave fica só em `%LOCALAPPDATA%\TaskfullAgente\config.json` (só o seu usuário lê) e, no banco, só o hash.
+- **Limites:** precisa de **alguém logado no Windows** (o Docker Desktop só abre numa sessão de usuário), e de PC ligado, sem suspensão e com internet. Não mova esta pasta depois de instalar. Remover: `.\instalar-agente.ps1 -Remover`.
+- Banco: tabela `servidor_agente` e funções `master_agente_gerar_chave`, `master_pedir_ligar`, `master_agente_estado` (só master), `agente_sinal` e `agente_resultado` (chamadas pelo agente com a chave).

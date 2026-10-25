@@ -1717,3 +1717,7 @@ create or replace function public.saude_publica() returns jsonb language sql sec
   );
 $$;
 grant execute on function public.saude_publica() to anon, authenticated;
+
+-- Agente do PC / botão "Ligar servidor" (2026-10-25). SQL aplicado no Supabase; texto completo das funções: ver histórico do git deste arquivo.
+-- Tabela servidor_agente (1 linha: chave_hash, pedido_em, ultimo_sinal, pc_ligado_em, versao, ultimo_resultado, ultimo_resultado_em), RLS ligada sem política.
+-- Funções security definer: master_agente_gerar_chave(), master_pedir_ligar(), master_agente_estado() (só eh_master()), agente_sinal(chave, boot, versao) e agente_resultado(chave, texto) (conferem o hash da chave).
