@@ -87,3 +87,14 @@ No Taskfull (conta master) → aba WhatsApp → **🔌 Agente no PC**. **Não te
 - **Segurança:** o agente só faz conexões de saída (nada entra no PC) e só sabe rodar o `iniciar.ps1` desta pasta; o "pedido" é um simples sim/não, nunca um comando. A chave fica só em `%LOCALAPPDATA%\TaskfullAgente\config.json` (só o seu usuário lê) e, no banco, só o hash.
 - **Limites:** precisa de **alguém logado no Windows** (o Docker Desktop só abre numa sessão de usuário), e de PC ligado, sem suspensão e com internet. Não mova esta pasta depois de instalar. Remover: `.\instalar-agente.ps1 -Remover`.
 - Banco: tabela `servidor_agente` e funções `master_agente_gerar_chave`, `master_pedir_ligar`, `master_agente_estado` (só master), `agente_sinal` e `agente_resultado` (chamadas pelo agente com a chave).
+
+## Subir sozinho todo dia (PC desligado à noite) (2026-10-27)
+Receita para quem desliga o computador à noite e liga de manhã (feita para o teste na máquina pessoal; num servidor na nuvem nada disso é preciso):
+1. **Contêineres com `restart: always`** (já no `docker-compose.yml`): voltam sozinhos sempre que o Docker sobe, mesmo depois de um desligamento normal do Windows. Depois de atualizar a pasta, rode uma vez `docker compose up -d` para valer.
+2. **Docker Desktop abrindo sozinho:** Docker Desktop → Settings → General → **Start Docker Desktop when you sign in**.
+3. **Entrar no Windows sem digitar senha (opcional):** o Docker Desktop só sobe depois que alguém entra no Windows. Com `netplwiz` dá para ativar o login automático. Só vale se o computador fica em lugar seguro (quem liga o PC entra direto).
+4. **`instalar-inicio-automatico.ps1`** (não testado no Windows): cria a tarefa agendada que, ao entrar no Windows e depois a cada 15 min, roda o `iniciar.ps1` (abre o Docker se estiver fechado e sobe o que estiver parado). Remover: `-Remover`.
+5. **Ligar o PC sozinho de manhã (opcional):** na BIOS/UEFI, opção "RTC Alarm / Wake on Alarm / Power on by RTC" (o nome varia). Com isso + login automático, o servidor sobe sem ninguém tocar.
+6. **O Tailscale** já roda como serviço do Windows e mantém o Funnel (`tailscale funnel --bg 8080` fica gravado).
+- As sessões do WhatsApp ficam gravadas no volume do banco do Docker: depois de religar, as pessoas continuam conectadas (só precisam ler o QR de novo se o WhatsApp as derrubar).
+- Mensagens programadas para a noite esperam o servidor voltar (até 24 h) e saem na manhã seguinte.

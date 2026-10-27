@@ -16,7 +16,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
+    restart: always
 
   # Túnel rápido da Cloudflare: o endereço (https://algo.trycloudflare.com) aparece nos logs: docker compose logs tunel
   # Ele MUDA toda vez que este serviço reinicia; aí é preciso atualizar o segredo WUZAPI_URL no Supabase.
@@ -26,7 +26,7 @@ services:
     command: tunnel --no-autoupdate --url http://wuzapi:8080
     depends_on:
       - wuzapi
-    restart: unless-stopped
+    restart: always
 
   db:
     image: postgres:16
@@ -41,7 +41,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    restart: unless-stopped
+    restart: always
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
