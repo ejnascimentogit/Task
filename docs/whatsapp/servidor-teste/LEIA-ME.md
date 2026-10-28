@@ -98,3 +98,6 @@ Receita para quem desliga o computador à noite e liga de manhã (feita para o t
 6. **O Tailscale** já roda como serviço do Windows e mantém o Funnel (`tailscale funnel --bg 8080` fica gravado).
 - As sessões do WhatsApp ficam gravadas no volume do banco do Docker: depois de religar, as pessoas continuam conectadas (só precisam ler o QR de novo se o WhatsApp as derrubar).
 - Mensagens programadas para a noite esperam o servidor voltar (até 24 h) e saem na manhã seguinte.
+
+## Painel com botões no PC (2026-10-28)
+**`painel.ps1`** abre uma janela com botões: **Ver situação**, **Ligar tudo**, **Refazer Funnel**, **Reiniciar Tailscale**, **Reiniciar WuzAPI**, **Ver logs do WuzAPI** e **Endereço do túnel** (o `trycloudflare.com` do plano B). Abrir: botão direito → "Executar com o PowerShell" (pede permissão de administrador). Atalho na área de trabalho: `powershell -ExecutionPolicy Bypass -File .\painel.ps1 -CriarAtalho`. Só mostra e liga o que já existe neste PC (não abre porta, não lê o `.env`, esconde sequências longas nos logs). **Não testado no Windows real**: se algum botão errar, o texto aparece na própria janela; me mande.
