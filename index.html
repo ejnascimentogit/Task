@@ -1225,6 +1225,9 @@
   .bk-sel { display:inline-block; font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:99px; margin:10px 6px 0 0; }
   .bk-sel.ok { color:#15803D; background:rgba(16,185,129,.14); } .bk-sel.al { color:#B91C1C; background:rgba(220,38,38,.1); } .bk-sel.am { color:#B45309; background:rgba(245,158,11,.16); } .bk-sel.nt { color:var(--gray-text); background:var(--light-bg); }
   :root[data-theme="dark"] .bk-sel.ok { color:#34D399; } :root[data-theme="dark"] .bk-sel.al { color:#F87171; } :root[data-theme="dark"] .bk-sel.am { color:#FBBF24; }
+  .ag-periodo { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .ag-periodo .ag-label { min-width:150px; text-align:center; font-weight:700; font-size:14px; }
+  .ag-periodo input[type=date], .ag-periodo input[type=month], .ag-periodo input[type=number] { font-family:inherit; font-size:13px; padding:7px 10px; border-radius:8px; border:1px solid var(--border-light); background:var(--white); color:var(--text-main); }
   .cli-tab tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--e, var(--accent-ink)); }
   .cli-nome { display:inline-flex; align-items:center; gap:10px; font-weight:600; }
   .cli-av { width:30px; height:30px; border-radius:50%; flex:none; display:inline-grid; place-items:center; font-style:normal; font-weight:800; font-size:13px; border:2px solid var(--e, var(--accent-ink)); color:var(--text-main); }
@@ -1491,6 +1494,7 @@
           </div>
           <div class="pessoa-filter" id="pessoa-filter-agenda" style="margin-top:14px;"></div>
           <div id="agenda-faixa" style="margin-top:14px;"></div>
+          <div id="agenda-periodo" class="ag-periodo"></div>
           <input type="text" id="search-agenda" placeholder="Buscar..." style="margin-top:10px;width:100%;max-width:360px;padding:9px 12px;border-radius:10px;border:1px solid var(--border-light);" oninput="renderAgenda()">
           <label class="chk" style="margin-top:10px;"><input type="checkbox" id="show-concluidos-agenda" autocomplete="off" onchange="renderAgenda()"> Mostrar concluídos</label>
           <div id="agenda-list" class="calendario-list"></div>
@@ -6077,6 +6081,43 @@ function setPessoaFiltroAtividades(n) { pessoaFiltro = n; renderAtividades(); }
 
 let agendaView = 'lista';
 let calMesAtual = todayStr().slice(0,7);
+// Período da lista/cards da Agenda: Tudo (como era), Semana, Mês ou Ano, com setas e seletor de data.
+let agendaPeriodo = 'tudo', agendaPeriodoRef = null;
+function intervaloAgenda() {
+  if (agendaPeriodo === 'tudo') return null;
+  const ref = agendaPeriodoRef || todayStr(), d = new Date(ref + 'T12:00:00');
+  const iso = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+  if (agendaPeriodo === 'semana') { const ini = new Date(d); ini.setDate(d.getDate() - d.getDay()); const fim = new Date(ini); fim.setDate(ini.getDate() + 6); return { de: iso(ini), ate: iso(fim) }; }
+  if (agendaPeriodo === 'mes') return { de: iso(new Date(d.getFullYear(), d.getMonth(), 1)), ate: iso(new Date(d.getFullYear(), d.getMonth() + 1, 0)) };
+  return { de: d.getFullYear() + '-01-01', ate: d.getFullYear() + '-12-31' };
+}
+function setAgendaPeriodo(p) { agendaPeriodo = p; if (p !== 'tudo' && !agendaPeriodoRef) agendaPeriodoRef = todayStr(); renderAgenda(); }
+function navegarPeriodoAgenda(n) {
+  const d = new Date((agendaPeriodoRef || todayStr()) + 'T12:00:00');
+  if (agendaPeriodo === 'semana') d.setDate(d.getDate() + 7 * n); else if (agendaPeriodo === 'mes') d.setMonth(d.getMonth() + n, 1); else d.setFullYear(d.getFullYear() + n, 0, 1);
+  agendaPeriodoRef = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  renderAgenda();
+}
+function irPeriodoAgenda(v) {
+  if (!v) return;
+  agendaPeriodoRef = agendaPeriodo === 'mes' ? v + '-01' : agendaPeriodo === 'ano' ? v + '-01-01' : v;
+  renderAgenda();
+}
+function renderPeriodoAgenda() {
+  const box = document.getElementById('agenda-periodo'); if (!box) return;
+  if (agendaView === 'mensal') { box.style.display = 'none'; return; }   // o calendário mensal tem a própria navegação
+  box.style.display = '';
+  const iv = intervaloAgenda(), fmt = d => formatDate(d).slice(0, 5);
+  const nomeMes = new Date((agendaPeriodoRef || todayStr()) + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const rotulo = !iv ? '' : agendaPeriodo === 'semana' ? fmt(iv.de) + ' a ' + formatDate(iv.ate) : agendaPeriodo === 'mes' ? nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1) : iv.de.slice(0, 4);
+  const ref = agendaPeriodoRef || todayStr();
+  const seletor = !iv ? '' : agendaPeriodo === 'semana' ? `<input type="date" value="${ref}" onchange="irPeriodoAgenda(this.value)" title="Escolher uma data (mostra a semana dela)">`
+    : agendaPeriodo === 'mes' ? `<input type="month" value="${ref.slice(0, 7)}" onchange="irPeriodoAgenda(this.value)">`
+    : `<input type="number" min="2000" max="2100" value="${ref.slice(0, 4)}" style="width:90px" onchange="irPeriodoAgenda(this.value.length === 4 ? this.value : '')">`;
+  box.innerHTML = `<div class="view-toggle">${[['tudo', 'Tudo'], ['semana', 'Semana'], ['mes', 'Mês'], ['ano', 'Ano']].map(([k, r]) => `<button class="view-toggle-btn ${agendaPeriodo === k ? 'active' : ''}" onclick="setAgendaPeriodo('${k}')">${r}</button>`).join('')}</div>
+    ${iv ? `<button class="btn btn-sm" onclick="navegarPeriodoAgenda(-1)" aria-label="Anterior">◀</button><span class="ag-label">${escapeHtml(rotulo)}</span><button class="btn btn-sm" onclick="navegarPeriodoAgenda(1)" aria-label="Próximo">▶</button>
+    <button class="btn btn-sm" onclick="agendaPeriodoRef = todayStr(); renderAgenda()">Hoje</button>${seletor}` : ''}`;
+}
 function setAgendaView(v) {
   agendaView = v;
   ['lista','cards','mensal'].forEach(x => document.getElementById('agenda-view-btn-'+x).classList.toggle('active', x===v));
@@ -6304,10 +6345,13 @@ function renderFaixaAgenda() {
 function renderAgenda() {
   renderPessoaFiltro('pessoa-filter-agenda', 'setPessoaFiltroAgenda');
   renderFaixaAgenda();
+  renderPeriodoAgenda();
+  const periodoAg = agendaView === 'mensal' ? null : intervaloAgenda();
   const search = (document.getElementById('search-agenda').value||'').toLowerCase();
   const showDone = document.getElementById('show-concluidos-agenda').checked;
   let list = agendamentos.filter(a => {
     if (!showDone && a.feito) return false;
+    if (periodoAg && (a.data < periodoAg.de || a.data > periodoAg.ate)) return false;
     if (pessoaFiltro!=='Todos' && a.responsavel!==pessoaFiltro && !(a.participantes||[]).includes(pessoaFiltro)) return false;
     if (search && !((a.titulo||'').toLowerCase().includes(search) || (a.entidadeNome||'').toLowerCase().includes(search))) return false;
     return true;
