@@ -1172,6 +1172,13 @@
   .rec-tab td:first-child { box-shadow: inset 5px 0 0 var(--c, var(--accent-ink)); }
   .rec-tab .rec-valor { text-align:right; white-space:nowrap; font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; }
   .rec-chip { display:inline-block; white-space:nowrap; padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:600; border:1px solid var(--c); }
+  .modal-banner { display:flex; align-items:center; gap:14px; margin:-28px -28px 20px; padding:20px 28px; border-radius:22px 22px 0 0; color:#fff; background:linear-gradient(135deg, var(--navy), color-mix(in srgb, var(--navy) 70%, #fff)); }
+  .modal-banner.verde { background:linear-gradient(135deg,#15803D,#22A55A); } .modal-banner.amarelo { background:linear-gradient(135deg,#B45309,#E59A14); } .modal-banner.vermelho { background:linear-gradient(135deg,#B91C1C,#E5484D); }
+  .modal-banner .mb-av { width:46px; height:46px; font-size:19px; border:2px solid rgba(255,255,255,.75); color:#fff; background:rgba(255,255,255,.16); }
+  .modal-banner h2 { color:#fff !important; margin:0 !important; font-size:20px; line-height:1.15; }
+  .modal-banner .mb-txt { flex:1; min-width:0; } .modal-banner .mb-sub { font-size:12px; opacity:.88; margin-top:2px; }
+  .modal-banner .mb-pill { font-size:12px; font-weight:700; padding:5px 12px; border-radius:99px; background:rgba(255,255,255,.2); white-space:nowrap; }
+  @media (max-width:860px) { .modal-banner { margin:-20px -20px 16px; padding:16px 20px; } }
   .cli-tab tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--e, var(--accent-ink)); }
   .cli-nome { display:inline-flex; align-items:center; gap:10px; font-weight:600; }
   .cli-av { width:30px; height:30px; border-radius:50%; flex:none; display:inline-grid; place-items:center; font-style:normal; font-weight:800; font-size:13px; border:2px solid var(--e, var(--accent-ink)); color:var(--text-main); }
@@ -1872,7 +1879,11 @@
 <!-- ══ MODAL ENTIDADE ══ -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal-box">
-    <h2 id="modal-title">Novo</h2>
+    <div class="modal-banner" id="modal-banner">
+      <i class="cli-av mb-av" id="modal-av">?</i>
+      <div class="mb-txt"><h2 id="modal-title">Novo</h2><div class="mb-sub" id="modal-sub"></div></div>
+      <span class="mb-pill" id="modal-pill" style="display:none"></span>
+    </div>
     <div class="form-grid">
       <div class="form-field"><label>Código</label><input type="text" id="f-codigo" placeholder="Ex: 21" autocomplete="off"></div>
       <div class="form-field"><label>Nome</label><input type="text" id="f-nome"></div>
@@ -1880,7 +1891,7 @@
       <div class="form-field"><label>Responsável</label><input type="text" id="f-responsavel"></div>
       <div class="form-field"><label>Analista responsável (equipe)</label><select id="f-analista"></select></div>
       <div class="form-field" id="f-previsao-field" style="display:none;"><label>Previsão de entrega</label><input type="date" id="f-previsao"></div>
-      <div class="form-field"><label>Etapa Atual</label><select id="f-etapa"></select></div>
+      <div class="form-field"><label>Etapa Atual</label><select id="f-etapa" onchange="atualizarBannerCliente()"></select></div>
       <div class="form-field">
         <label>Fase</label>
         <select id="f-fase"><option value="implantacao">Ativo</option><option value="base">Na Base (manutenção)</option></select>
@@ -1888,7 +1899,7 @@
       <div class="form-field"><label>Início</label><input type="date" id="f-inicio"></div>
       <div class="form-field"><label>Próximo Contato</label><input type="date" id="f-proximo"></div>
       <div class="form-field"><label>Saúde</label>
-        <select id="f-saude">
+        <select id="f-saude" onchange="atualizarBannerCliente()">
           <option value="verde">🟢 Verde — em dia</option>
           <option value="amarelo">🟡 Amarelo — atenção</option>
           <option value="vermelho">🔴 Vermelho — em risco</option>
@@ -5650,8 +5661,23 @@ function openModal(id) {
   document.getElementById('f-nota-proximo').value = addDays(todayStr(), (activeWorkspace.recontatoAuto && activeWorkspace.recontatoDias > 0) ? activeWorkspace.recontatoDias : 1);
   document.getElementById('btn-delete-entidade').style.display = c ? '' : 'none';
   aplicarCamposCliente();
+  atualizarBannerCliente();
   renderContatosList(); renderPendenciasModal(); renderHistoricoList();
   document.getElementById('modal-overlay').classList.add('open');
+}
+function atualizarBannerCliente() {
+  const b = document.getElementById('modal-banner'); if (!b) return;
+  const c = editingEntidadeId ? state.entidades.find(x => x.id === editingEntidadeId) : null;
+  const nome = (c ? c.nome : document.getElementById('f-nome').value.trim()) || 'Novo(a) ' + entidadeLabel().slice(0, -1);
+  const mostraSaude = campoCliente('saude'), saude = document.getElementById('f-saude').value;
+  b.className = 'modal-banner' + (mostraSaude && ['verde', 'amarelo', 'vermelho'].includes(saude) ? ' ' + saude : '');
+  document.getElementById('modal-av').textContent = (nome.trim()[0] || '?').toUpperCase();
+  const cod = document.getElementById('f-codigo').value.trim();
+  const etapa = campoCliente('etapa') && document.getElementById('f-etapa').value ? stageOf(document.getElementById('f-etapa').value).nome : '';
+  document.getElementById('modal-sub').textContent = [c ? 'Editar cadastro' : 'Novo cadastro', cod ? '#' + cod : '', etapa].filter(Boolean).join(' · ');
+  const pill = document.getElementById('modal-pill');
+  pill.style.display = mostraSaude ? '' : 'none';
+  pill.textContent = '● ' + ({ verde: 'Saudável', amarelo: 'Atenção', vermelho: 'Em risco' }[saude] || '');
 }
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); editingEntidadeId = null; }
 
