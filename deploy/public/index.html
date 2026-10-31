@@ -1164,6 +1164,17 @@
   .rn-chave-sw::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:transform .2s; }
   .rn-chave input:checked ~ .rn-chave-sw { background:#2ea36b; } .rn-chave input:checked ~ .rn-chave-sw::after { transform:translateX(20px); }
   .rn-chave:has(input:checked) { border-color:#2ea36b; background:rgba(46,163,107,.12); }
+  /* Faixa de resumo (Layout v7, versão própria): usa a cor de marca do tema escolhido (--navy) e o destaque (--green) */
+  .faixa-resumo { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px 22px; padding:12px 20px 11px; margin:2px 0 14px; border-radius:18px; color:#fff;
+    background-color:var(--navy); background-image:linear-gradient(135deg, rgba(255,255,255,.10), rgba(0,0,0,.20)); box-shadow:0 6px 18px rgba(0,0,0,.22); }
+  .faixa-resumo .fr-k b { display:block; font-size:24px; font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; }
+  .faixa-resumo .fr-k span { display:block; margin-top:2px; font-size:10.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:rgba(255,255,255,.72); }
+  .faixa-resumo .fr-k.dest b { color:var(--green); } .faixa-resumo .fr-k.alerta b { color:#fca5a5; }
+  .faixa-resumo .fr-barra { grid-column:1/-1; display:flex; height:7px; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.16); }
+  .faixa-resumo .fr-barra i { display:block; min-width:4px; }
+  .faixa-resumo .fr-leg { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:3px 16px; font-size:12px; color:rgba(255,255,255,.85); }
+  .faixa-resumo .fr-leg span { display:inline-flex; align-items:center; gap:6px; } .faixa-resumo .fr-leg i { width:9px; height:9px; border-radius:50%; } .faixa-resumo .fr-leg b { color:#fff; }
+  @media (max-width: 860px) { .faixa-resumo { padding:10px 14px; gap:6px 14px; } .faixa-resumo .fr-k b { font-size:20px; } }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1417,6 +1428,7 @@
           <div class="pessoa-filter" id="pessoa-filter-atividades"></div>
           <div class="ativ-legenda" aria-label="Legenda das etiquetas"><span><i style="background:var(--red)"></i>Incidente Crítico</span><span><i style="background:var(--amber)"></i>Alta Urgência</span><span><i style="background:#F2C94C"></i>Atenção</span><span><i style="background:#4A90D9"></i>Rotina</span></div>
         </div>
+        <div id="ativ-faixa"></div>
         <div class="kanban-board" id="kanban-board"></div>
       </section>
 
@@ -6275,8 +6287,33 @@ function ajustarAlturaKanban() {
   b.style.height = Math.max(320, window.innerHeight - topo - (celular ? 96 : 24)) + 'px';
 }
 window.addEventListener('resize', ajustarAlturaKanban);
+// Faixa de resumo do topo de Atividades (mesmos filtros do quadro). As cores das raias seguem as do quadro; raias novas ganham uma cor da paleta.
+const PALETA_RAIAS = ['#8B5CF6', '#14B8A6', '#EC4899', '#64748B', '#0EA5E9'];
+function corDaRaia(col, i) {
+  const fixas = { urgencias: '#E5484D', afazer: '#4A90D9', andamento: '#F59E0B' };
+  return fixas[col.id] || PALETA_RAIAS[i % PALETA_RAIAS.length];
+}
+function renderFaixaAtividades() {
+  const box = document.getElementById('ativ-faixa'); if (!box) return;
+  const doFiltro = a => pessoaFiltro === 'Todos' || a.responsavel === pessoaFiltro || (a.participantes || []).includes(pessoaFiltro);
+  const abertas = atividades.filter(a => a.coluna !== 'concluida' && !a.cancelado && doFiltro(a));
+  const hoje = todayStr();
+  const feitasHoje = atividades.filter(a => a.coluna === 'concluida' && !a.cancelado && a.concluidoEm === hoje && doFiltro(a)).length;
+  const velhas = abertas.filter(a => a.criadoEm && diasDesde(a.criadoEm) >= 8).length;
+  const urgentes = abertas.filter(a => a.label === 'red' || a.label === 'orange').length;
+  const raias = colunasAtivas().filter(c => c.id !== 'concluida');
+  const partes = raias.map((c, i) => ({ nome: c.nome, cor: corDaRaia(c, i), n: abertas.filter(a => a.coluna === c.id).length }));
+  box.innerHTML = `<div class="faixa-resumo">
+    <div class="fr-k dest"><b>${abertas.length}</b><span>Em aberto</span></div>
+    <div class="fr-k"><b>${feitasHoje}</b><span>Concluídas hoje</span></div>
+    <div class="fr-k ${velhas ? 'alerta' : ''}"><b>${velhas}</b><span>Há mais de 7 dias</span></div>
+    <div class="fr-k ${urgentes ? 'alerta' : ''}"><b>${urgentes}</b><span>Crítico ou urgente</span></div>
+    <div class="fr-barra">${partes.filter(p => p.n).map(p => `<i style="flex:${p.n};background:${p.cor}" title="${escapeHtml(p.nome)} · ${p.n}"></i>`).join('')}</div>
+    <div class="fr-leg">${partes.map(p => `<span><i style="background:${p.cor}"></i>${escapeHtml(p.nome)} <b>${p.n}</b></span>`).join('')}</div></div>`;
+}
 function renderAtividades() {
   renderPessoaFiltro('pessoa-filter-atividades', 'setPessoaFiltroAtividades');
+  renderFaixaAtividades();
   [0, 150, 600].forEach(ms => setTimeout(ajustarAlturaKanban, ms));
   const board = document.getElementById('kanban-board');
   const souAdminRaias = activeWorkspace && activeWorkspace.role === 'admin';
