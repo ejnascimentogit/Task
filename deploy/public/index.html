@@ -1168,6 +1168,10 @@
   .ag-item { box-shadow: inset 5px 0 0 var(--c, var(--accent-ink)); padding-left:18px; }
   .ag-item .ag-hora { min-width:64px; text-align:center; padding:6px 8px; border-radius:10px; font-size:16px; font-variant-numeric:tabular-nums; background:rgba(127,127,127,.14); background:color-mix(in srgb, var(--c, #64748B) 22%, transparent); }
   /* Faixa de resumo (Layout v7, versão própria): usa a cor de marca do tema escolhido (--navy) e o destaque (--green) */
+  .email-card { border-left-color: var(--c, var(--accent-ink)); border-left-width: 5px; }
+  .rec-tab td:first-child { box-shadow: inset 5px 0 0 var(--c, var(--accent-ink)); }
+  .rec-tab .rec-valor { text-align:right; white-space:nowrap; font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; }
+  .rec-chip { display:inline-block; white-space:nowrap; padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:600; border:1px solid var(--c); }
   .faixa-resumo { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px 22px; padding:12px 20px 11px; margin:2px 0 14px; border-radius:18px; color:#fff;
     background-color:var(--navy); background-image:linear-gradient(135deg, rgba(255,255,255,.10), rgba(0,0,0,.20)); box-shadow:0 6px 18px rgba(0,0,0,.22); }
   .faixa-resumo .fr-k b { display:block; font-size:24px; font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; }
@@ -1510,6 +1514,7 @@
             <button class="btn btn-sm" onclick="withLock(this, verificarEmailsAgora)">🔄 Verificar agora</button>
             <button class="btn btn-sm" onclick="abrirConfigAssessor()">⚙️ Remetentes</button>
           </div>
+          <div id="emails-faixa" style="margin-top:14px;"></div>
           <div class="pessoa-filter" id="emails-filtro" style="margin-top:14px;"></div>
           <div id="emails-lista" style="margin-top:14px;"></div>
         </div>
@@ -1533,6 +1538,7 @@
           </div>
           <div class="resumo-sub">Recibos de pagamento com a sua logo, o valor por extenso, a condição de pagamento e a assinatura. Um recibo emitido não muda: se errar, cancele e emita outro.</div>
           <div style="margin:14px 0 10px;"><input type="text" id="rec-busca" placeholder="Buscar por cliente, número ou código..." oninput="renderRecibos(true)" style="width:100%;max-width:380px;"></div>
+          <div id="rec-faixa"></div>
           <div id="rec-lista" style="overflow-x:auto;"></div>
         </div>
       </section>
@@ -3329,6 +3335,7 @@ async function desconectarAssessor() {
 // assessor-email-triagem (cron a cada 15 min). E-mail nunca vira agenda sozinho: a pessoa decide pelos botões.
 // ══════════════════════════════════════════════════════════════
 const EMAIL_CATEGORIA = { acao: '📌 Pede ação', reuniao: '📅 Reunião', financeiro: '💰 Financeiro', informativo: 'ℹ️ Informativo', outros: '✉️ Outros' };
+const EMAIL_COR = { acao: 'var(--tipo-1)', reuniao: 'var(--tipo-2)', financeiro: 'var(--tipo-3)', informativo: 'var(--tipo-4)', outros: 'var(--tipo-5)' };
 const EMAIL_STATUS = { novo: 'Novo', tarefa: '📝 Virou tarefa', compromisso: '📅 Virou compromisso', resolvido: '✔ Resolvido', ignorado: 'Ignorado' };
 let emailsLista = [];
 let emailConta = null;
@@ -3395,7 +3402,7 @@ function cardEmail(e) {
       <span class="email-status">${EMAIL_STATUS[e.status] || escapeHtml(e.status)}</span>
       <button class="btn btn-sm" onclick="withLock(this, () => marcarEmail('${e.id}', 'novo'))">↩ Reabrir</button>`;
   return `
-    <div class="email-card ${e.urgente ? 'urgente' : ''} ${e.status !== 'novo' ? 'tratado' : ''}">
+    <div class="email-card ${e.urgente ? 'urgente' : ''} ${e.status !== 'novo' ? 'tratado' : ''}" style="--c:${EMAIL_COR[e.categoria] || 'var(--tipo-5)'}">
       <div class="email-topo"><div class="email-quem">${avatarHtml(e.remetente_nome || e.remetente)}<div class="email-de">${escapeHtml(e.remetente_nome || e.remetente)} <span>&lt;${escapeHtml(e.remetente)}&gt;</span></div></div><span class="email-data">${origemEmail(e)}${formatDataHora(e.recebido_em)}</span></div>
       <div class="email-tags">${tags}</div>
       <div class="email-assunto">${escapeHtml(e.assunto || '(sem assunto)')}</div>
@@ -3406,7 +3413,22 @@ function cardEmail(e) {
       </div>
     </div>`;
 }
+function renderFaixaEmails() {
+  const box = document.getElementById('emails-faixa'); if (!box) return;
+  const novos = emailsLista.filter(e => e.status === 'novo');
+  if (!emailConta || !novos.length) { box.innerHTML = ''; return; }
+  const nUrg = novos.filter(e => e.urgente).length;
+  const nReu = novos.filter(e => e.sugestao && e.sugestao.reuniao && e.sugestao.reuniao.data).length;
+  const partes = Object.keys(EMAIL_CATEGORIA).map(c => ({ c, n: novos.filter(e => (EMAIL_CATEGORIA[e.categoria] ? e.categoria : 'outros') === c).length })).filter(p => p.n);
+  box.innerHTML = `<div class="faixa-resumo">
+    <div class="fr-k dest"><b>${novos.length}</b><span>Novos</span></div>
+    <div class="fr-k ${nUrg ? 'alerta' : ''}"><b>${nUrg}</b><span>Urgentes</span></div>
+    <div class="fr-k"><b>${nReu}</b><span>Reuniões sugeridas</span></div>
+    <div class="fr-barra">${partes.map(p => `<i style="flex:${p.n};background:${EMAIL_COR[p.c]}" title="${p.n}"></i>`).join('')}</div>
+    <div class="fr-leg">${partes.map(p => `<span><i style="background:${EMAIL_COR[p.c]}"></i>${EMAIL_CATEGORIA[p.c]} <b>${p.n}</b></span>`).join('')}</div></div>`;
+}
 function renderEmails() {
+  renderFaixaEmails();
   const lista = document.getElementById('emails-lista');
   if (!lista) return;
   const novos = emailsLista.filter(e => e.status === 'novo');
@@ -3418,7 +3440,7 @@ function renderEmails() {
     return;
   }
   sub.innerHTML = emailContas.map(c => `<span class="conta-pill ${c.ultimo_erro ? 'erro' : ''}"><i></i>${escapeHtml(EMAIL_PROVEDOR_NOME[c.provedor] || c.provedor)}: ${escapeHtml(c.email)} · ${c.ultima_varredura ? 'última verificação ' + formatDataHora(c.ultima_varredura) : 'ainda não verificado'}${c.ultimo_erro ? ' · ⚠️ ' + escapeHtml(c.ultimo_erro) : ''}</span>`).join('');
-  document.getElementById('emails-filtro').innerHTML = [['novo', `Novos (${novos.length})`], ['tratados', 'Já tratados'], ['todos', 'Todos (30 dias)']]
+  document.getElementById('emails-filtro').innerHTML = [['novo', 'Novos'], ['tratados', 'Já tratados'], ['todos', 'Todos (30 dias)']]
     .map(([k, l]) => `<button class="pessoa-filter-btn ${emailsFiltro === k ? 'active' : ''}" onclick="setEmailsFiltro('${k}')">${l}</button>`).join('');
   const filtrados = emailsFiltro === 'novo' ? novos : (emailsFiltro === 'tratados' ? emailsLista.filter(e => e.status !== 'novo') : emailsLista);
   // Urgentes primeiro entre os novos; o resto por data.
@@ -7376,6 +7398,8 @@ async function emSalvarAssinaturaDesenhada() {
 }
 // ── Recibos (perfil Pessoal) ──
 let recibosLista = [], recibosCarregados = null, reciboAtual = null, reciboImgs = {}, raDesenhando = false, raTemTraco = false;
+const COR_FORMA_RECIBO = { pix: 'var(--tipo-1)', dinheiro: 'var(--tipo-2)', debito: 'var(--tipo-3)', credito_vista: 'var(--tipo-4)', credito_parcelado: 'var(--tipo-5)', transferencia: 'var(--tipo-6)' };
+const FORMA_CURTA_RECIBO = { pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Débito', credito_vista: 'Crédito à vista', credito_parcelado: 'Crédito', transferencia: 'Transferência' };
 const FORMAS_RECIBO = { pix: 'Pix', dinheiro: 'Dinheiro', debito: 'Cartão de débito', credito_vista: 'Cartão de crédito à vista', credito_parcelado: 'Cartão de crédito parcelado', transferencia: 'Transferência bancária' };
 function fmtBRL(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 function valorPorExtenso(v) {
@@ -7446,17 +7470,33 @@ async function carregarRecibos(forcar) {
   if (error) { alert('Não foi possível carregar os recibos: ' + error.message); return; }
   recibosLista = data || []; recibosCarregados = activeWorkspace.id;
 }
+function renderFaixaRecibos() {
+  const box = document.getElementById('rec-faixa'); if (!box) return;
+  const mes = todayStr().slice(0, 7), nomeMes = new Date(todayStr() + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long' });
+  const doMes = recibosLista.filter(r => r.status !== 'cancelado' && (r.data_emissao || '').slice(0, 7) === mes);
+  if (!doMes.length) { box.innerHTML = ''; return; }
+  const total = doMes.reduce((a, r) => a + Number(r.valor), 0);
+  const nAss = doMes.filter(r => r.assinatura_cliente_path).length;
+  const partes = Object.keys(FORMAS_RECIBO).map(f => ({ f, v: doMes.filter(r => r.forma_pagamento === f).reduce((a, r) => a + Number(r.valor), 0) })).filter(p => p.v > 0);
+  box.innerHTML = `<div class="faixa-resumo">
+    <div class="fr-k dest"><b>${fmtBRL(total)}</b><span>Emitido em ${escapeHtml(nomeMes)}</span></div>
+    <div class="fr-k"><b>${doMes.length}</b><span>Recibos no mês</span></div>
+    <div class="fr-k"><b>${nAss}</b><span>Com assinatura do cliente</span></div>
+    <div class="fr-barra">${partes.map(p => `<i style="flex:${p.v};background:${COR_FORMA_RECIBO[p.f]}" title="${escapeHtml(FORMAS_RECIBO[p.f])} · ${fmtBRL(p.v)}"></i>`).join('')}</div>
+    <div class="fr-leg">${partes.map(p => `<span><i style="background:${COR_FORMA_RECIBO[p.f]}"></i>${escapeHtml(FORMA_CURTA_RECIBO[p.f])} <b>${fmtBRL(p.v)}</b></span>`).join('')}</div></div>`;
+}
 async function renderRecibos(semRecarregar) {
   const box = document.getElementById('rec-lista'); if (!box) return;
   if (!semRecarregar) await carregarRecibos(true);
+  renderFaixaRecibos();
   const q = (document.getElementById('rec-busca').value || '').trim().toLowerCase();
   const lista = recibosLista.filter(r => !q || r.cliente_nome.toLowerCase().includes(q) || recNumero(r.numero).includes(q) || r.codigo.toLowerCase().includes(q));
   if (!lista.length) { box.innerHTML = '<p class="config-hint">' + (recibosLista.length ? 'Nenhum recibo encontrado.' : 'Nenhum recibo ainda. Clique em "+ Novo recibo".') + '</p>'; return; }
-  box.innerHTML = `<table class="data-table" style="width:100%;font-size:14px;"><thead><tr><th>Nº</th><th>Data</th><th>Cliente</th><th>Pagamento</th><th style="text-align:right">Valor</th><th>Assinatura</th><th></th></tr></thead><tbody>` +
-    lista.map(r => `<tr${r.status === 'cancelado' ? ' style="opacity:.55;text-decoration:line-through"' : ''}>
+  box.innerHTML = `<table class="data-table rec-tab" style="width:100%;font-size:14px;"><thead><tr><th>Nº</th><th>Data</th><th>Cliente</th><th>Pagamento</th><th style="text-align:right">Valor</th><th>Assinatura</th><th></th></tr></thead><tbody>` +
+    lista.map(r => `<tr style="--c:${COR_FORMA_RECIBO[r.forma_pagamento] || 'var(--tipo-6)'}${r.status === 'cancelado' ? ';opacity:.55;text-decoration:line-through' : ''}">
       <td><b>${recNumero(r.numero)}</b></td><td>${formatDate(r.data_emissao)}</td><td>${escapeHtml(r.cliente_nome)}</td>
-      <td>${escapeHtml(FORMAS_RECIBO[r.forma_pagamento])}${r.forma_pagamento === 'credito_parcelado' ? ' ' + r.parcelas + '×' : ''}</td>
-      <td style="text-align:right;white-space:nowrap">${fmtBRL(r.valor)}</td>
+      <td><span class="rec-chip">${escapeHtml(FORMA_CURTA_RECIBO[r.forma_pagamento] || FORMAS_RECIBO[r.forma_pagamento])}${r.forma_pagamento === 'credito_parcelado' ? ' ' + r.parcelas + '×' : ''}</span></td>
+      <td class="rec-valor">${fmtBRL(r.valor)}</td>
       <td>${r.status === 'cancelado' ? 'Cancelado' : (r.assinatura_cliente_path ? '✅ Cliente assinou' : '—')}</td>
       <td style="white-space:nowrap"><button class="btn btn-sm" onclick="abrirReciboVer('${r.id}')">Abrir</button>${r.status === 'emitido' ? ` <button class="btn btn-sm" onclick="abrirNovoRecibo('${r.id}')">✏️ Editar</button> <button class="btn btn-sm" onclick="withLock(this, () => cancelarRecibo('${r.id}'))">Cancelar</button>` : ''}</td></tr>`).join('') + '</tbody></table>';
 }
