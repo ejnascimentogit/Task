@@ -1363,6 +1363,7 @@
           </div>
           <button class="btn btn-green btn-sm" onclick="openModal(null)">+ Novo</button>
         </div>
+        <div id="entidades-faixa"></div>
         <div class="table-wrap" id="entidades-list-wrap">
         <table class="data-table">
           <thead><tr>
@@ -5548,6 +5549,20 @@ function aplicarCamposCliente() {
   document.querySelectorAll('#view-entidades [data-campo]').forEach(el => { el.style.display = campoCliente(el.dataset.campo) ? '' : 'none'; });
   if (!campoCliente('fase')) { const ff = document.getElementById('filter-fase'); if (ff) ff.value = ''; }   // sem Fase, o filtro "Ativos" não pode esconder ninguém
 }
+function renderFaixaEntidades(list) {
+  const box = document.getElementById('entidades-faixa'); if (!box) return;
+  const hoje = todayStr();
+  const nPend = campoCliente('pendencias') ? list.reduce((a, c) => a + pendenciasAbertasDe(c).length, 0) : 0;
+  const nAtras = campoCliente('proximo') ? list.filter(c => c.proximoContato && c.proximoContato < hoje).length : 0;
+  const cores = { verde: '#16A34A', amarelo: '#F59E0B', vermelho: '#E5484D' };
+  const partes = campoCliente('saude') ? ['verde', 'amarelo', 'vermelho'].map(k => ({ k, n: list.filter(c => c.saude === k).length })).filter(p => p.n) : [];
+  if (!list.length || !(campoCliente('pendencias') || campoCliente('proximo') || campoCliente('saude'))) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="faixa-resumo">
+    ${campoCliente('pendencias') ? `<div class="fr-k ${nPend ? 'alerta' : ''}"><b>${nPend}</b><span>Pendências abertas</span></div>` : ''}
+    ${campoCliente('proximo') ? `<div class="fr-k ${nAtras ? 'alerta' : ''}"><b>${nAtras}</b><span>Contato atrasado</span></div>` : ''}
+    ${partes.length ? `<div class="fr-barra">${partes.map(p => `<i style="flex:${p.n};background:${cores[p.k]}" title="${p.k} · ${p.n}"></i>`).join('')}</div>
+    <div class="fr-leg">${partes.map(p => `<span><i style="background:${cores[p.k]}"></i>${p.k[0].toUpperCase() + p.k.slice(1)} <b>${p.n}</b></span>`).join('')}</div>` : ''}</div>`;
+}
 function renderEntidades() {
   aplicarCamposCliente();
   const search = (document.getElementById('search-input').value||'').toLowerCase();
@@ -5567,6 +5582,7 @@ function renderEntidades() {
       return sortDirection==='asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
     });
   }
+  renderFaixaEntidades(list);
   if (entidadesView === 'lista') {
     document.getElementById('entidades-tbody').innerHTML = list.map(c => `
       <tr onclick="openModal('${c.id}')">
@@ -6863,17 +6879,20 @@ function renderResumoPainel(concluidas) {
   const abertas = atividades.filter(a => a.coluna !== 'concluida' && !a.cancelado && (!ent || a.entidadeNome === ent));
   const ag = agendamentos.filter(a => a.data === resumoFiltroData && (!ent || a.entidadeNome === ent)).sort((x, y) => (x.hora || '').localeCompare(y.hora || ''));
   const total = concluidas.length + abertas.length, pct = total ? Math.round(concluidas.length / total * 100) : 0;
-  const porColuna = colunasAtivas().filter(c => c.id !== 'concluida').map(c => [c.nome, abertas.filter(a => a.coluna === c.id).length]);
   const porPessoa = souSolo() ? [] : membrosAtivos().map(n => [n, concluidas.filter(a => a.responsavel === n).length]).filter(x => x[1] > 0);
   const tipoDe = id => TIPOS_AGENDAMENTO.find(t => t.id === id) || { icone: '📌', nome: '' };
-  box.innerHTML = `<div class="rp-grid">
+  const raias = colunasAtivas().filter(c => c.id !== 'concluida');
+  const partesFila = raias.map((c, i) => ({ nome: c.nome, cor: corDaRaia(c, i), n: abertas.filter(a => a.coluna === c.id).length }));
+  const faixa = `<div class="faixa-resumo">
+    <div class="fr-k dest"><b>${concluidas.length}</b><span>Concluídas no dia</span></div>
+    <div class="fr-k"><b>${ag.length}</b><span>${ag.length === 1 ? 'Compromisso' : 'Compromissos'}</span></div>
+    <div class="fr-barra">${partesFila.filter(p => p.n).map(p => `<i style="flex:${p.n};background:${p.cor}" title="${escapeHtml(p.nome)} · ${p.n}"></i>`).join('')}</div>
+    <div class="fr-leg">${partesFila.map(p => `<span><i style="background:${p.cor}"></i>${escapeHtml(p.nome)} <b>${p.n}</b></span>`).join('')}</div></div>`;
+  box.innerHTML = faixa + `<div class="rp-grid">
     <div class="rp-tile rp-hero"><h3>Concluídas no dia <span>${formatDate(resumoFiltroData)}</span></h3>
-      <div class="rp-linha"><div class="rp-big">${concluidas.length}<small>/${total}</small></div><div class="rp-ring" style="--p:${pct}"><b>${pct}%</b></div></div>
-      <div style="color:rgba(255,255,255,.7)">${abertas.length ? abertas.length + (abertas.length === 1 ? ' atividade ainda em aberto' : ' atividades ainda em aberto') : 'Nada em aberto.'}</div></div>
-    <div class="rp-tile rp-agenda"><h3>Agenda do dia <span>${ag.length} ${ag.length === 1 ? 'compromisso' : 'compromissos'}</span></h3>
+      <div class="rp-linha"><div class="rp-ring" style="--p:${pct}"><b>${pct}%</b></div><div style="color:rgba(255,255,255,.75)">${total ? 'do que estava no dia já foi concluído.' : 'Nada para concluir neste dia.'}</div></div></div>
+    <div class="rp-tile rp-agenda"><h3>Agenda do dia</h3>
       ${ag.map(a => `<div class="rp-ag ${a.feito ? 'feito' : ''}"><time>${a.hora || '—'}</time><div><b>${escapeHtml(a.titulo)}</b><small>${tipoDe(a.tipo).icone} ${escapeHtml(tipoDe(a.tipo).nome || '')}${a.entidadeNome ? ' · ' + escapeHtml(a.entidadeNome) : ''}</small></div>${a.responsavel ? avatarHtml(a.responsavel) : ''}</div>`).join('') || '<div class="rp-vazio">Nenhum compromisso nesse dia.</div>'}</div>
-    <div class="rp-tile rp-fila"><h3>Fila em aberto <span>${abertas.length} no total</span></h3>
-      ${porColuna.map(([n, q]) => `<div class="rp-num"><span>${escapeHtml(n)}</span><b>${q}</b></div>`).join('') || '<div class="rp-vazio">Sem colunas ativas.</div>'}</div>
     ${porPessoa.length ? `<div class="rp-tile rp-pessoa"><h3>Concluídas por pessoa</h3>${porPessoa.map(([n, q]) => `<div class="rp-num"><span style="display:inline-flex;align-items:center;gap:8px">${avatarHtml(n)}${escapeHtml(n)}</span><b>${q}</b></div>`).join('')}</div>` : ''}
   </div>`;
 }
