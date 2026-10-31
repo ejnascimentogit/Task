@@ -916,6 +916,7 @@
   #view-indicadores .resumo-box > h2 { margin-bottom: -6px; }
   #view-indicadores .resumo-box > .pessoa-filter { width: fit-content; margin-top: 0 !important; }
   #view-indicadores .ind-bloco { margin-top: 0; min-width: 0; }
+  #ind-backlog-wrap { grid-column: 1 / -1; }
   #ind-b-fila, #ind-faixa { grid-column: 1 / -1; }
   #ind-b-criadas { grid-column: 1 / span 8; }
   #view-indicadores .pizza-row { display: contents; }
@@ -1186,6 +1187,44 @@
   .kanban-cards-scroll::-webkit-scrollbar-thumb, .kanban-board::-webkit-scrollbar-thumb { background: rgba(128,140,155,.38); border-radius: 99px; }
   .kanban-cards-scroll::-webkit-scrollbar-thumb:hover, .kanban-board::-webkit-scrollbar-thumb:hover { background: rgba(128,140,155,.7); }
   .kanban-cards-scroll::-webkit-scrollbar-button, .kanban-board::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  .bk-abas { flex-wrap:wrap; margin:6px 0 14px; }
+  .bk-abas .view-toggle-btn .bk-n { margin-left:6px; font-size:11px; padding:1px 7px; border-radius:99px; background:rgba(128,128,128,.22); }
+  .bk-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; }
+  @media (max-width:1100px) { .bk-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  @media (max-width:700px) { .bk-grid { grid-template-columns:1fr; } }
+  .bk-bloco { background:var(--white); border:1px solid var(--border-light); border-radius:16px; padding:16px 18px; }
+  .bk-bloco small.t { display:block; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--gray-text); font-weight:700; margin-bottom:10px; }
+  .bk-linha { display:flex; align-items:center; gap:10px; margin:8px 0; font-size:13px; }
+  .bk-linha > span:first-child { width:96px; color:var(--gray-text); flex:none; }
+  .bk-linha .bk-trilho { flex:1; height:10px; background:rgba(128,128,128,.18); border-radius:99px; overflow:hidden; }
+  .bk-linha .bk-trilho i { display:block; height:100%; border-radius:99px; }
+  .bk-linha b { width:28px; text-align:right; font-variant-numeric:tabular-nums; }
+  .bk-kp { display:flex; gap:22px; margin-bottom:12px; flex-wrap:wrap; }
+  .bk-kp b { display:block; font-size:24px; font-variant-numeric:tabular-nums; } .bk-kp span { font-size:11px; color:var(--gray-text); text-transform:uppercase; }
+  .bk-spark { display:flex; align-items:flex-end; gap:7px; height:80px; margin:6px 0 4px; }
+  .bk-spark i { flex:1; border-radius:4px 4px 0 0; background:rgba(128,128,128,.4); position:relative; min-height:3px; }
+  .bk-spark i:last-child { background:#14B8A6; }
+  .bk-spark i em { position:absolute; top:-15px; left:0; right:0; text-align:center; font-style:normal; font-size:10px; font-weight:700; color:var(--text-main); }
+  .bk-datas { display:flex; gap:7px; font-size:10px; color:var(--gray-text); } .bk-datas span { flex:1; text-align:center; }
+  .bk-velho { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:7px 0; border-top:1px solid var(--border-light); cursor:pointer; }
+  .bk-velho:first-of-type { border-top:0; } .bk-velho span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .bk-velho b { color:#DC2626; flex:none; }
+  .bk-card { background:var(--white); border:1px solid var(--border-light); border-radius:16px; overflow:hidden; }
+  .bk-ch { display:flex; align-items:center; gap:10px; padding:14px 16px; color:#fff; background:linear-gradient(135deg, var(--bc), color-mix(in srgb, var(--bc) 62%, #000)); }
+  .bk-ch > div { min-width:0; } .bk-ch b { display:block; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .bk-ch small { font-size:11px; opacity:.88; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bk-av { width:34px; height:34px; border-radius:50%; flex:none; display:grid; place-items:center; font-weight:800; border:2px solid rgba(255,255,255,.7); background:rgba(255,255,255,.16); }
+  .bk-pc { margin-left:auto; flex:none; font-size:11px; font-weight:700; background:rgba(255,255,255,.22); padding:4px 10px; border-radius:99px; white-space:nowrap; }
+  .bk-cb { padding:14px 16px; } .bk-top { display:flex; gap:14px; align-items:center; }
+  .bk-ring { width:84px; height:84px; border-radius:50%; flex:none; display:grid; place-items:center; position:relative; }
+  .bk-ring::before { content:""; position:absolute; inset:11px; border-radius:50%; background:var(--white); }
+  .bk-ring b { position:relative; font-size:22px; text-align:center; line-height:1; font-variant-numeric:tabular-nums; } .bk-ring b small { display:block; font-size:10px; font-weight:500; color:var(--gray-text); margin-top:2px; }
+  .bk-lst { flex:1; font-size:12.5px; min-width:0; } .bk-lst div { display:flex; justify-content:space-between; padding:4px 8px; border-radius:7px; background:var(--light-bg); margin-bottom:4px; } .bk-lst div.z { opacity:.5; }
+  .bk-lst i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; }
+  .bk-st { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+  .bk-st div { background:var(--light-bg); border-radius:10px; text-align:center; padding:9px 4px; } .bk-st b { display:block; font-size:18px; font-variant-numeric:tabular-nums; } .bk-st span { font-size:10.5px; color:var(--gray-text); }
+  .bk-st b.r { color:#DC2626; }
+  .bk-sel { display:inline-block; font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:99px; margin:10px 6px 0 0; }
+  .bk-sel.ok { color:#15803D; background:rgba(16,185,129,.14); } .bk-sel.al { color:#B91C1C; background:rgba(220,38,38,.1); } .bk-sel.am { color:#B45309; background:rgba(245,158,11,.16); } .bk-sel.nt { color:var(--gray-text); background:var(--light-bg); }
+  :root[data-theme="dark"] .bk-sel.ok { color:#34D399; } :root[data-theme="dark"] .bk-sel.al { color:#F87171; } :root[data-theme="dark"] .bk-sel.am { color:#FBBF24; }
   .cli-tab tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--e, var(--accent-ink)); }
   .cli-nome { display:inline-flex; align-items:center; gap:10px; font-weight:600; }
   .cli-av { width:30px; height:30px; border-radius:50%; flex:none; display:inline-grid; place-items:center; font-style:normal; font-weight:800; font-size:13px; border:2px solid var(--e, var(--accent-ink)); color:var(--text-main); }
@@ -1531,6 +1570,12 @@
             <div class="ind-bloco-titulo">🤖 Uso do Assessor Pessoal</div>
             <div class="pizza-explicacao">Quanto o assessor gastou com a IA neste mês e quanto ainda resta do limite. Só aparece no perfil Pessoal.</div>
             <div id="ind-assessor"></div>
+          </div>
+          <div class="ind-bloco" id="ind-backlog-wrap" style="--ind-cor:#14B8A6;">
+            <div class="ind-bloco-titulo">📦 Backlog de atividades</div>
+            <div class="pizza-explicacao">O que está em aberto agora e há quanto tempo. Troque a aba para ver por outro ângulo. Idade conta a partir da criação da atividade.</div>
+            <div class="view-toggle bk-abas" id="bk-abas"></div>
+            <div id="bk-corpo"></div>
           </div>
         </div>
       </section>
@@ -4693,9 +4738,93 @@ function renderPrazosIndicadores() {
       <div style="font-size:12px;"><span class="prazo-badge ${i.classe}">${i.texto}</span><div style="color:var(--gray-text);margin-top:2px;">previsto para ${formatDate(c.previsaoEntrega)}</div></div>
     </div>`).join('') : '<div style="font-size:12.5px;color:var(--gray-text);">Nenhum projeto ativo com previsão de entrega. Defina a previsão no cadastro do projeto.</div>';
 }
+// ── Backlog de atividades (abas dentro de Indicadores) ──
+let backlogAba = 'geral';
+const BK_FAIXAS = [['até 7 dias', 0, 7, '#16A34A'], ['8 a 15 dias', 8, 15, '#EAB308'], ['16 a 30 dias', 16, 30, '#F97316'], ['mais de 30 dias', 31, 99999, '#DC2626']];
+const BK_CORES = ['#2563EB', '#7C3AED', '#D97706', '#0F766E', '#DB2777', '#0284C7', '#65A30D', '#9333EA'];
+function setBacklogAba(k) { backlogAba = k; renderBacklogIndicadores(); }
+function bkIdade(a) { const d = dataLocalDeISO(a.criadoEm); return d ? Math.max(0, daysBetween(d, todayStr())) : null; }
+function bkDias(x) { return x === null ? '—' : (Math.round(x * 10) / 10).toString().replace('.', ',') + ' d'; }
+function bkAbertas(filtro) { return atividades.filter(a => !a.cancelado && a.coluna !== 'concluida' && (!filtro || filtro(a))); }
+function bkContagem(lista) {
+  const f = BK_FAIXAS.map(() => 0), idades = [];
+  lista.forEach(a => { const i = bkIdade(a); if (i === null) return; idades.push(i); f[BK_FAIXAS.findIndex(x => i >= x[1] && i <= x[2])]++; });
+  return { f, n: lista.length, media: idades.length ? idades.reduce((t, x) => t + x, 0) / idades.length : null, max: idades.length ? Math.max(...idades) : null, velhas: idades.filter(i => i > 15).length };
+}
+function bkCartao(o) {
+  const c = bkContagem(o.lista), tot = c.f.reduce((t, x) => t + x, 0);
+  let acc = 0;
+  const grad = tot ? BK_FAIXAS.map((x, i) => { const ini = acc / tot * 100; acc += c.f[i]; return c.f[i] ? `${x[3]} ${ini}% ${acc / tot * 100}%` : null; }).filter(Boolean).join(',') : 'rgba(128,128,128,.28) 0 100%';
+  const pct = o.total ? Math.round(c.n / o.total * 100) : 0;
+  return `<div class="bk-card"><div class="bk-ch" style="--bc:${o.cor}"><span class="bk-av">${escapeHtml(o.inicial)}</span><div><b>${escapeHtml(o.nome)}</b><small>${escapeHtml(o.sub || '')}</small></div><span class="bk-pc">${pct}% do total</span></div>
+    <div class="bk-cb"><div class="bk-top"><div class="bk-ring" style="background:conic-gradient(${grad})"><b>${c.n}<small>em aberto</small></b></div>
+    <div class="bk-lst">${BK_FAIXAS.map((x, i) => `<div class="${c.f[i] ? '' : 'z'}"><span><i style="background:${x[3]}"></i>${x[0]}</span><b>${c.f[i]}</b></div>`).join('')}</div></div>
+    <div class="bk-st"><div><b>${bkDias(c.media)}</b><span>idade média</span></div><div><b>${c.max === null ? '—' : c.max + ' d'}</b><span>mais antigo</span></div><div><b class="${c.velhas ? 'r' : ''}">${c.velhas}</b><span>há +15 dias</span></div></div>
+    ${c.velhas ? `<span class="bk-sel al">⚠ ${c.velhas} há mais de 15 dias</span>` : (c.n ? '<span class="bk-sel ok">✓ nenhuma há mais de 15 dias</span>' : '')}${o.extra || ''}</div></div>`;
+}
+function renderBacklogIndicadores() {
+  const abas = document.getElementById('bk-abas'), corpo = document.getElementById('bk-corpo');
+  if (!abas || !corpo) return;
+  const solo = souSolo(), hoje = todayStr(), lim30 = addDays(hoje, -30);
+  const filtradas = a => atividadeNoFiltroPessoa(a);
+  const abertas = bkAbertas(filtradas), totalAb = abertas.length;
+  const urgencia = a => (a.label === 'red' || a.label === 'orange') ? 'u' : (a.label === 'yellow' ? 'a' : 'r');
+  const lista = [['geral', '📊 Visão geral', totalAb]];
+  const pessoas = solo ? [] : membrosAtivos();
+  if (!solo) lista.push(['pessoa', '👥 Por pessoa', pessoas.filter(n => bkAbertas(a => a.responsavel === n || (a.participantes || []).includes(n)).length).length]);
+  const grupos = {};
+  abertas.forEach(a => { const k = a.entidadeNome || ''; (grupos[k] = grupos[k] || []).push(a); });
+  if (temAba('entidades')) lista.push(['cliente', '🏢 Por ' + entidadeLabel().slice(0, -1).toLowerCase(), Object.keys(grupos).length]);
+  lista.push(['urgencia', '🚦 Por urgência', abertas.filter(a => urgencia(a) === 'u').length]);
+  if (!lista.some(x => x[0] === backlogAba)) backlogAba = 'geral';
+  abas.innerHTML = lista.map(([k, r, n]) => `<button class="view-toggle-btn ${backlogAba === k ? 'active' : ''}" onclick="setBacklogAba('${k}')">${r}<span class="bk-n">${n}</span></button>`).join('');
+  if (!atividades.some(a => !a.cancelado)) { corpo.innerHTML = '<div class="pizza-explicacao">Ainda não há atividades para analisar.</div>'; return; }
+  let html = '';
+  if (backlogAba === 'geral') {
+    const c = bkContagem(abertas), maxF = Math.max(1, ...c.f);
+    const todasF = atividades.filter(a => !a.cancelado && filtradas(a));
+    const entraram = todasF.filter(a => { const d = dataLocalDeISO(a.criadoEm); return d && d >= lim30; }).length;
+    const conc = todasF.filter(a => a.coluna === 'concluida' && a.concluidoEm && a.concluidoEm >= lim30);
+    const tempos = conc.map(a => { const d = dataLocalDeISO(a.criadoEm); return d ? Math.max(0, daysBetween(d, a.concluidoEm)) : null; }).filter(x => x !== null);
+    const tempoMedio = tempos.length ? tempos.reduce((t, x) => t + x, 0) / tempos.length : null;
+    const pontos = []; for (let i = 7; i >= 0; i--) pontos.push(addDays(hoje, -7 * i));
+    const abertoEm = d => todasF.filter(a => { const cr = dataLocalDeISO(a.criadoEm); return cr && cr <= d && (a.coluna !== 'concluida' || !a.concluidoEm || a.concluidoEm > d); }).length;
+    const serie = pontos.map(abertoEm), maxS = Math.max(1, ...serie);
+    const velhos = [...abertas].filter(a => bkIdade(a) !== null).sort((x, y) => bkIdade(y) - bkIdade(x)).slice(0, 5);
+    html = `<div class="bk-grid">
+      <div class="bk-bloco"><small class="t">Idade do que está em aberto</small>${BK_FAIXAS.map((x, i) => `<div class="bk-linha"><span>${x[0]}</span><div class="bk-trilho"><i style="width:${Math.round(c.f[i] / maxF * 100)}%;background:${x[3]}"></i></div><b>${c.f[i]}</b></div>`).join('')}</div>
+      <div class="bk-bloco"><small class="t">Entram × saem · últimos 30 dias</small>
+        <div class="bk-kp"><div><b>${entraram}</b><span>entraram</span></div><div><b>${conc.length}</b><span>concluídas</span></div><div><b>${bkDias(tempoMedio)}</b><span>p/ concluir</span></div></div>
+        <small class="t" style="margin-top:6px">Em aberto no fim de cada semana</small>
+        <div class="bk-spark">${serie.map(v => `<i style="height:${Math.max(4, Math.round(v / maxS * 100))}%"><em>${v}</em></i>`).join('')}</div>
+        <div class="bk-datas">${pontos.map(d => `<span>${formatDate(d).slice(0, 5)}</span>`).join('')}</div></div>
+      <div class="bk-bloco"><small class="t">Mais antigos em aberto</small>${velhos.length ? velhos.map(a => `<div class="bk-velho" onclick="openAtividadeModal('${a.id}')"><span>${a.entidadeNome ? escapeHtml(a.entidadeNome) + ' · ' : ''}${escapeHtml(a.titulo)}</span><b>${bkIdade(a)} d</b></div>`).join('') : '<div class="pizza-explicacao">Nada em aberto. 🎉</div>'}</div>
+    </div>`;
+  } else if (backlogAba === 'pessoa') {
+    const cart = pessoas.map((n, i) => {
+      const meu = a => a.responsavel === n || (a.participantes || []).includes(n);
+      const l = bkAbertas(meu), nConc = atividades.filter(a => !a.cancelado && a.coluna === 'concluida' && a.concluidoEm && a.concluidoEm >= lim30 && meu(a)).length, nUrg = l.filter(a => urgencia(a) === 'u').length;
+      return { n, l, html: bkCartao({ nome: n, sub: l.length + (l.length === 1 ? ' em aberto' : ' em aberto'), cor: BK_CORES[i % BK_CORES.length], inicial: (n.trim()[0] || '?').toUpperCase(), lista: l, total: bkAbertas().length, extra: `${nUrg ? `<span class="bk-sel al">🚨 ${nUrg} crítico ou urgente</span>` : ''}<span class="bk-sel nt">${nConc} concluídas em 30 dias</span>` }) };
+    }).sort((a, b) => b.l.length - a.l.length);
+    html = `<div class="pizza-explicacao">Cada pessoa conta o que é dela (responsável ou participante); por isso os percentuais podem somar mais de 100%.</div><div class="bk-grid">${cart.map(x => x.html).join('') || ''}</div>`;
+  } else if (backlogAba === 'cliente') {
+    const nomes = Object.keys(grupos).sort((a, b) => (a === '') - (b === '') || grupos[b].length - grupos[a].length).slice(0, 12);
+    html = `<div class="bk-grid">${nomes.map((k, i) => {
+      const ent = k ? state.entidades.find(e => e.nome === k) : null;
+      const pr = ent && prazoEntregaInfo(ent), etapa = ent && campoCliente('etapa') ? stageOf(ent.etapa).nome : '';
+      const sub = k ? [etapa, pr ? pr.texto : ''].filter(Boolean).join(' · ') || 'cadastro do cliente' : 'trabalho interno';
+      const aguard = ent && campoCliente('pendencias') ? ent.pendencias.filter(p => !p.feito && p.responsavel === 'entidade').length : 0;
+      return bkCartao({ nome: k || 'Sem ' + entidadeLabel().slice(0, -1).toLowerCase(), sub, cor: k ? (pr && pr.classe === 'atrasado' ? '#B91C1C' : BK_CORES[i % BK_CORES.length]) : '#64748B', inicial: k ? (k.trim()[0] || '?').toUpperCase() : '•', lista: grupos[k], total: totalAb, extra: aguard ? `<span class="bk-sel am">⏸ ${aguard} aguardando ${escapeHtml(entidadeLabel().slice(0, -1).toLowerCase())}</span>` : '' });
+    }).join('') || '<div class="pizza-explicacao">Nada em aberto.</div>'}</div>`;
+  } else {
+    const defs = [['u', 'Crítico ou urgente', 'incidente crítico e alta urgência', '#DC2626', '!'], ['a', 'Atenção', 'etiqueta amarela', '#CA8A04', '~'], ['r', 'Rotina', 'etiqueta azul e sem etiqueta', '#2563EB', '·']];
+    html = `<div class="bk-grid">${defs.map(([k, nome, sub, cor, ic]) => bkCartao({ nome, sub, cor, inicial: ic, lista: abertas.filter(a => urgencia(a) === k), total: totalAb })).join('')}</div>`;
+  }
+  corpo.innerHTML = html;
+}
 (function () {
   const origIndicadores = window.renderIndicadores;
-  if (typeof origIndicadores === 'function') window.renderIndicadores = function () { const r = origIndicadores.apply(this, arguments); renderPrazosIndicadores(); return r; };
+  if (typeof origIndicadores === 'function') window.renderIndicadores = function () { const r = origIndicadores.apply(this, arguments); renderPrazosIndicadores(); renderBacklogIndicadores(); return r; };
   const origEntidades = window.renderEntidades;
   if (typeof origEntidades === 'function') window.renderEntidades = function () {
     const th = document.getElementById('th-prazo');
