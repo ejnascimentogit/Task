@@ -1721,3 +1721,129 @@ grant execute on function public.saude_publica() to anon, authenticated;
 -- Agente do PC / botão "Ligar servidor" (2026-10-25). SQL aplicado no Supabase; texto completo das funções: ver histórico do git deste arquivo.
 -- Tabela servidor_agente (1 linha: chave_hash, pedido_em, ultimo_sinal, pc_ligado_em, versao, ultimo_resultado, ultimo_resultado_em), RLS ligada sem política.
 -- Funções security definer: master_agente_gerar_chave(), master_pedir_ligar(), master_agente_estado() (só eh_master()), agente_sinal(chave, boot, versao) e agente_resultado(chave, texto) (conferem o hash da chave).
+
+-- ── Recibos, etapa 3 (2026-10-31): link de assinatura do cliente e conferência pública ─────────────
+alter table public.recibos add column if not exists assinatura_cliente_img text;
+alter table public.recibos add column if not exists assinado_ip text;
+alter table public.recibos add column if not exists assinado_agente text;
+alter table public.recibos add column if not exists assinado_via text;
+
+create table if not exists public.recibo_links (
+  id uuid primary key default gen_random_uuid(),
+  recibo_id uuid not null references public.recibos(id) on delete cascade,
+  token text not null unique,
+  criado_em timestamptz not null default now(),
+  expira_em timestamptz not null default now() + interval '7 days',
+  usado_em timestamptz,
+  criado_por uuid
+);
+create index if not exists recibo_links_recibo on public.recibo_links (recibo_id);
+alter table public.recibo_links enable row level security;   -- sem policy: só as funções abaixo mexem
+
+-- Recibo emitido não muda; a assinatura do cliente, depois de registrada, também não.
+create or replace function public.recibos_antes_atualizar() returns trigger language plpgsql as $f$
+begin
+  if new.workspace_id is distinct from old.workspace_id or new.numero is distinct from old.numero or new.codigo is distinct from old.codigo
+     or new.data_emissao is distinct from old.data_emissao or new.cliente_nome is distinct from old.cliente_nome
+     or new.cliente_documento is distinct from old.cliente_documento or new.descricao is distinct from old.descricao
+     or new.valor is distinct from old.valor or new.forma_pagamento is distinct from old.forma_pagamento
+     or new.parcelas is distinct from old.parcelas or new.primeira_parcela is distinct from old.primeira_parcela
+     or new.emissor is distinct from old.emissor
+     or (new.hash is distinct from old.hash and old.hash <> '') then
+    raise exception 'Um recibo emitido não pode ser alterado. Cancele e emita outro.';
+  end if;
+  if old.status = 'cancelado' and new.status <> 'cancelado' then
+    raise exception 'Recibo cancelado não pode ser reativado.';
+  end if;
+  if old.assinado_em is not null and (new.assinado_em is distinct from old.assinado_em
+     or new.assinatura_cliente_path is distinct from old.assinatura_cliente_path
+     or new.assinatura_cliente_img is distinct from old.assinatura_cliente_img
+     or new.assinado_ip is distinct from old.assinado_ip or new.assinado_agente is distinct from old.assinado_agente
+     or new.assinado_via is distinct from old.assinado_via) then
+    raise exception 'A assinatura já foi registrada e não pode ser trocada.';
+  end if;
+  return new;
+end $f$;
+
+-- Quem emite gera o link (válido por 7 dias, uso único). Repetir o pedido devolve o mesmo link enquanto valer.
+create or replace function public.recibo_gerar_link(p_recibo uuid) returns text
+language plpgsql security definer set search_path = public as $f$
+declare r public.recibos; t text;
+begin
+  select * into r from public.recibos where id = p_recibo;
+  if not found or not public.is_admin(r.workspace_id) then raise exception 'Sem permissão para este recibo.'; end if;
+  if r.status <> 'emitido' then raise exception 'Este recibo está cancelado.'; end if;
+  if r.assinado_em is not null then raise exception 'Este recibo já foi assinado.'; end if;
+  select token into t from public.recibo_links where recibo_id = p_recibo and usado_em is null and expira_em > now() order by criado_em desc limit 1;
+  if t is null then
+    t := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+    insert into public.recibo_links (recibo_id, token, criado_por) values (p_recibo, t, auth.uid());
+  end if;
+  return t;
+end $f$;
+
+-- Página pública de assinatura: mostra o que vai ser assinado.
+create or replace function public.recibo_link_dados(p_token text) returns jsonb
+language plpgsql security definer set search_path = public as $f$
+declare l public.recibo_links; r public.recibos;
+begin
+  select * into l from public.recibo_links where token = p_token;
+  if not found then return jsonb_build_object('erro', 'invalido'); end if;
+  select * into r from public.recibos where id = l.recibo_id;
+  if r.assinado_em is not null or l.usado_em is not null then return jsonb_build_object('erro', 'usado'); end if;
+  if r.status <> 'emitido' then return jsonb_build_object('erro', 'cancelado'); end if;
+  if l.expira_em < now() then return jsonb_build_object('erro', 'expirado'); end if;
+  return jsonb_build_object('erro', null, 'numero', r.numero, 'data_emissao', r.data_emissao,
+    'emissor_nome', coalesce(nullif(r.emissor->>'nome_fantasia', ''), r.emissor->>'nome'),
+    'cliente_nome', r.cliente_nome, 'valor', r.valor, 'forma_pagamento', r.forma_pagamento, 'parcelas', r.parcelas, 'descricao', r.descricao);
+end $f$;
+
+-- Página pública: registra a assinatura desenhada, com data/hora, IP e aparelho.
+create or replace function public.recibo_link_assinar(p_token text, p_img text) returns jsonb
+language plpgsql security definer set search_path = public as $f$
+declare l public.recibo_links; r public.recibos; hdr json; ip text;
+begin
+  if p_img is null or p_img !~ '^data:image/png;base64,[A-Za-z0-9+/=]+$' or length(p_img) < 300 or length(p_img) > 600000 then
+    return jsonb_build_object('ok', false, 'erro', 'Assinatura inválida. Desenhe de novo.');
+  end if;
+  select * into l from public.recibo_links where token = p_token for update;
+  if not found then return jsonb_build_object('ok', false, 'erro', 'Link inválido.'); end if;
+  select * into r from public.recibos where id = l.recibo_id for update;
+  if r.assinado_em is not null or l.usado_em is not null then return jsonb_build_object('ok', false, 'erro', 'Este recibo já foi assinado.'); end if;
+  if r.status <> 'emitido' then return jsonb_build_object('ok', false, 'erro', 'Este recibo foi cancelado.'); end if;
+  if l.expira_em < now() then return jsonb_build_object('ok', false, 'erro', 'O link expirou. Peça um novo.'); end if;
+  begin hdr := coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json; exception when others then hdr := '{}'::json; end;
+  ip := trim(split_part(coalesce(hdr->>'cf-connecting-ip', hdr->>'x-forwarded-for', ''), ',', 1));
+  update public.recibos set assinatura_cliente_img = p_img, assinatura_cliente_path = 'inline:' || r.id::text, assinado_em = now(),
+    assinado_ip = nullif(ip, ''), assinado_agente = left(hdr->>'user-agent', 300), assinado_via = 'link' where id = r.id;
+  update public.recibo_links set usado_em = now() where id = l.id;
+  return jsonb_build_object('ok', true);
+end $f$;
+
+-- Conferência pública pelo código do recibo (QR): recalcula a impressão digital e compara com a gravada.
+create or replace function public.recibo_verificar(p_codigo text) returns jsonb
+language plpgsql security definer set search_path = public set timezone = 'UTC' as $f$
+declare r public.recibos; calc text; doc text; nome text;
+begin
+  select * into r from public.recibos where codigo = upper(trim(p_codigo));
+  if not found then return jsonb_build_object('encontrado', false); end if;
+  calc := encode(sha256(convert_to(concat_ws('|', r.id::text, r.numero::text, r.codigo, r.data_emissao::text, r.cliente_nome, r.cliente_documento,
+    trim_scale(r.valor)::text, r.forma_pagamento, r.parcelas::text, coalesce(r.primeira_parcela::text, ''), coalesce(r.emissor->>'documento', ''),
+    trim(both '"' from to_json(r.created_at)::text)), 'UTF8')), 'hex');
+  doc := regexp_replace(coalesce(r.emissor->>'documento', ''), '\D', '', 'g');
+  if length(doc) = 11 then doc := '***.' || substr(doc, 4, 3) || '.' || substr(doc, 7, 3) || '-**'; end if;
+  nome := split_part(r.cliente_nome, ' ', 1);
+  if position(' ' in trim(r.cliente_nome)) > 0 then nome := nome || ' ' || upper(left(regexp_replace(trim(r.cliente_nome), '^.*\s', ''), 1)) || '.'; end if;
+  return jsonb_build_object('encontrado', true, 'numero', r.numero, 'data_emissao', r.data_emissao,
+    'emissor_nome', coalesce(nullif(r.emissor->>'nome_fantasia', ''), r.emissor->>'nome'), 'emissor_documento', doc,
+    'cliente_nome', nome, 'valor', r.valor, 'forma_pagamento', r.forma_pagamento, 'parcelas', r.parcelas,
+    'status', r.status, 'cancelado_em', r.cancelado_em, 'assinado', r.assinado_em is not null, 'assinado_em', r.assinado_em,
+    'assinado_via', r.assinado_via, 'hash', r.hash, 'integro', (r.hash <> '' and r.hash = calc));
+end $f$;
+
+revoke all on function public.recibo_gerar_link(uuid) from public;
+revoke all on function public.recibo_link_dados(text) from public;
+revoke all on function public.recibo_link_assinar(text, text) from public;
+revoke all on function public.recibo_verificar(text) from public;
+grant execute on function public.recibo_gerar_link(uuid) to authenticated;
+grant execute on function public.recibo_link_dados(text), public.recibo_link_assinar(text, text), public.recibo_verificar(text) to anon, authenticated;

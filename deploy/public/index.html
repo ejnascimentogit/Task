@@ -1993,6 +1993,7 @@
         <button class="btn btn-sm" onclick="withLock(this, reciboBaixarPdf)">📄 Baixar PDF</button>
         <button class="btn btn-sm" id="rv-wa" onclick="withLock(this, reciboEnviarWa)">📲 Enviar por WhatsApp</button>
         <button class="btn btn-sm" id="rv-assinar" onclick="reciboAbrirAssinatura()">✍️ Coletar assinatura do cliente</button>
+        <button class="btn btn-sm" id="rv-link" onclick="withLock(this, reciboLinkAssinatura)">🔗 Pedir assinatura por link</button>
         <button class="btn btn-sm" onclick="fecharReciboVer()">Fechar</button>
       </div>
     </div>
@@ -7485,7 +7486,7 @@ async function garantirEmissor() {
 }
 async function carregarRecibos(forcar) {
   if (!forcar && recibosCarregados === activeWorkspace.id) return;
-  const { data, error } = await sb.from('recibos').select('*').eq('workspace_id', activeWorkspace.id).order('numero', { ascending: false });
+  const { data, error } = await sb.from('recibos').select('id,workspace_id,numero,codigo,data_emissao,cliente_nome,cliente_documento,entidade_id,descricao,valor,forma_pagamento,parcelas,primeira_parcela,observacao,emissor,hash,status,cancelado_em,assinatura_cliente_path,assinado_em,assinado_ip,assinado_via,criado_por,created_at').eq('workspace_id', activeWorkspace.id).order('numero', { ascending: false });
   if (error) { alert('Não foi possível carregar os recibos: ' + error.message); return; }
   recibosLista = data || []; recibosCarregados = activeWorkspace.id;
 }
@@ -7626,12 +7627,27 @@ async function cancelarRecibo(id) {
 async function recImagemDataUrl(path) {
   if (!path) return null;
   if (reciboImgs[path]) return reciboImgs[path];
+  if (path.startsWith('inline:')) {   // assinatura feita pelo cliente no link: a imagem fica no próprio recibo
+    const { data } = await sb.from('recibos').select('assinatura_cliente_img').eq('id', path.slice(7)).eq('workspace_id', activeWorkspace.id).maybeSingle();
+    const u = data && data.assinatura_cliente_img; if (u) reciboImgs[path] = u; return u || null;
+  }
   const url = await emUrlImagem(path); if (!url) return null;
   try {
     const blob = await (await fetch(url)).blob();
     const dataUrl = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
     reciboImgs[path] = dataUrl; return dataUrl;
   } catch (e) { return url; }
+}
+let recQrLib = null;
+function recCarregarQr() {
+  if (window.qrcode) return Promise.resolve(true);
+  if (!recQrLib) recQrLib = new Promise(res => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js'; sc.onload = () => res(true); sc.onerror = () => res(false); document.head.appendChild(sc); });
+  return recQrLib;
+}
+// QR com o endereço de conferência do recibo (imagem embutida; se a biblioteca não carregar, o recibo sai sem o QR e com o endereço escrito).
+async function recQr(r) {
+  if (!r.codigo || !(await recCarregarQr())) return '';
+  try { const q = window.qrcode(0, 'M'); q.addData(location.origin + '/recibo?c=' + r.codigo); q.make(); return 'data:image/svg+xml;utf8,' + encodeURIComponent(q.createSvgTag(4, 0)); } catch (e) { return ''; }
 }
 function reciboHtml(r, imgs) {
   const e = r.emissor || {}, cor = /^#[0-9a-fA-F]{6}$/.test(e.cor || '') ? e.cor : '#7a2e4d', pj = e.tipo === 'pj';
@@ -7669,7 +7685,7 @@ h2{font-size:28px;letter-spacing:4px;margin:24px 0 4px}.sub{font-size:11.5px;col
 table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}th{text-align:left;font-size:9px;letter-spacing:1.5px;color:${c60};padding:5px 7px;border-bottom:1px solid ${c18}}td{padding:6px 7px;border-bottom:1px solid #f1ece8}.r{text-align:right}
 .txt{font-size:13px;line-height:1.55;margin:16px 0}.txt b{color:var(--c)}
 .sig{display:flex;gap:40px;margin-top:20px}.sig>div{flex:1;text-align:center}.sigimg{height:90px;display:flex;align-items:flex-end;justify-content:center}.line{border-top:1.5px solid #1c2733;padding-top:6px;font-size:12px;font-weight:600}.line small{display:block;font-size:10px;color:#6b7783;font-weight:400;margin-top:2px}
-.ver{position:absolute;left:50px;right:50px;bottom:26px;border-top:1px solid ${c18};padding-top:10px;font-size:9.5px;color:#6b7783;line-height:1.5}.ver b{color:#1c2733}.mono{font-family:Consolas,monospace;word-break:break-all}
+.qr{position:absolute;right:0;bottom:0;width:78px;height:78px}.ver{position:absolute;left:50px;right:50px;bottom:26px;min-height:78px;padding-right:92px !important;border-top:1px solid ${c18};padding-top:10px;font-size:9.5px;color:#6b7783;line-height:1.5}.ver b{color:#1c2733}.mono{font-family:Consolas,monospace;word-break:break-all}
 </style></head><body><div class="bar"></div><div class="wrap">
 <div class="head"><div style="display:flex;align-items:center">${imgs.logo ? `<img class="logo" src="${imgs.logo}">` : ''}<div class="emp"><h1>${esc(nomeExib || '')}</h1><p>${pj && e.nome_fantasia ? esc(e.nome) + '<br>' : ''}${pj ? 'CNPJ' : 'CPF'} ${esc(emFormatarDoc(e.documento, e.tipo))}${end ? '<br>' + esc(end) : ''}${cidade.trim() ? '<br>' + esc(cidade) : ''}${contato ? '<br>' + esc(contato) : ''}${redes ? '<br>' + redes : ''}</p></div></div>
 <div class="num"><div class="t">RECIBO Nº</div><div class="n">${recNumero(r.numero)}</div><div class="d">Emitido em ${formatDate(r.data_emissao)}</div></div></div>
@@ -7679,18 +7695,19 @@ table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}th{text-
 <div class="card"><div class="lbl">Condição de pagamento</div><div class="val">${esc(recDescricaoPagamento(r))}</div>${parcelas ? `<table><tr><th>PARCELA</th><th>VENCIMENTO</th><th class="r">VALOR</th></tr>${parcelas.map(p => `<tr><td>${p.n}/${r.parcelas}</td><td>${formatDate(p.venc)}</td><td class="r">${fmtBRL(p.valor)}</td></tr>`).join('')}</table>` : ''}</div>
 <p class="txt">Recebemos de <b>${esc(r.cliente_nome)}</b> a quantia de <b>${fmtBRL(r.valor)}</b> (${esc(extenso)})${r.descricao ? ', referente a ' + esc(r.descricao) : ''}, e damos plena quitação do valor acima.</p>
 <div class="sig"><div><div class="sigimg">${assLoja}</div><div class="line">${esc(nomeExib || '')}<small>Assinatura de quem recebeu</small></div></div>
-<div><div class="sigimg">${assCli}</div><div class="line">${esc(r.cliente_nome)}<small>${r.assinado_em ? 'Assinou em ' + new Date(r.assinado_em).toLocaleDateString('pt-BR') + ' às ' + new Date(r.assinado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' na tela' : 'Assinatura do cliente (opcional)'}</small></div></div></div>
-${sit}<div class="ver"><b>Recibo nº ${recNumero(r.numero)}</b> · Código <b>${esc(r.codigo)}</b> · Emitido eletronicamente em ${quando} (horário de Brasília)<br>Código de autenticidade (SHA-256): <span class="mono">${esc(r.hash || '')}</span><br>É a “impressão digital” deste recibo: se qualquer dado for alterado, o código deixa de bater.</div></body></html>`;
+<div><div class="sigimg">${assCli}</div><div class="line">${esc(r.cliente_nome)}<small>${r.assinado_em ? 'Assinou em ' + new Date(r.assinado_em).toLocaleDateString('pt-BR') + ' às ' + new Date(r.assinado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + (r.assinado_via === 'link' ? ' pelo link' + (r.assinado_ip ? ' · IP ' + esc(r.assinado_ip) : '') : ' na tela') : 'Assinatura do cliente (opcional)'}</small></div></div></div>
+${sit}<div class="ver"><b>Recibo nº ${recNumero(r.numero)}</b> · Código <b>${esc(r.codigo)}</b> · Emitido eletronicamente em ${quando} (horário de Brasília)<br>Código de autenticidade (SHA-256): <span class="mono">${esc(r.hash || '')}</span><br>É a “impressão digital” deste recibo: se qualquer dado for alterado, o código deixa de bater.<br>Confira em <b>${esc(location.host)}/recibo</b> com o código <b>${esc(r.codigo)}</b> ou leia o QR code.${imgs.qr ? `<img class="qr" src="${imgs.qr}">` : ''}</div></body></html>`;
 }
 async function abrirReciboVer(id) {
   const r = recibosLista.find(x => x.id === id) || (reciboAtual && reciboAtual.id === id ? reciboAtual : null); if (!r) return;
   reciboAtual = r;
   const em = await garantirEmissor();
-  const [logo, loja, cliente] = await Promise.all([recImagemDataUrl(em && em.logo_path), recImagemDataUrl(em && em.assinatura_path), recImagemDataUrl(r.assinatura_cliente_path)]);
+  const [logo, loja, cliente, qr] = await Promise.all([recImagemDataUrl(em && em.logo_path), recImagemDataUrl(em && em.assinatura_path), recImagemDataUrl(r.assinatura_cliente_path), recQr(r)]);
   document.getElementById('rv-titulo').textContent = 'Recibo nº ' + recNumero(r.numero);
-  document.getElementById('rv-frame').srcdoc = reciboHtml(r, { logo, loja, cliente });
+  document.getElementById('rv-frame').srcdoc = reciboHtml(r, { logo, loja, cliente, qr });
   document.getElementById('rv-wa').style.display = temRecurso('whatsapp') && r.status === 'emitido' ? '' : 'none';
   document.getElementById('rv-assinar').style.display = r.status === 'emitido' && !r.assinatura_cliente_path ? '' : 'none';
+  document.getElementById('rv-link').style.display = r.status === 'emitido' && !r.assinatura_cliente_path ? '' : 'none';
   document.getElementById('recibo-ver-overlay').classList.add('open');
 }
 function fecharReciboVer() { document.getElementById('recibo-ver-overlay').classList.remove('open'); }
@@ -7704,11 +7721,11 @@ async function reciboBaixarImagem() {
 // Recibo como arquivo (imagem ou PDF): desenha o recibo num iframe fora da tela e fotografa com html2canvas.
 async function recCanvas(r) {
   const em = await garantirEmissor();
-  const [logo, loja, cliente] = await Promise.all([recImagemDataUrl(em && em.logo_path), recImagemDataUrl(em && em.assinatura_path), recImagemDataUrl(r.assinatura_cliente_path)]);
+  const [logo, loja, cliente, qr] = await Promise.all([recImagemDataUrl(em && em.logo_path), recImagemDataUrl(em && em.assinatura_path), recImagemDataUrl(r.assinatura_cliente_path), recQr(r)]);
   const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;';
   document.body.appendChild(fr);
   try {
-    await new Promise(res => { fr.onload = res; fr.srcdoc = reciboHtml(r, { logo, loja, cliente }); });
+    await new Promise(res => { fr.onload = res; fr.srcdoc = reciboHtml(r, { logo, loja, cliente, qr }); });
     const doc = fr.contentDocument;
     await Promise.all([...doc.images].map(i => (i.decode ? i.decode().catch(() => {}) : null)));
     const altura = Math.max(1123, doc.body.scrollHeight);
@@ -7784,6 +7801,27 @@ async function reciboEnviarWa() {
   document.getElementById('wa-texto').value = texto; document.getElementById('wa-nome').value = r.cliente_nome; waContar();
   waAnexoRecibo = r; document.getElementById('wa-anexo').value = 'imagem'; document.getElementById('wa-anexo-rot').textContent = 'Anexo: recibo nº ' + recNumero(r.numero);
   document.getElementById('wa-anexo-box').style.display = '';
+}
+// Link para o cliente assinar no próprio celular (página /recibo, válido por 7 dias, uso único).
+async function reciboLinkAssinatura() {
+  const r = reciboAtual; if (!r) return;
+  const { data: token, error } = await sb.rpc('recibo_gerar_link', { p_recibo: r.id });
+  if (error) { alert('Não foi possível gerar o link: ' + error.message); return; }
+  const url = location.origin + '/recibo?t=' + token;
+  const e = r.emissor || {}, nome = (e.tipo === 'pj' && e.nome_fantasia) ? e.nome_fantasia : e.nome;
+  const texto = 'Olá, ' + r.cliente_nome.split(' ')[0] + '! Para assinar o recibo nº ' + recNumero(r.numero) + ' de ' + nome + ' (' + fmtBRL(r.valor) + '), toque no link e assine com o dedo: ' + url + ' (vale por 7 dias).';
+  if (temRecurso('whatsapp')) {
+    if (!waEstado) await carregarWhatsapp();
+    const c = waEstado && waEstado.conta;
+    if (c && c.status === 'conectada') {
+      fecharReciboVer();
+      abrirNovaMensagemWa();
+      document.getElementById('wa-texto').value = texto; document.getElementById('wa-nome').value = r.cliente_nome; waContar();
+      return;
+    }
+  }
+  try { await navigator.clipboard.writeText(url); } catch (_) { /* sem permissão: o endereço aparece abaixo */ }
+  prompt('Link de assinatura (já copiado). Envie ao cliente; vale por 7 dias:', url);
 }
 function reciboAbrirAssinatura() {
   const r = reciboAtual; if (!r) return;
