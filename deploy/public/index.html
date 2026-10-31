@@ -1164,6 +1164,9 @@
   .rn-chave-sw::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:transform .2s; }
   .rn-chave input:checked ~ .rn-chave-sw { background:#2ea36b; } .rn-chave input:checked ~ .rn-chave-sw::after { transform:translateX(20px); }
   .rn-chave:has(input:checked) { border-color:#2ea36b; background:rgba(46,163,107,.12); }
+  /* Agenda: horário em destaque e faixa lateral na cor do tipo */
+  .ag-item { box-shadow: inset 5px 0 0 var(--c, var(--accent-ink)); padding-left:18px; }
+  .ag-item .ag-hora { min-width:64px; text-align:center; padding:6px 8px; border-radius:10px; font-size:16px; font-variant-numeric:tabular-nums; background:rgba(127,127,127,.14); background:color-mix(in srgb, var(--c, #64748B) 22%, transparent); }
   /* Faixa de resumo (Layout v7, versão própria): usa a cor de marca do tema escolhido (--navy) e o destaque (--green) */
   .faixa-resumo { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px 22px; padding:12px 20px 11px; margin:2px 0 14px; border-radius:18px; color:#fff;
     background-color:var(--navy); background-image:linear-gradient(135deg, rgba(255,255,255,.10), rgba(0,0,0,.20)); box-shadow:0 6px 18px rgba(0,0,0,.22); }
@@ -1415,6 +1418,7 @@
             </div>
           </div>
           <div class="pessoa-filter" id="pessoa-filter-agenda" style="margin-top:14px;"></div>
+          <div id="agenda-faixa" style="margin-top:14px;"></div>
           <input type="text" id="search-agenda" placeholder="Buscar..." style="margin-top:10px;width:100%;max-width:360px;padding:9px 12px;border-radius:10px;border:1px solid var(--border-light);" oninput="renderAgenda()">
           <label class="chk" style="margin-top:10px;"><input type="checkbox" id="show-concluidos-agenda" autocomplete="off" onchange="renderAgenda()"> Mostrar concluídos</label>
           <div id="agenda-list" class="calendario-list"></div>
@@ -6056,8 +6060,29 @@ function datasHojeHtml() {
   const hoje = datasDoDia(todayStr());
   return hoje.length ? `<div class="agenda-datas-hoje">🎉 <b>Hoje:</b> ${hoje.map(f => escapeHtml(f.nome)).join(' · ')}</div>` : '';
 }
+// Faixa de resumo da Agenda (só o que a tela não mostra em outro lugar): quantos hoje, nos próximos 7 dias, atrasados e a barra por tipo.
+function renderFaixaAgenda() {
+  const box = document.getElementById('agenda-faixa'); if (!box) return;
+  const hoje = todayStr(), ate7 = new Date(hoje + 'T12:00:00'); ate7.setDate(ate7.getDate() + 7);
+  const lim = ate7.getFullYear() + '-' + String(ate7.getMonth() + 1).padStart(2, '0') + '-' + String(ate7.getDate()).padStart(2, '0');
+  const pend = agendamentos.filter(a => !a.feito && (pessoaFiltro === 'Todos' || a.responsavel === pessoaFiltro || (a.participantes || []).includes(pessoaFiltro)));
+  const nHoje = pend.filter(a => a.data === hoje).length;
+  const nSemana = pend.filter(a => a.data > hoje && a.data <= lim).length;
+  const nAtras = pend.filter(a => a.data < hoje).length;
+  const futuros = pend.filter(a => a.data >= hoje);
+  const partes = TIPOS_AGENDAMENTO.map(t => ({ t, n: futuros.filter(a => a.tipo === t.id).length })).filter(p => p.n);
+  const total = partes.reduce((s2, p) => s2 + p.n, 0);
+  if (!pend.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="faixa-resumo">
+    <div class="fr-k ${nHoje ? 'dest' : ''}"><b>${nHoje}</b><span>Hoje</span></div>
+    <div class="fr-k"><b>${nSemana}</b><span>Próximos 7 dias</span></div>
+    <div class="fr-k ${nAtras ? 'alerta' : ''}"><b>${nAtras}</b><span>Atrasados</span></div>
+    ${total ? `<div class="fr-barra">${partes.map(p => `<i style="flex:${p.n};background:${corDoTipo(p.t.id)}" title="${escapeHtml(p.t.nome)} · ${p.n}"></i>`).join('')}</div>
+    <div class="fr-leg">${partes.map(p => `<span><i style="background:${corDoTipo(p.t.id)}"></i>${p.t.icone} ${escapeHtml(p.t.nome)} <b>${p.n}</b></span>`).join('')}</div>` : ''}</div>`;
+}
 function renderAgenda() {
   renderPessoaFiltro('pessoa-filter-agenda', 'setPessoaFiltroAgenda');
+  renderFaixaAgenda();
   const search = (document.getElementById('search-agenda').value||'').toLowerCase();
   const showDone = document.getElementById('show-concluidos-agenda').checked;
   let list = agendamentos.filter(a => {
