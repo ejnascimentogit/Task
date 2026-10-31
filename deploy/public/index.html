@@ -1172,6 +1172,20 @@
   .rec-tab td:first-child { box-shadow: inset 5px 0 0 var(--c, var(--accent-ink)); }
   .rec-tab .rec-valor { text-align:right; white-space:nowrap; font-weight:800; font-size:16px; font-variant-numeric:tabular-nums; }
   .rec-chip { display:inline-block; white-space:nowrap; padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:600; border:1px solid var(--c); }
+  .cli-tab tbody tr td:first-child { box-shadow: inset 4px 0 0 var(--e, var(--accent-ink)); }
+  .cli-nome { display:inline-flex; align-items:center; gap:10px; font-weight:600; }
+  .cli-av { width:30px; height:30px; border-radius:50%; flex:none; display:inline-grid; place-items:center; font-style:normal; font-weight:800; font-size:13px; border:2px solid var(--e, var(--accent-ink)); color:var(--text-main); }
+  .prazo-cel { min-width:150px; font-size:11.5px; line-height:1.35; }
+  .prazo-cel b { display:block; font-weight:700; }
+  .prazo-cel .ok { color:#15803D; } .prazo-cel .atencao { color:#B45309; } .prazo-cel .atrasado { color:#B91C1C; } .prazo-cel .neutro { color:var(--gray-text); font-weight:600; }
+  :root[data-theme="dark"] .prazo-cel .ok { color:#34D399; } :root[data-theme="dark"] .prazo-cel .atencao { color:#FBBF24; } :root[data-theme="dark"] .prazo-cel .atrasado { color:#F87171; }
+  .prazo-trilho { height:4px; border-radius:99px; background:rgba(128,128,128,.22); margin-top:3px; overflow:hidden; max-width:130px; }
+  .prazo-trilho i { display:block; height:100%; border-radius:99px; }
+  .pend-par { display:inline-flex; gap:6px; }
+  .pend-n { min-width:26px; text-align:center; padding:3px 7px; border-radius:8px; font-weight:800; font-size:12.5px; font-variant-numeric:tabular-nums; }
+  .pend-n.deles { background:rgba(245,158,11,.18); color:#B45309; } .pend-n.nos { background:rgba(59,130,246,.16); color:#1D4ED8; }
+  :root[data-theme="dark"] .pend-n.deles { color:#FBBF24; } :root[data-theme="dark"] .pend-n.nos { color:#93C5FD; }
+  .pend-n.zero { opacity:.4; }
   .faixa-resumo { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px 22px; padding:12px 20px 11px; margin:2px 0 14px; border-radius:18px; color:#fff;
     background-color:var(--navy); background-image:linear-gradient(135deg, rgba(255,255,255,.10), rgba(0,0,0,.20)); box-shadow:0 6px 18px rgba(0,0,0,.22); }
   .faixa-resumo .fr-k b { display:block; font-size:24px; font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; }
@@ -1365,7 +1379,7 @@
         </div>
         <div id="entidades-faixa"></div>
         <div class="table-wrap" id="entidades-list-wrap">
-        <table class="data-table">
+        <table class="data-table cli-tab">
           <thead><tr>
             <th class="sortable" data-campo="codigo" onclick="sortEntidades('codigo')">Código</th>
             <th class="sortable" onclick="sortEntidades('nome')">Nome</th>
@@ -4636,8 +4650,14 @@ function prazoBadgeHtml(c) {
 }
 function prazoTd(c) {
   if (!activeWorkspace || activeWorkspace.perfilTipo !== 'projeto') return '';
-  const i = prazoEntregaInfo(c);
-  return `<td>${i ? `<span class="prazo-badge ${i.classe}">${i.texto}</span>` : '—'}</td>`;
+  const i = prazoEntregaInfo(c), ativo = (c.fase || 'implantacao') === 'implantacao';
+  const dias = c.inicio && ativo ? Math.max(0, daysBetween(c.inicio, todayStr())) : null;
+  const l1 = dias !== null ? dias + (dias === 1 ? ' dia' : ' dias') + ' de implantação' : '';
+  if (!i) return `<td>${l1 ? `<div class="prazo-cel"><b class="neutro">${l1}</b></div>` : '—'}</td>`;
+  const cor = { ok: '#10B981', atencao: '#F59E0B', atrasado: '#DC2626' }[i.classe];
+  const n = Math.abs(i.restantes), l2 = i.restantes < 0 ? 'Término há ' + n + (n === 1 ? ' dia' : ' dias') : i.restantes === 0 ? 'Término hoje' : 'Término em ' + n + (n === 1 ? ' dia' : ' dias');
+  const pct = i.classe === 'atrasado' ? 100 : Math.min(100, Math.round(i.decorridos / i.total * 100));
+  return `<td><div class="prazo-cel"><b class="${i.classe}">${l1}</b><b class="${i.classe}">${l2}</b><div class="prazo-trilho"><i style="width:${pct}%;background:${cor}"></i></div></div></td>`;
 }
 function renderPrazosIndicadores() {
   const wrap = document.getElementById('ind-prazos-wrap');
@@ -5586,15 +5606,15 @@ function renderEntidades() {
   renderFaixaEntidades(list);
   if (entidadesView === 'lista') {
     document.getElementById('entidades-tbody').innerHTML = list.map(c => `
-      <tr onclick="openModal('${c.id}')">
+      <tr onclick="openModal('${c.id}')" style="--e:${campoCliente('etapa') ? stageOf(c.etapa).cor : 'var(--accent-ink)'}">
         ${campoCliente('codigo') ? `<td>${escapeHtml(c.codigo)}</td>` : ''}
-        <td>${escapeHtml(c.nome)}</td>
+        <td><span class="cli-nome"><i class="cli-av">${inicialDe(c.nome)}</i>${escapeHtml(c.nome)}</span></td>
         ${campoCliente('fase') ? `<td><span class="fase-pill ${c.fase||'implantacao'}">${(c.fase||'implantacao')==='base'?'Base':'Ativo'}</span></td>` : ''}
         ${campoCliente('etapa') ? `<td><span class="stage-badge" style="background:${stageOf(c.etapa).cor}">${escapeHtml(stageOf(c.etapa).nome)}</span></td>` : ''}
         ${campoCliente('saude') ? `<td><span class="saude-badge ${c.saude}"><span class="dot"></span>${c.saude}</span></td>` : ''}
         ${campoCliente('responsavel') ? `<td>${escapeHtml(c.responsavel)}</td>` : ''}
         ${campoCliente('analista') ? `<td>${escapeHtml(c.analista||'—')}</td>` : ''}${prazoTd(c)}
-        ${campoCliente('pendencias') ? `<td>${pendenciasAbertasDe(c).length || '—'}</td>` : ''}
+        ${campoCliente('pendencias') ? (() => { const ab = pendenciasAbertasDe(c), d = ab.filter(p => p.responsavel === 'entidade').length, nn = ab.length - d; return `<td><span class="pend-par"><span class="pend-n deles ${d ? '' : 'zero'}" title="Do lado de ${escapeHtml(entidadeLabel().toLowerCase())}: ${d}">${d}</span><span class="pend-n nos ${nn ? '' : 'zero'}" title="Do nosso lado: ${nn}">${nn}</span></span></td>`; })() : ''}
       </tr>`).join('') || `<tr><td colspan="9"><div class="empty-state"><div class="big">📭</div><h3>Nada por aqui</h3></div></td></tr>`;
   } else {
     document.getElementById('entidades-cards-wrap').innerHTML = list.map(c => `
