@@ -916,7 +916,7 @@
   #view-indicadores .resumo-box > h2 { margin-bottom: -6px; }
   #view-indicadores .resumo-box > .pessoa-filter { width: fit-content; margin-top: 0 !important; }
   #view-indicadores .ind-bloco { margin-top: 0; min-width: 0; }
-  #ind-b-fila { grid-column: 1 / -1; }
+  #ind-b-fila, #ind-faixa { grid-column: 1 / -1; }
   #ind-b-criadas { grid-column: 1 / span 8; }
   #view-indicadores .pizza-row { display: contents; }
   #view-indicadores .pizza-row > .ind-bloco:first-child { grid-column: 9 / span 4; }
@@ -1175,6 +1175,21 @@
   .faixa-resumo .fr-leg { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:3px 16px; font-size:12px; color:rgba(255,255,255,.85); }
   .faixa-resumo .fr-leg span { display:inline-flex; align-items:center; gap:6px; } .faixa-resumo .fr-leg i { width:9px; height:9px; border-radius:50%; } .faixa-resumo .fr-leg b { color:#fff; }
   @media (max-width: 860px) { .faixa-resumo { padding:10px 14px; gap:6px 14px; } .faixa-resumo .fr-k b { font-size:20px; } }
+  .faixa-resumo.unica { grid-template-columns:1fr; gap:12px; }
+  .faixa-resumo.unica .fr-topo { display:flex; gap:34px; flex-wrap:wrap; }
+  .faixa-resumo.unica .fr-topo .fr-k b { font-size:28px; }
+  .fr-cartoes { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+  .fr-c { position:relative; overflow:hidden; padding:10px 12px 10px 16px; border-radius:12px; background:rgba(255,255,255,.08); }
+  .fr-c::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--cc, #64748B); }
+  @media (max-width: 860px) { .fr-cartoes { grid-template-columns:repeat(2,1fr); gap:8px; } .faixa-resumo.unica .fr-topo { gap:20px; } .faixa-resumo.unica .fr-topo .fr-k b { font-size:22px; } .fr-c b { font-size:22px; } .fr-c { padding:9px 10px 9px 14px; } }
+  .fr-c b { display:block; font-size:26px; font-weight:800; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .fr-c span { display:block; margin-top:2px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:rgba(255,255,255,.88); }
+  .fr-c small { display:block; margin-top:3px; font-size:11.5px; color:rgba(255,255,255,.68); }
+  .pizza-donut { width:120px; height:120px; } .pizza-donut::after { inset:26px; }
+  .pizza-donut .pizza-centro { position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; }
+  .pizza-donut .pizza-centro b { font-size:26px; font-weight:800; } .pizza-donut .pizza-centro small { font-size:10px; opacity:.7; margin-top:3px; }
+  .pizza-legenda > div { display:flex; align-items:center; gap:8px; padding:5px 10px; border-radius:8px; background:rgba(127,127,127,.09); }
+  .pizza-legenda > div .pizza-fim { margin-left:auto; padding-left:14px; font-weight:700; font-variant-numeric:tabular-nums; }
 </style>
 <script>try{var _c=localStorage.getItem('ws_app_tema_css');if(_c){var _s=document.createElement('style');_s.id='tema-usuario';_s.textContent=_c;document.head.appendChild(_s)}}catch(e){}</script>
 </head>
@@ -1447,10 +1462,7 @@
         <div class="resumo-box">
           <h2 class="view-titulo" style="margin-bottom:0;">Indicadores</h2>
           <div class="pessoa-filter" id="pessoa-filter-indicadores" style="margin-top:14px;"></div>
-          <div class="ind-bloco" id="ind-b-fila" style="--ind-cor:#64748B;">
-            <div class="ind-bloco-titulo">Fila atual, por coluna do quadro</div>
-            <div class="ind-cards" id="ind-cards"></div>
-          </div>
+          <div id="ind-faixa"></div>
           <div class="ind-bloco" id="ind-b-criadas" style="--ind-cor:#3B82F6;">
             <div class="ind-bloco-titulo">Criadas × Concluídas
               <span class="view-toggle" style="margin-left:auto;">
@@ -3095,7 +3107,8 @@ function gerarBucketsIndicadores(periodo) {
   return buckets;
 }
 // Donut em CSS puro: itens = [{label, valor, cor}]
-function montarPizza(containerId, itens) {
+function montarPizza(containerId, itens, opts) {
+  opts = opts || {};
   const el = document.getElementById(containerId);
   if (!el) return;
   const total = itens.reduce((soma, i) => soma + i.valor, 0);
@@ -3106,8 +3119,11 @@ function montarPizza(containerId, itens) {
     acumulado += i.valor;
     return `${i.cor} ${ini}% ${(acumulado / total) * 100}%`;
   }).join(', ');
-  const legenda = itens.map(i => `<div><span class="sw" style="background:${i.cor}"></span>${escapeHtml(i.label)} <b>${i.valor}</b> <span class="pizza-pct">(${Math.round((i.valor / total) * 100)}%)</span></div>`).join('');
-  el.innerHTML = `<div class="pizza-wrap"><div class="pizza-donut" style="background:conic-gradient(${stops});"></div><div class="pizza-legenda">${legenda}</div></div>`;
+  const legenda = itens.map(i => opts.soPct
+    ? `<div><span class="sw" style="background:${i.cor}"></span>${escapeHtml(i.label)} <span class="pizza-fim">${Math.round((i.valor / total) * 100)}%</span></div>`
+    : `<div><span class="sw" style="background:${i.cor}"></span>${escapeHtml(i.label)} <span class="pizza-fim">${i.valor} <span class="pizza-pct">(${Math.round((i.valor / total) * 100)}%)</span></span></div>`).join('');
+  const centro = opts.centro ? `<div class="pizza-centro"><b>${total}</b><small>${escapeHtml(opts.centro)}</small></div>` : '';
+  el.innerHTML = `<div class="pizza-wrap"><div class="pizza-donut" style="background:conic-gradient(${stops});">${centro}</div><div class="pizza-legenda">${legenda}</div></div>`;
 }
 const CORES_COLUNAS = ['#DC2626', '#F59E0B', '#8B5CF6', '#06B6D4', '#84CC16', '#EC4899', '#64748B'];
 const CORES_PESSOA = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4'];
@@ -3119,15 +3135,25 @@ function renderIndicadores() {
   const todas = atividades.filter(a => !a.cancelado && atividadeNoFiltroPessoa(a));
   const cols = colunasAtivas();
 
-  // Cards por coluna: contagem atual + idade média em aberto (não há histórico diário no banco, então sem "tendência" das colunas abertas).
-  document.getElementById('ind-cards').innerHTML = cols.map(col => {
-    const doCol = todas.filter(a => a.coluna === col.id);
-    const concl = col.id === 'concluida';
-    const comData = doCol.filter(a => a.criadoEm);
-    const media = !concl && comData.length ? Math.round(comData.reduce((s, a) => s + diasDesde(a.criadoEm), 0) / comData.length) : null;
-    const sub = concl ? 'total (todo o período)' : (media === null ? '' : 'idade média em aberto: ' + media + (media === 1 ? ' dia' : ' dias'));
-    return `<div class="ind-card"><div class="num">${doCol.length}</div><div class="lbl">${escapeHtml(col.nome)}</div><div class="sub">${sub}</div></div>`;
-  }).join('');
+  // Uma lista só: idade média e "há mais de 7 dias" (o total e as concluídas de hoje já estão nos cartões do topo) + um cartão por coluna do quadro.
+  const raiasAbertas = cols.filter(c => c.id !== 'concluida');
+  const emAberto = todas.filter(a => a.coluna !== 'concluida');
+  const comData = emAberto.filter(a => a.criadoEm);
+  const idadeGeral = comData.length ? Math.round(comData.reduce((s, a) => s + diasDesde(a.criadoEm), 0) / comData.length) : null;
+  const velhas = comData.filter(a => diasDesde(a.criadoEm) >= 8).length;
+  const cartaoCol = (col, i) => {
+    const doCol = todas.filter(a => a.coluna === col.id), concl = col.id === 'concluida';
+    const cd = doCol.filter(a => a.criadoEm);
+    const media = !concl && cd.length ? Math.round(cd.reduce((s, a) => s + diasDesde(a.criadoEm), 0) / cd.length) : null;
+    const sub = concl ? 'total (todo o período)' : (media === null ? '&nbsp;' : 'idade média: ' + media + (media === 1 ? ' dia' : ' dias'));
+    return `<div class="fr-c" style="--cc:${concl ? '#22C55E' : corDaRaia(col, i)}"><b>${doCol.length}</b><span>${escapeHtml(col.nome)}</span><small>${sub}</small></div>`;
+  };
+  document.getElementById('ind-faixa').innerHTML = `<div class="faixa-resumo unica">
+    <div class="fr-topo">
+      <div class="fr-k"><b>${idadeGeral === null ? '—' : idadeGeral + (idadeGeral === 1 ? ' dia' : ' dias')}</b><span>Idade média em aberto</span></div>
+      <div class="fr-k ${velhas ? 'alerta' : ''}"><b>${velhas}</b><span>Há mais de 7 dias</span></div>
+    </div>
+    <div class="fr-cartoes">${raiasAbertas.map((c, i) => cartaoCol(c, i)).join('')}${cartaoCol(cols.find(c => c.id === 'concluida'), 0)}</div></div>`;
 
   // Barras Criadas × Concluídas: essas duas têm data confiável (created_at e concluido_em).
   const buckets = gerarBucketsIndicadores(indicadoresPeriodo);
@@ -3152,7 +3178,7 @@ function renderIndicadores() {
 
   // Pizzas
   const abertas = cols.filter(c => c.id !== 'concluida');
-  montarPizza('pizza-fila', abertas.map((c, i) => ({ label: c.nome, valor: todas.filter(a => a.coluna === c.id).length, cor: CORES_COLUNAS[i % CORES_COLUNAS.length] })));
+  montarPizza('pizza-fila', abertas.map((c, i) => ({ label: c.nome, valor: todas.filter(a => a.coluna === c.id).length, cor: corDaRaia(c, i) })), { centro: 'em aberto', soPct: true });
   const wrapPessoa = document.getElementById('pizza-pessoa-wrap');
   const mostrarPessoa = !solo && pessoaFiltro === 'Todos';
   wrapPessoa.style.display = mostrarPessoa ? '' : 'none';
@@ -6297,15 +6323,11 @@ function renderFaixaAtividades() {
   const box = document.getElementById('ativ-faixa'); if (!box) return;
   const doFiltro = a => pessoaFiltro === 'Todos' || a.responsavel === pessoaFiltro || (a.participantes || []).includes(pessoaFiltro);
   const abertas = atividades.filter(a => a.coluna !== 'concluida' && !a.cancelado && doFiltro(a));
-  const hoje = todayStr();
-  const feitasHoje = atividades.filter(a => a.coluna === 'concluida' && !a.cancelado && a.concluidoEm === hoje && doFiltro(a)).length;
   const velhas = abertas.filter(a => a.criadoEm && diasDesde(a.criadoEm) >= 8).length;
   const urgentes = abertas.filter(a => a.label === 'red' || a.label === 'orange').length;
   const raias = colunasAtivas().filter(c => c.id !== 'concluida');
   const partes = raias.map((c, i) => ({ nome: c.nome, cor: corDaRaia(c, i), n: abertas.filter(a => a.coluna === c.id).length }));
   box.innerHTML = `<div class="faixa-resumo">
-    <div class="fr-k dest"><b>${abertas.length}</b><span>Em aberto</span></div>
-    <div class="fr-k"><b>${feitasHoje}</b><span>Concluídas hoje</span></div>
     <div class="fr-k ${velhas ? 'alerta' : ''}"><b>${velhas}</b><span>Há mais de 7 dias</span></div>
     <div class="fr-k ${urgentes ? 'alerta' : ''}"><b>${urgentes}</b><span>Crítico ou urgente</span></div>
     <div class="fr-barra">${partes.filter(p => p.n).map(p => `<i style="flex:${p.n};background:${p.cor}" title="${escapeHtml(p.nome)} · ${p.n}"></i>`).join('')}</div>
