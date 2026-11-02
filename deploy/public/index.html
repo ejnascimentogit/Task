@@ -4218,21 +4218,36 @@ async function carregarWhatsapp() {
 // FULL CONTROL (TV): só funciona no aplicativo Android, que traz o motor que fala com a TV pela rede Wi-Fi.
 // ══════════════════════════════════════════════════════════════
 const FC_APK_URL = 'https://github.com/ejnascimentogit/Task/releases/tag/taskfull-android';
-const fc = { plugin: null, ligado: false, pronto: false, pareado: null, ocupado: false, aviso: '', cor: '', pedeCodigo: false, procura: null, log: [] };
+const fc = { plugin: null, ligado: false, pronto: false, pareado: null, ocupado: false, aviso: '', cor: '', pedeCodigo: false, procura: null, motor: '', log: [] };
 function fcNativo() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
 function fcIp() { try { return localStorage.getItem('fc_ip') || ''; } catch (_) { return ''; } }
 function fcAviso(txt, cor) { fc.aviso = txt || ''; fc.cor = cor || ''; fcDesenhar(); }
-function fcEnviar(ev, dados) { if (!fc.plugin) return; fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)')); }
-function fcLigarPonte() {
-  if (fc.ligado || !fcNativo()) return;
+function fcEnviar(ev, dados) { if (!fc.plugin) return fcAviso('O motor da TV ainda não foi iniciado.', 'var(--red)'); fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => { fc.ocupado = false; fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)'); }); }
+function fcMotor(txt) { fc.motor = txt; if (activeTab === 'fullcontrol') fcDesenhar(); }
+function fcErro(e) { return (e && (e.message || e.errorMessage || e.code)) ? String(e.message || e.errorMessage || e.code) : JSON.stringify(e); }
+function fcLigarPonte(forcar) {
+  if ((fc.ligado && !forcar) || !fcNativo()) return;
   fc.ligado = true;
-  fc.plugin = window.Capacitor.registerPlugin('Nodejs');
-  fc.plugin.addListener('message', e => { try { fcTratar(e.eventName, e.args); } catch (x) { console.error(x); } });
-  const ok = () => { fc.pronto = true; fcEnviar('tv:status'); fcDesenhar(); };
-  fc.plugin.addListener('ready', ok);
-  fc.plugin.isReady().then(r => { if (r && r.ready) ok(); }, () => {});
-  setTimeout(() => { if (!fc.pronto && activeTab === 'fullcontrol') fcAviso('O motor da TV não iniciou. Feche e abra o aplicativo.', 'var(--red)'); }, 15000);
+  const C = window.Capacitor;
+  if (C.isPluginAvailable && !C.isPluginAvailable('Nodejs')) { fcMotor('O aplicativo não tem o plugin do motor (Nodejs). Instale o APK mais recente.'); return; }
+  if (!fc.plugin) {
+    fc.plugin = C.registerPlugin('Nodejs');
+    fc.plugin.addListener('message', e => { try { fcTratar(e.eventName, e.args); } catch (x) { console.error(x); } });
+    fc.plugin.addListener('ready', () => fcPronto());
+  }
+  fcMotor('Iniciando o motor…');
+  fc.plugin.isReady().then(r => {
+    if (r && r.ready) return fcPronto();
+    return fc.plugin.start({}).then(() => fcMotor('Motor iniciado, aguardando ficar pronto…'), e => {
+      const m = fcErro(e);
+      if (/already|running/i.test(m)) fcMotor('Motor já iniciado, aguardando ficar pronto…');
+      else fcMotor('O motor não conseguiu iniciar: ' + m);
+    });
+  }, e => fcMotor('Não consegui falar com o motor: ' + fcErro(e)));
+  setTimeout(() => { if (!fc.pronto) fcMotor((fc.motor || '') + ' (passaram 20 s e ele não ficou pronto)'); }, 20000);
 }
+function fcPronto() { fc.pronto = true; fc.motor = ''; fcEnviar('tv:status'); fcDesenhar(); }
+
 function fcTratar(nome, a) {
   const d = (a && a[0]) || {};
   if (nome === 'log') { fc.log.unshift((d.t || '') + ' ' + (d.msg || '')); fc.log.length = Math.min(fc.log.length, 30); if (activeTab === 'fullcontrol') fcDesenhar(); return; }
@@ -4291,7 +4306,7 @@ function fcDesenhar() {
   fcLigarPonte();
   const ipAtual = document.getElementById('fc-ip'); if (ipAtual) { try { localStorage.setItem('fc_ip', ipAtual.value.trim()); } catch (_) {} }
   const codAtual = document.getElementById('fc-cod'); if (codAtual) fc.codTxt = codAtual.value;
-  const off = !fc.pronto || fc.ocupado ? 'disabled' : '';
+  const off = fc.ocupado ? 'disabled' : '';
   const pareado = fc.pareado === true;
   box.innerHTML = `
     <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
@@ -4300,6 +4315,7 @@ function fcDesenhar() {
         <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pronto ? 'motor pronto' : 'iniciando…'}</span>
         <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pareado === null ? '…' : (pareado ? 'pareada' : 'sem pareamento')}</span>
       </div>
+      ${!fc.pronto ? `<div style="margin-bottom:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--orange);font-size:13px;">${escapeHtml(fc.motor || 'Iniciando o motor…')}<br><button class="btn btn-sm" style="margin-top:6px;" onclick="fcLigarPonte(true)">Tentar iniciar de novo</button></div>` : ''}
       <label style="font-size:12px;color:var(--gray-text);">IP da TV na rede</label>
       <input type="text" id="fc-ip" inputmode="decimal" placeholder="ex.: 192.168.1.212" value="${escapeHtml(fcIp())}" style="width:100%;max-width:260px;display:block;margin-bottom:10px;">
       <button class="btn btn-sm" ${off} onclick="fcProcurar()" style="margin-bottom:10px;">🔍 Procurar a TV na rede</button>

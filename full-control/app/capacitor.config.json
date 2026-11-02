@@ -4,9 +4,15 @@
   "webDir": "www",
   "server": {
     "url": "https://taskfull.ejnascimento1.workers.dev",
-    "allowNavigation": ["taskfull.ejnascimento1.workers.dev", "*.supabase.co"]
+    "allowNavigation": [
+      "taskfull.ejnascimento1.workers.dev",
+      "*.supabase.co"
+    ]
   },
   "plugins": {
-    "Nodejs": { "nodeDir": "nodejs", "startMode": "auto" }
+    "Nodejs": {
+      "nodeDir": "nodejs",
+      "startMode": "manual"
+    }
   }
 }
