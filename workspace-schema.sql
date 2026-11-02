@@ -1847,3 +1847,5 @@ revoke all on function public.recibo_link_assinar(text, text) from public;
 revoke all on function public.recibo_verificar(text) from public;
 grant execute on function public.recibo_gerar_link(uuid) to authenticated;
 grant execute on function public.recibo_link_dados(text), public.recibo_link_assinar(text, text), public.recibo_verificar(text) to anon, authenticated;
+
+-- Full Control (2026-11-02): schema `casa`, funções `casa_*` e recurso `full_control`: ver full-control/sql/001-tabelas.sql, 002-funcoes.sql e 003-recurso.sql (a carga inicial da casa não fica no repositório).
