@@ -1367,6 +1367,7 @@
       <div id="auth-user-saudacao" style="font-size:12px; color:var(--on-navy); opacity:.7; padding:0 4px;"></div>
       <button class="btn-sidebar" id="tab-configuracoes" onclick="setTab('configuracoes')">⚙️ Configurações</button>
       <button class="btn-sidebar" id="tab-ajuda" onclick="setTab('ajuda')">❓ Ajuda</button>
+      <button class="btn-sidebar" id="btn-baixar-app" onclick="fcAbrirDownload()">📲 Baixar o app Android</button>
 
       <div class="aparencia-box">
         <div class="aparencia-label" id="aparencia-toggle-header" onclick="toggleAparenciaBox()">
@@ -4316,25 +4317,38 @@ function fcProcurar() { fc.ocupado = true; fc.procura = null; fcAviso('Procurand
 function fcEscolherIp(ip) { fcGuardarIp(ip); fc.procura = null; fcAviso('IP escolhido: ' + ip, 'var(--green)'); }
 function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
 function fcEsquecer() { if (!confirm('Esquecer o pareamento desta TV neste celular? Será preciso parear de novo.')) return; fcEnviar('tv:esquecer'); fc.pareado = false; fcAviso('Pareamento apagado.', ''); setTimeout(() => fcEnviar('tv:status'), 400); }
+function fcBaixarApk() {
+  if (fcNativo()) window.open(FC_APK_URL, '_blank'); // dentro do app, abre no navegador do celular, que baixa o arquivo
+  else window.location.href = FC_APK_URL;
+  const x = document.getElementById('fc-dl-overlay'); if (x) setTimeout(() => x.remove(), 800);
+}
 function fcAbrirDownload() {
   if (document.getElementById('fc-dl-overlay')) return;
+  const nativo = fcNativo();
   const o = document.createElement('div');
   o.id = 'fc-dl-overlay';
   o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
   o.onclick = e => { if (e.target === o) o.remove(); };
   o.innerHTML = `<div style="background:var(--card-bg,var(--white,#fff));color:var(--text-main);border-radius:18px;max-width:420px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
-    <h3 style="margin:0 0 8px;">Download</h3>
+    <h3 style="margin:0 0 8px;">${nativo ? 'Baixar nova versão do app' : 'Download'}</h3>
     <div class="resumo-sub">Task Full para Android (com o Full Control). Arquivo <b>taskfull.apk</b>, uns 260 MB.</div>
+    <div class="resumo-sub" id="fc-dl-info" style="margin-top:6px;">Verificando a versão publicada…</div>
+    ${nativo ? '<div class="resumo-sub" style="margin-top:6px;">As telas do Task Full já atualizam sozinhas. Baixe o aplicativo só quando a novidade mexer no próprio app (por exemplo, o motor da TV).</div>' : ''}
     <ol style="margin:12px 0;padding-left:20px;font-size:14px;line-height:1.6;">
       <li>Toque em <b>Baixar</b> e aguarde o arquivo.</li>
       <li>Abra o arquivo e permita "instalar de fontes desconhecidas" quando o Android pedir.</li>
-      <li>Abra o Task Full e entre com a sua conta.</li>
+      <li>${nativo ? 'Instale por cima do atual (seus dados e o pareamento da TV ficam).' : 'Abra o Task Full e entre com a sua conta.'}</li>
     </ol>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn" onclick="document.getElementById('fc-dl-overlay').remove()">Fechar</button>
-      <a class="btn btn-primary" href="${FC_APK_URL}" download="taskfull.apk" onclick="setTimeout(()=>{const x=document.getElementById('fc-dl-overlay'); if(x) x.remove();},800)">Baixar</a>
+      <button class="btn btn-primary" onclick="fcBaixarApk()">Baixar</button>
     </div></div>`;
   document.body.appendChild(o);
+  fetch('https://api.github.com/repos/ejnascimentogit/Task/releases/tags/taskfull-android').then(r => r.ok ? r.json() : Promise.reject()).then(j => {
+    const a = (j.assets || []).find(x => /\.apk$/.test(x.name));
+    const el = document.getElementById('fc-dl-info');
+    if (el) el.textContent = a ? 'Última versão publicada em ' + new Date(a.updated_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + '.' : '';
+  }).catch(() => { const el = document.getElementById('fc-dl-info'); if (el) el.textContent = ''; });
 }
 function fcDesenhar() {
   const box = document.getElementById('fc-corpo'); if (!box) return;
@@ -4377,6 +4391,7 @@ function fcDesenhar() {
         ${pareado ? '<button class="btn btn-sm" onclick="fcEsquecer()">Esquecer pareamento</button>' : ''}
       </div>
       ${fc.log.length ? `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;">Registro</summary><pre style="font-size:11px;white-space:pre-wrap;">${escapeHtml(fc.log.join('\n'))}</pre></details>` : ''}
+      <button class="btn btn-sm" style="margin-top:12px;" onclick="fcAbrirDownload()">📲 Baixar nova versão do app</button>
       <div class="resumo-sub" style="margin-top:12px;">Funciona com o celular na mesma rede Wi-Fi da TV. Controlar de fora de casa: em breve.</div>
     </div>`;
 }
