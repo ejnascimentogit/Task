@@ -4225,25 +4225,34 @@ function fcAviso(txt, cor) { fc.aviso = txt || ''; fc.cor = cor || ''; fcDesenha
 function fcEnviar(ev, dados) { if (!fc.plugin) return fcAviso('O motor da TV ainda não foi iniciado.', 'var(--red)'); fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => { fc.ocupado = false; fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)'); }); }
 function fcMotor(txt) { fc.motor = txt; if (activeTab === 'fullcontrol') fcDesenhar(); }
 function fcErro(e) { return (e && (e.message || e.errorMessage || e.code)) ? String(e.message || e.errorMessage || e.code) : JSON.stringify(e); }
+function fcAmbiente() {
+  const C = window.Capacitor || {};
+  let disp = '?';
+  try { disp = C.isPluginAvailable ? String(C.isPluginAvailable('Nodejs')) : 'sem isPluginAvailable'; } catch (e) { disp = 'erro ' + fcErro(e); }
+  let plat = '?'; try { plat = C.getPlatform ? C.getPlatform() : '?'; } catch (_) {}
+  return 'plataforma=' + plat + ', plugin Nodejs disponível=' + disp + ', registerPlugin=' + (typeof C.registerPlugin);
+}
 function fcLigarPonte(forcar) {
-  if ((fc.ligado && !forcar) || !fcNativo()) return;
+  if ((fc.ligado && !forcar && fc.plugin) || !fcNativo()) return;
   fc.ligado = true;
-  const C = window.Capacitor;
-  if (C.isPluginAvailable && !C.isPluginAvailable('Nodejs')) { fcMotor('O aplicativo não tem o plugin do motor (Nodejs). Instale o APK mais recente.'); return; }
-  if (!fc.plugin) {
-    fc.plugin = C.registerPlugin('Nodejs');
-    fc.plugin.addListener('message', e => { try { fcTratar(e.eventName, e.args); } catch (x) { console.error(x); } });
-    fc.plugin.addListener('ready', () => fcPronto());
-  }
-  fcMotor('Iniciando o motor…');
-  fc.plugin.isReady().then(r => {
-    if (r && r.ready) return fcPronto();
-    return fc.plugin.start({}).then(() => fcMotor('Motor iniciado, aguardando ficar pronto…'), e => {
-      const m = fcErro(e);
-      if (/already|running/i.test(m)) fcMotor('Motor já iniciado, aguardando ficar pronto…');
-      else fcMotor('O motor não conseguiu iniciar: ' + m);
-    });
-  }, e => fcMotor('Não consegui falar com o motor: ' + fcErro(e)));
+  try {
+    const C = window.Capacitor;
+    fcMotor('Iniciando o motor… (' + fcAmbiente() + ')');
+    if (C.isPluginAvailable && !C.isPluginAvailable('Nodejs')) { fcMotor('O aplicativo não tem o plugin do motor (Nodejs). ' + fcAmbiente()); return; }
+    if (!fc.plugin) {
+      fc.plugin = C.registerPlugin('Nodejs');
+      fc.plugin.addListener('message', e => { try { fcTratar(e.eventName, e.args); } catch (x) { console.error(x); } });
+      fc.plugin.addListener('ready', () => fcPronto());
+    }
+    fc.plugin.isReady().then(r => {
+      if (r && r.ready) return fcPronto();
+      return fc.plugin.start({}).then(() => fcMotor('Motor iniciado, aguardando ficar pronto…'), e => {
+        const m = fcErro(e);
+        if (/already|running/i.test(m)) fcMotor('Motor já iniciado, aguardando ficar pronto…');
+        else fcMotor('O motor não conseguiu iniciar: ' + m);
+      });
+    }, e => fcMotor('Não consegui falar com o motor: ' + fcErro(e)));
+  } catch (e) { fc.plugin = null; fcMotor('Erro ao ligar o motor: ' + fcErro(e) + ' | ' + fcAmbiente()); }
   setTimeout(() => { if (!fc.pronto) fcMotor((fc.motor || '') + ' (passaram 20 s e ele não ficou pronto)'); }, 20000);
 }
 function fcPronto() { fc.pronto = true; fc.motor = ''; fcEnviar('tv:status'); fcDesenhar(); }
