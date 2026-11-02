@@ -4230,7 +4230,19 @@ function fcAmbiente() {
   let disp = '?';
   try { disp = C.isPluginAvailable ? String(C.isPluginAvailable('Nodejs')) : 'sem isPluginAvailable'; } catch (e) { disp = 'erro ' + fcErro(e); }
   let plat = '?'; try { plat = C.getPlatform ? C.getPlatform() : '?'; } catch (_) {}
-  return 'plataforma=' + plat + ', plugin Nodejs disponível=' + disp + ', registerPlugin=' + (typeof C.registerPlugin);
+  return 'plataforma=' + plat + ', plugin Nodejs disponível=' + disp + ', registerPlugin=' + (typeof C.registerPlugin) + ', nativePromise=' + (typeof C.nativePromise) + ', addListener=' + (typeof C.addListener);
+}
+// Páginas carregadas de um site dentro do app não recebem registerPlugin (ele vem do pacote JS do Capacitor);
+// a ponte nativa oferece nativePromise/addListener, e com eles montamos o mesmo contrato do plugin Nodejs.
+function fcCriarPlugin(C) {
+  if (typeof C.registerPlugin === 'function') return C.registerPlugin('Nodejs');
+  if (typeof C.nativePromise !== 'function' || typeof C.addListener !== 'function') throw new Error('ponte nativa do Capacitor incompleta (nativePromise/addListener ausentes)');
+  return {
+    addListener: (ev, cb) => { C.addListener('Nodejs', ev, cb); return Promise.resolve(); },
+    isReady: () => C.nativePromise('Nodejs', 'isReady', {}),
+    start: (o) => C.nativePromise('Nodejs', 'start', o || {}),
+    send: (o) => C.nativePromise('Nodejs', 'send', o),
+  };
 }
 function fcLigarPonte(forcar) {
   if (fc.tentando || (fc.ligado && !forcar && fc.plugin) || !fcNativo()) return;
@@ -4240,7 +4252,7 @@ function fcLigarPonte(forcar) {
     fcMotor('Iniciando o motor… (' + fcAmbiente() + ')');
     if (C.isPluginAvailable && !C.isPluginAvailable('Nodejs')) { fcMotor('O aplicativo não tem o plugin do motor (Nodejs). ' + fcAmbiente()); return; }
     if (!fc.plugin) {
-      fc.plugin = C.registerPlugin('Nodejs');
+      fc.plugin = fcCriarPlugin(C);
       fc.plugin.addListener('message', e => { try { fcTratar(e.eventName, e.args); } catch (x) { console.error(x); } });
       fc.plugin.addListener('ready', () => fcPronto());
     }
