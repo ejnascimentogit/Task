@@ -1,0 +1,8 @@
+{
+  "appId": "br.com.taskfull.fullcontrol",
+  "appName": "Full Control",
+  "webDir": "www",
+  "plugins": {
+    "Nodejs": { "nodeDir": "nodejs", "startMode": "auto" }
+  }
+}

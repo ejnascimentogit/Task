@@ -1,0 +1,7 @@
+{
+  "name": "full-control-nodejs",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": { "androidtv-remote": "1.0.10" }
+}

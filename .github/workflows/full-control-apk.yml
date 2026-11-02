@@ -1,0 +1,66 @@
+# Compila o aplicativo Android do Full Control (prova de conceito) e publica o APK numa "release" para baixar no celular.
+# Dispara ao mexer em full-control/app/** na master, ou manualmente (Actions > Full Control APK > Run workflow).
+name: Full Control APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'full-control/app/**'
+      - 'full-control/executor/src/tv-logica.js'
+      - '.github/workflows/full-control-apk.yml'
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: full-control/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: full-control/app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dependências do aplicativo
+        run: npm ci
+      - name: Preparar a parte Node (copia a lógica da TV e instala a biblioteca)
+        run: node scripts/preparar.mjs
+      - name: Testes da parte Node
+        run: npm run teste
+      - name: Criar o projeto Android
+        run: npx cap add android
+      - name: Permissões de rede
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          if ! grep -q ACCESS_WIFI_STATE "$M"; then
+            sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />#' "$M"
+          fi
+          grep -n "uses-permission" "$M"
+      - name: Sincronizar o Capacitor
+        run: npx cap sync android
+      - name: Compilar o APK
+        working-directory: full-control/app/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Guardar o APK na execução
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-control-apk
+          path: full-control/app/android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publicar o APK na release "full-control-poc"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk full-control.apk
+          ls -la full-control.apk
+          gh release view full-control-poc >/dev/null 2>&1 || gh release create full-control-poc --prerelease --target "${{ github.sha }}" \
+            --title "Full Control (prova de conceito)" \
+            --notes "APK de teste do Full Control. Baixe full-control.apk no celular Android e instale (permita instalar de fontes desconhecidas). Passo a passo: full-control/app/LEIA-ME.md"
+          gh release upload full-control-poc full-control.apk --clobber

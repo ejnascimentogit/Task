@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Full Control</title>
+<style>
+:root { --navy:#021F33; --green:#00FF7A; --bg:#0B1622; --card:#14212F; --line:#24374D; --text:#E5E7EB; --muted:#9AABBD; --ok:#34D399; --warn:#FBBF24; --bad:#F87171; }
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); padding:max(14px,env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom)); max-width:520px; margin:0 auto; }
+header { background:var(--navy); border-radius:18px; padding:16px 18px; margin-bottom:12px; }
+header h1 { font-size:22px; } header p { font-size:12.5px; color:var(--muted); margin-top:3px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:12px; }
+.card h2 { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+label { font-size:12.5px; color:var(--muted); display:block; margin-bottom:4px; }
+input { width:100%; font:inherit; font-size:16px; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--text); }
+.linha { display:flex; gap:8px; margin-top:10px; }
+button { font:inherit; font-weight:700; font-size:15px; padding:13px 12px; border-radius:12px; border:1px solid var(--line); background:var(--bg); color:var(--text); flex:1; }
+button.p { background:var(--green); color:var(--navy); border-color:var(--green); }
+button.r { color:var(--bad); }
+button:disabled { opacity:.4; }
+button:active:not(:disabled) { transform:scale(.97); }
+.grade { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.chip { display:inline-block; font-size:12px; font-weight:700; padding:4px 10px; border-radius:99px; background:var(--bg); border:1px solid var(--line); margin-right:6px; }
+.chip.ok { color:var(--ok); border-color:var(--ok); } .chip.warn { color:var(--warn); border-color:var(--warn); } .chip.bad { color:var(--bad); border-color:var(--bad); }
+#aviso { font-size:13.5px; line-height:1.45; margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--bg); border:1px solid var(--line); display:none; }
+#log { font:12px/1.5 ui-monospace,Consolas,monospace; color:var(--muted); max-height:220px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
+#log .aviso { color:var(--warn); } #log .erro { color:var(--bad); }
+small { color:var(--muted); font-size:12px; display:block; margin-top:8px; line-height:1.4; }
+</style></head>
+<body>
+<header><h1>Full Control</h1><p>Prova de conceito · controla a TV pelo Wi-Fi da casa (celular e TV na mesma rede)</p></header>
+
+<div class="card">
+  <h2>TV</h2>
+  <label for="ip">IP da TV (Configurações da TV &gt; Rede)</label>
+  <input id="ip" inputmode="decimal" placeholder="192.168.1.212" autocomplete="off">
+  <div style="margin-top:10px"><span class="chip warn" id="chipNode">aplicativo iniciando…</span><span class="chip warn" id="chipCert">sem pareamento</span></div>
+  <div id="aviso"></div>
+</div>
+
+<div class="card">
+  <h2>1 · Parear (só na primeira vez)</h2>
+  <div class="linha"><button class="p" id="bParear" disabled>Parear a TV</button></div>
+  <label for="cod" style="margin-top:12px">Código de 6 caracteres que aparece na TV</label>
+  <div class="linha" style="margin-top:0"><input id="cod" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="ABC123" style="text-transform:uppercase"><button id="bCodigo" disabled style="flex:0 0 38%">Enviar</button></div>
+  <small>Dica: a TV precisa estar ligada (tela acesa). Neste celular, gerar o certificado pode levar até 1 minuto na primeira vez.</small>
+</div>
+
+<div class="card">
+  <h2>2 · Controle</h2>
+  <div class="grade">
+    <button class="p" data-acao="ligar" disabled>Ligar</button>
+    <button class="r" data-acao="desligar" disabled>Desligar</button>
+    <button data-acao="volume" data-dir="menos" disabled>Volume −</button>
+    <button data-acao="volume" data-dir="mais" disabled>Volume +</button>
+    <button data-acao="mudo" disabled style="grid-column:1/-1">Mudo</button>
+  </div>
+  <small>Para LIGAR com a TV em espera, na TV deixe Energia &gt; Modos de energia em “Consumo elevado (sempre conectado)”.</small>
+</div>
+
+<div class="card">
+  <h2>3 · Se algo der errado</h2>
+  <div class="linha" style="margin-top:0"><button id="bDiag" disabled>Diagnóstico</button><button id="bCopiar">Copiar relatório</button></div>
+  <div class="linha"><button class="r" id="bEsquecer" disabled>Esquecer pareamento</button></div>
+  <h2 style="margin-top:14px">Registro</h2>
+  <div id="log"></div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var Nodejs = (window.Capacitor && window.Capacitor.registerPlugin) ? window.Capacitor.registerPlugin('Nodejs') : null;
+  var pronto = false, ocupado = false;
+  var relatorio = [];
+
+  function log(nivel, msg, t) {
+    var hora = t || new Date().toTimeString().slice(0, 8);
+    relatorio.push(hora + ' [' + nivel + '] ' + msg);
+    var d = document.createElement('div'); d.className = nivel; d.textContent = hora + '  ' + msg;
+    $('log').appendChild(d); $('log').scrollTop = $('log').scrollHeight;
+  }
+  function aviso(txt, cor) { var a = $('aviso'); a.style.display = txt ? 'block' : 'none'; a.textContent = txt || ''; a.style.borderColor = cor || 'var(--line)'; }
+  function chip(id, txt, cls) { var c = $(id); c.textContent = txt; c.className = 'chip ' + cls; }
+  function habilitar() {
+    var botoes = document.querySelectorAll('button[id=bParear],button[id=bCodigo],button[id=bDiag],button[id=bEsquecer],button[data-acao]');
+    for (var i = 0; i < botoes.length; i++) botoes[i].disabled = !pronto || ocupado;
+  }
+  function ocupar(v) { ocupado = v; habilitar(); }
+  function ip() { var v = $('ip').value.trim(); try { localStorage.setItem('fc_ip', v); } catch (e) {} return v; }
+  function enviar(ev, dados) { if (!Nodejs) { aviso('Abra este aplicativo pelo ícone instalado no celular (não pelo navegador).', 'var(--bad)'); return Promise.resolve(); } return Nodejs.send({ eventName: ev, args: [dados || {}] }); }
+
+  try { $('ip').value = localStorage.getItem('fc_ip') || '192.168.1.212'; } catch (e) { $('ip').value = '192.168.1.212'; }
+
+  $('bParear').onclick = function () { aviso('Olhe a TV: vai aparecer um código de 6 caracteres.', 'var(--warn)'); ocupar(true); enviar('tv:parear', { host: ip() }); setTimeout(function () { ocupar(false); }, 1500); };
+  $('bCodigo').onclick = function () { enviar('tv:codigo', { codigo: $('cod').value }); };
+  $('bDiag').onclick = function () { aviso('Verificando a rede…'); enviar('tv:diagnostico', { host: ip() }); };
+  $('bEsquecer').onclick = function () { enviar('tv:esquecer'); chip('chipCert', 'sem pareamento', 'warn'); };
+  document.querySelectorAll('button[data-acao]').forEach(function (b) {
+    b.onclick = function () {
+      var acao = b.getAttribute('data-acao'), dir = b.getAttribute('data-dir');
+      aviso('Enviando "' + (dir ? 'volume ' + dir : acao) + '"…'); ocupar(true);
+      enviar('tv:comando', { host: ip(), acao: acao, parametros: dir ? { direcao: dir, passos: 2 } : {} });
+    };
+  });
+  $('bCopiar').onclick = function () {
+    var txt = 'Full Control · relatório\n' + relatorio.join('\n');
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { aviso('Relatório copiado. Cole na conversa com o Claude.', 'var(--ok)'); }, function () { aviso('Não consegui copiar; tire um print do registro.', 'var(--warn)'); });
+  };
+
+  function tratar(nome, a) {
+    var d = (a && a[0]) || {};
+    if (nome === 'log') return log(d.nivel || 'info', d.msg || '', d.t);
+    if (nome === 'tv:codigo-pedido') { aviso('Digite o código que está na TV e toque em Enviar.', 'var(--warn)'); $('cod').focus(); return; }
+    if (nome === 'tv:pareamento') {
+      if (d.ok) { aviso('Pareado com sucesso! Agora use os botões de controle.', 'var(--ok)'); chip('chipCert', 'pareado', 'ok'); } else { aviso(d.erro || 'Falha no pareamento.', 'var(--bad)'); }
+      ocupar(false); return;
+    }
+    if (nome === 'tv:resultado') {
+      ocupar(false);
+      if (d.ok) { aviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', estado: 'TV ' + (d.ligada ? 'ligada' : 'desligada') + '.' })[d.acao] || 'Feito.', 'var(--ok)'); }
+      else { aviso(d.erro || 'Falhou.', 'var(--bad)'); }
+      return;
+    }
+    if (nome === 'tv:diagnostico') {
+      var linhas = ['Node ' + d.node + ' (' + d.arquitetura + ')', 'TLS disponível: ' + d.tls_disponivel, 'Certificado guardado: ' + (d.certificado_guardado ? 'sim' : 'não'), 'TV ' + d.tv + ' porta 6466 (comandos): ' + (d.porta_6466_comandos ? 'ABERTA' : 'fechada'), 'TV ' + d.tv + ' porta 6467 (pareamento): ' + (d.porta_6467_pareamento ? 'ABERTA' : 'fechada')];
+      linhas.forEach(function (l) { log('info', l); });
+      aviso(linhas.join('\n'), d.porta_6467_pareamento || d.porta_6466_comandos ? 'var(--ok)' : 'var(--warn)');
+      chip('chipCert', d.certificado_guardado ? 'pareado' : 'sem pareamento', d.certificado_guardado ? 'ok' : 'warn');
+    }
+  }
+
+  if (!Nodejs) { chip('chipNode', 'abra pelo aplicativo', 'bad'); aviso('Esta página só funciona dentro do aplicativo Android.', 'var(--bad)'); return; }
+  Nodejs.addListener('message', function (e) { try { tratar(e.eventName, e.args); } catch (x) { log('erro', 'tela: ' + x.message); } });
+  function marcarPronto() { pronto = true; chip('chipNode', 'aplicativo pronto', 'ok'); habilitar(); }
+  Nodejs.addListener('ready', marcarPronto);
+  Nodejs.isReady().then(function (r) { if (r && r.ready) marcarPronto(); }, function () {});
+  setTimeout(function () { if (!pronto) { chip('chipNode', 'parte Node não iniciou', 'bad'); aviso('A parte Node não iniciou. Feche e abra o aplicativo; se continuar, copie o relatório e mande ao Claude.', 'var(--bad)'); } }, 15000);
+})();
+</script>
+</body></html>
