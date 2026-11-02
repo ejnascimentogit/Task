@@ -86,6 +86,40 @@ async function diagnostico(host) {
   post('tv:diagnostico', d);
 }
 
+// Procura TVs na rede: testa a porta 6467 (pareamento de Android TV) em cada endereço da(s) faixa(s) /24 do celular.
+function faixasDoCelular(extra) {
+  const f = [];
+  try {
+    const ifs = require('os').networkInterfaces();
+    for (const lista of Object.values(ifs)) for (const i of lista || []) {
+      if (i.family === 'IPv4' && !i.internal && /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(i.address)) f.push(i.address.split('.').slice(0, 3).join('.'));
+    }
+  } catch (_) { /* Android recente pode negar a lista de interfaces */ }
+  const origem = f.length ? 'celular' : 'comuns';
+  if (!f.length) f.push('192.168.0', '192.168.1', '192.168.15', '192.168.100', '10.0.0');
+  for (const e of extra || []) if (/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(e) && !f.includes(e)) f.unshift(e);
+  return { faixas: [...new Set(f)], origem };
+}
+let procurando = false;
+async function procurarTvs(faixasPedidas) {
+  if (procurando) return;
+  procurando = true;
+  try {
+    const { faixas, origem } = faixasPedidas && faixasPedidas.length ? { faixas: faixasPedidas, origem: 'informada' } : faixasDoCelular();
+    log('info', `Procurando TVs nas faixas ${faixas.join(', ')}.0/24 (${origem})...`);
+    const alvos = [];
+    for (const f of faixas) for (let n = 1; n <= 254; n++) alvos.push(`${f}.${n}`);
+    const achadas = [];
+    let i = 0;
+    const trabalhador = async () => { while (i < alvos.length) { const ip = alvos[i++]; if (await sondar(ip, 6467, 700)) achadas.push(ip); } };
+    await Promise.all(Array.from({ length: 80 }, trabalhador));
+    achadas.sort((a, b) => a.split('.').map(Number).reduce((x, y) => x * 256 + y) - b.split('.').map(Number).reduce((x, y) => x * 256 + y));
+    log('info', `Procura terminou: ${achadas.length} TV(s).`);
+    post('tv:procura', { ok: true, achadas, faixas, origem });
+  } catch (e) { post('tv:procura', { ok: false, erro: String((e && e.message) || e) }); }
+  finally { procurando = false; }
+}
+
 const ipValido = (ip) => /^(\d{1,3})(\.\d{1,3}){3}$/.test(String(ip || '')) && String(ip).split('.').every((x) => Number(x) <= 255);
 channel.on('tv:parear', (m) => { if (!m || !ipValido(m.host)) return post('tv:pareamento', { ok: false, erro: 'IP da TV inválido.' }); parear(m.host); });
 channel.on('tv:codigo', (m) => {
@@ -101,6 +135,7 @@ channel.on('tv:comando', (m) => {
   comando(m.host, m.acao, m.parametros).catch((e) => post('tv:resultado', { acao: m.acao, ok: false, erro: String((e && e.message) || e) }));
 });
 channel.on('tv:diagnostico', (m) => { diagnostico(m && ipValido(m.host) ? m.host : '127.0.0.1').catch((e) => log('erro', 'diagnóstico: ' + e.message)); });
+channel.on('tv:procurar', (m) => { procurarTvs(m && Array.isArray(m.faixas) ? m.faixas.filter((x) => /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(x)) : []); });
 channel.on('tv:status', () => post('tv:status', { pareado: !!lerCert() }));
 channel.on('tv:esquecer', () => { try { fs.unlinkSync(arquivoCert()); log('info', 'Certificado apagado. Pareie de novo.'); } catch (_) { log('info', 'Nenhum certificado guardado.'); } });
 

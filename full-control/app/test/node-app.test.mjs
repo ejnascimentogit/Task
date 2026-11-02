@@ -66,3 +66,14 @@ test('TV inalcançável: erro em ~9 s e a reconexão infinita da biblioteca é n
     assert.ok(antes >= 1);
   } finally { tls.connect = original; }
 });
+
+test('procura de TVs acha quem tem a porta 6467 aberta', async () => {
+  const net = await import('node:net');
+  const srv = net.createServer((c) => c.destroy());
+  await new Promise((r) => srv.listen(6467, '127.0.0.1', r));
+  try {
+    const w = esperar('tv:procura', 60000); canal.emit('tv:procurar', { faixas: ['127.0.0'] });
+    const r = await w;
+    assert.equal(r.ok, true); assert.deepEqual(r.achadas, ['127.0.0.1']);
+  } finally { srv.close(); }
+});

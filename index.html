@@ -4218,7 +4218,7 @@ async function carregarWhatsapp() {
 // FULL CONTROL (TV): só funciona no aplicativo Android, que traz o motor que fala com a TV pela rede Wi-Fi.
 // ══════════════════════════════════════════════════════════════
 const FC_APK_URL = 'https://github.com/ejnascimentogit/Task/releases/tag/taskfull-android';
-const fc = { plugin: null, ligado: false, pronto: false, pareado: null, ocupado: false, aviso: '', cor: '', pedeCodigo: false, log: [] };
+const fc = { plugin: null, ligado: false, pronto: false, pareado: null, ocupado: false, aviso: '', cor: '', pedeCodigo: false, procura: null, log: [] };
 function fcNativo() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
 function fcIp() { try { return localStorage.getItem('fc_ip') || ''; } catch (_) { return ''; } }
 function fcAviso(txt, cor) { fc.aviso = txt || ''; fc.cor = cor || ''; fcDesenhar(); }
@@ -4236,6 +4236,15 @@ function fcLigarPonte() {
 function fcTratar(nome, a) {
   const d = (a && a[0]) || {};
   if (nome === 'log') { fc.log.unshift((d.t || '') + ' ' + (d.msg || '')); fc.log.length = Math.min(fc.log.length, 30); if (activeTab === 'fullcontrol') fcDesenhar(); return; }
+  if (nome === 'tv:procura') {
+    fc.ocupado = false;
+    if (!d.ok) { fc.procura = null; return fcAviso('A procura falhou: ' + (d.erro || ''), 'var(--red)'); }
+    fc.procura = d.achadas || [];
+    if (fc.procura.length === 1) { try { localStorage.setItem('fc_ip', fc.procura[0]); } catch (_) {} fcAviso('Achei uma TV: ' + fc.procura[0] + '. Já preenchi o IP.', 'var(--green)'); }
+    else if (fc.procura.length) fcAviso('Achei ' + fc.procura.length + ' aparelhos. Toque no IP da sua TV.', 'var(--orange)');
+    else fcAviso('Não achei nenhuma TV nas redes ' + (d.faixas || []).join(', ') + '.0/24. Confira se o celular está no Wi-Fi da TV, se a TV está ligada, e digite o IP à mão.', 'var(--orange)');
+    return;
+  }
   if (nome === 'tv:status') { fc.pareado = !!d.pareado; fcDesenhar(); return; }
   if (nome === 'tv:codigo-pedido') { fc.pedeCodigo = true; fcAviso('Olhe a TV: apareceu um código de 6 caracteres. Digite abaixo.', 'var(--orange)'); return; }
   if (nome === 'tv:pareamento') {
@@ -4265,6 +4274,8 @@ function fcComando(acao, dir) {
   const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV.', 'var(--red)');
   fc.ocupado = true; fcAviso('Enviando…', ''); fcEnviar('tv:comando', { host: ip, acao, parametros: dir ? { direcao: dir, passos: 2 } : {} });
 }
+function fcProcurar() { fc.ocupado = true; fc.procura = null; fcAviso('Procurando TVs na rede (até 15 segundos)…', ''); fcEnviar('tv:procurar', {}); }
+function fcEscolherIp(ip) { try { localStorage.setItem('fc_ip', ip); } catch (_) {} fc.procura = null; fcAviso('IP escolhido: ' + ip, 'var(--green)'); }
 function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
 function fcEsquecer() { if (!confirm('Esquecer o pareamento desta TV neste celular? Será preciso parear de novo.')) return; fcEnviar('tv:esquecer'); fc.pareado = false; fcAviso('Pareamento apagado.', ''); setTimeout(() => fcEnviar('tv:status'), 400); }
 function fcDesenhar() {
@@ -4291,6 +4302,8 @@ function fcDesenhar() {
       </div>
       <label style="font-size:12px;color:var(--gray-text);">IP da TV na rede</label>
       <input type="text" id="fc-ip" inputmode="decimal" placeholder="ex.: 192.168.1.212" value="${escapeHtml(fcIp())}" style="width:100%;max-width:260px;display:block;margin-bottom:10px;">
+      <button class="btn btn-sm" ${off} onclick="fcProcurar()" style="margin-bottom:10px;">🔍 Procurar a TV na rede</button>
+      ${fc.procura && fc.procura.length > 1 ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${fc.procura.map(ip => `<button class="btn btn-sm" onclick="fcEscolherIp('${ip}')">${ip}</button>`).join('')}</div>` : ''}
       ${pareado ? '' : `<button class="btn btn-primary" ${off} onclick="fcParear()">1. Parear com a TV</button>`}
       ${fc.pedeCodigo ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-cod" maxlength="6" value="${escapeHtml(fc.codTxt || '')}" placeholder="código da TV" style="width:150px;text-transform:uppercase;"><button class="btn btn-primary" onclick="fcCodigo()">Enviar código</button></div>` : ''}
       ${pareado ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">

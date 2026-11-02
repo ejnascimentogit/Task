@@ -10,13 +10,13 @@ No navegador (PC, iPhone) o Task Full funciona normal; a aba **Full Control** s�
 
 ## Testar a TV (celular e TV no mesmo Wi-Fi)
 1. Abra a aba **Full Control**. Deve mostrar "motor pronto".
-2. Digite o **IP da TV** (Configurações da TV → Rede) e toque em **Diagnóstico**: a porta 6467 deve estar aberta.
+2. Toque em **🔍 Procurar a TV na rede** (ou digite o **IP da TV** (Configurações da TV → Rede)) e depois em **Diagnóstico**: a porta 6467 deve estar aberta.
 3. **Parear com a TV**: a TV mostra um código de 6 caracteres (na primeira vez pode levar até 1 minuto). Digite e envie.
 4. Use **Ligar / Desligar / Volume / Mudo**. Para ligar com a TV em espera: na TV, Energia → Modos de energia → Consumo elevado.
 5. Se falhar: abra "Registro" na própria aba e mande o texto.
 
 ## Limites desta versão
-- Só Android; app aberto (não roda em segundo plano); IP digitado à mão (sem procurar a TV sozinho); sem voz.
+- Só Android; app aberto (não roda em segundo plano); a procura acha aparelhos com a porta 6467 aberta (mostra só o IP, não o nome da TV; se o Android negar a lista de redes, testa faixas comuns como 192.168.0/1/15/100 e 10.0.0); sem voz.
 - O pareamento fica **no celular** (ainda não vai para o banco): trocar de celular exige parear de novo.
 - **Risco ainda não verificado:** a ponte do Capacitor (plugin Node) com o site carregado por `server.url`, e o Node iniciar no aparelho. Se a aba disser "motor não iniciou", conte.
 - Build de debug de ~100 MB (todas as arquiteturas); dá para reduzir depois.
