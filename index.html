@@ -4277,7 +4277,7 @@ function fcTratar(nome, a) {
     fc.ocupado = false;
     if (!d.ok) { fc.procura = null; return fcAviso('A procura falhou: ' + (d.erro || ''), 'var(--red)'); }
     fc.procura = d.achadas || [];
-    if (fc.procura.length === 1) { try { localStorage.setItem('fc_ip', fc.procura[0]); } catch (_) {} fcAviso('Achei uma TV: ' + fc.procura[0] + '. Já preenchi o IP.', 'var(--green)'); }
+    if (fc.procura.length === 1) { fcGuardarIp(fc.procura[0]); fcAviso('Achei uma TV: ' + fc.procura[0] + '. Já preenchi o IP.', 'var(--green)'); }
     else if (fc.procura.length) fcAviso('Achei ' + fc.procura.length + ' aparelhos. Toque no IP da sua TV.', 'var(--orange)');
     else fcAviso('Não achei nenhuma TV nas redes ' + (d.faixas || []).join(', ') + '.0/24. Confira se o celular está no Wi-Fi da TV, se a TV está ligada, e digite o IP à mão.', 'var(--orange)');
     return;
@@ -4300,6 +4300,7 @@ function fcTratar(nome, a) {
     fcAviso(['Node ' + d.node + ' (' + d.arquitetura + ')', 'Pareado: ' + (d.certificado_guardado ? 'sim' : 'não'), 'TV ' + d.tv + ' porta 6466: ' + (d.porta_6466_comandos ? 'aberta' : 'fechada'), 'TV ' + d.tv + ' porta 6467: ' + (d.porta_6467_pareamento ? 'aberta' : 'fechada')].join('\n'), (d.porta_6466_comandos || d.porta_6467_pareamento) ? 'var(--green)' : 'var(--orange)');
   }
 }
+function fcGuardarIp(ip) { try { localStorage.setItem('fc_ip', ip); } catch (_) {} const el = document.getElementById('fc-ip'); if (el) el.value = ip; }
 function fcIpDigitado() {
   const el = document.getElementById('fc-ip'); const v = el ? el.value.trim() : fcIp();
   try { localStorage.setItem('fc_ip', v); } catch (_) {}
@@ -4312,7 +4313,7 @@ function fcComando(acao, dir) {
   fc.ocupado = true; fcAviso('Enviando…', ''); fcEnviar('tv:comando', { host: ip, acao, parametros: dir ? { direcao: dir, passos: 2 } : {} }); setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A TV não respondeu. Confira o Wi-Fi e se a TV está ligada.', 'var(--orange)'); } }, 25000);
 }
 function fcProcurar() { fc.ocupado = true; fc.procura = null; fcAviso('Procurando TVs na rede (até 15 segundos)…', ''); fcEnviar('tv:procurar', {}); setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A procura não respondeu. Tente de novo ou digite o IP.', 'var(--orange)'); } }, 30000); }
-function fcEscolherIp(ip) { try { localStorage.setItem('fc_ip', ip); } catch (_) {} fc.procura = null; fcAviso('IP escolhido: ' + ip, 'var(--green)'); }
+function fcEscolherIp(ip) { fcGuardarIp(ip); fc.procura = null; fcAviso('IP escolhido: ' + ip, 'var(--green)'); }
 function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
 function fcEsquecer() { if (!confirm('Esquecer o pareamento desta TV neste celular? Será preciso parear de novo.')) return; fcEnviar('tv:esquecer'); fc.pareado = false; fcAviso('Pareamento apagado.', ''); setTimeout(() => fcEnviar('tv:status'), 400); }
 function fcAbrirDownload() {
