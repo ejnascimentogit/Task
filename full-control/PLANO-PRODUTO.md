@@ -1,5 +1,16 @@
 # Full Control: plano de produto (decisões do Edimilson, 2026-11-02)
 
+## DECISÃO MAIS RECENTE (2026-11-02): só na rede da TV
+**Agora:** ligar/controlar a TV **somente quando o celular está na rede (Wi-Fi) da TV**. Sem Hub em casa de cliente por enquanto.
+**Pendência (para depois):** controlar a TV **de fora de casa** (rua). Para isso será preciso um aparelho ligado em casa (Hub; um celular Android velho carregando com o app aberto pode servir) ou a nuvem do fabricante (Samsung SmartThings). O executor em `executor/` já cobre o caso do Hub e continua valendo para a casa do Edimilson.
+**Caminho técnico agora:** aplicativo no celular (Android primeiro) que fala direto com a TV. O navegador/PWA **não** consegue (precisa de conexão TLS com certificado do cliente na porta 6466). O servidor (Supabase) guarda conta, apelidos e o certificado de pareamento; a interpretação das frases (`casa_executar_frase`) já existe.
+**Opções para o aplicativo (pesquisa de 2026-11-02, nada testado):**
+1. Capacitor envolvendo o Task Full + plugin que roda Node no celular (Capawesome `@capawesome/capacitor-nodejs`, baseado no nodejs-mobile): reaproveita o código do executor. **Não confirmado** que `tls`/`net` funcionam lá.
+2. React Native com `react-native-androidtv-remote` (existe no npm, mesmo protocolo): app separado, só controle remoto. Qualidade e manutenção não verificadas.
+3. Nativo Kotlin com protobuf: mais trabalho; existe implementação de referência em Java do pareamento (mencionada no README do `androidtvremote2`).
+**Próximo passo proposto:** prova de conceito que **pareia e liga a TV** (a parte difícil). O teste na TV é do Edimilson (compilar o APK por automação do GitHub, ainda não testada).
+
+
 ## Foco agora
 **Só TV.** A primeira TV é a TCL com Google TV (Android TV Remote v2). Nada de lâmpadas, portas, janelas nem outros conectores por enquanto; eles ficam **guardados aqui**, sem construir:
 - Lâmpadas, tomadas, cortinas: nuvem Tuya/Smart Life (QR code com o app do cliente). Termos comerciais da Tuya (assinatura IoT Core) ainda não confirmados.
