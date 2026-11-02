@@ -1,6 +1,6 @@
-# Compila o aplicativo Android do Full Control (prova de conceito) e publica o APK numa "release" para baixar no celular.
+# Compila o aplicativo Android do Task Full (o site completo + o motor da TV do Full Control) e publica o APK numa "release" para baixar no celular.
 # Dispara ao mexer em full-control/app/** na master, ou manualmente (Actions > Full Control APK > Run workflow).
-name: Full Control APK
+name: Task Full APK
 on:
   workflow_dispatch:
   push:
@@ -52,15 +52,15 @@ jobs:
       - name: Guardar o APK na execução
         uses: actions/upload-artifact@v4
         with:
-          name: full-control-apk
+          name: taskfull-apk
           path: full-control/app/android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Publicar o APK na release "full-control-poc"
+      - name: Publicar o APK na release "taskfull-android"
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk full-control.apk
-          ls -la full-control.apk
-          gh release view full-control-poc >/dev/null 2>&1 || gh release create full-control-poc --prerelease --target "${{ github.sha }}" \
-            --title "Full Control (prova de conceito)" \
-            --notes "APK de teste do Full Control. Baixe full-control.apk no celular Android e instale (permita instalar de fontes desconhecidas). Passo a passo: full-control/app/LEIA-ME.md"
-          gh release upload full-control-poc full-control.apk --clobber
+          cp android/app/build/outputs/apk/debug/app-debug.apk taskfull.apk
+          ls -la taskfull.apk
+          gh release view taskfull-android >/dev/null 2>&1 || gh release create taskfull-android --target "${{ github.sha }}" \
+            --title "Task Full para Android" \
+            --notes "Aplicativo Android do Task Full (o mesmo site, com a aba Full Control para controlar a TV). Baixe taskfull.apk no celular e instale (permita instalar de fontes desconhecidas). Passo a passo: full-control/app/LEIA-ME.md"
+          gh release upload taskfull-android taskfull.apk --clobber

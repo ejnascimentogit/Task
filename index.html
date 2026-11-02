@@ -1621,6 +1621,14 @@
         </div>
       </section>
 
+      <section id="view-fullcontrol" style="display:none">
+        <div class="resumo-box">
+          <h2 class="view-titulo">Full Control</h2>
+          <div class="resumo-sub">Controle a TV pelo celular: ligar, desligar, volume e mudo. Funciona no aplicativo Android do Task Full, com o celular na mesma rede Wi-Fi da TV.</div>
+          <div id="fc-corpo" style="margin-top:14px;"></div>
+        </div>
+      </section>
+
       <section id="view-whatsapp" style="display:none">
         <div class="resumo-box">
           <h2 class="view-titulo">WhatsApp</h2>
@@ -2524,8 +2532,8 @@ const PERFIL_DESC = {
 };
 const ENTIDADE_LABEL_PADRAO = { pessoal: null, equipe: 'Clientes', projeto: 'Projetos' };
 const _ni = d => `<svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
-const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7'), whatsapp: _ni('M21 12a8 8 0 0 1-11.8 7L3 21l2-5.7A8 8 0 1 1 21 12zM9 9c0 3 3 6 6 6l1.5-1.5-2-1-1 .7c-1-.4-2-1.4-2.4-2.4l.7-1-1-2z'), usuarios: _ni('M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8') };
-const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails', whatsapp: 'WhatsApp', usuarios: 'Usuários' };
+const NAV_ICON = { entidades: _ni('M3 21V8l9-5 9 5v13M9 21v-6h6v6'), agenda: _ni('M3 5h18v16H3zM8 3v4M16 3v4M3 10h18'), pendencias: _ni('M12 3l10 18H2zM12 10v5M12 18h.01'), atividades: _ni('M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2'), resumo: _ni('M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z'), treinamentos: _ni('M22 10 12 5 2 10l10 5 10-5zM6 12v5c3 2.5 9 2.5 12 0v-5'), indicadores: _ni('M4 20V10M10 20V4M16 20v-7M22 20H2'), lamina: _ni('M3 3h18v18H3zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5L5 21'), cronograma: _ni('M4 6h10M8 12h12M6 18h9'), buscar: _ni('M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-3.5-3.5'), emails: _ni('M3 6h18v12H3zM3 7l9 7 9-7'), whatsapp: _ni('M21 12a8 8 0 0 1-11.8 7L3 21l2-5.7A8 8 0 1 1 21 12zM9 9c0 3 3 6 6 6l1.5-1.5-2-1-1 .7c-1-.4-2-1.4-2.4-2.4l.7-1-1-2z'), fullcontrol: _ni('M2 6h20v12H2zM8 21h8M12 18v3M7 10h2M7 13h5'), usuarios: _ni('M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8') };
+const NAV_NOME_FIXO = { agenda: 'Agenda', pendencias: 'Pendências', atividades: 'Atividades', resumo: 'Resumo do Dia', treinamentos: 'Treinamentos', indicadores: 'Indicadores', lamina: 'Lâmina', cronograma: 'Cronograma', buscar: 'Buscar', emails: 'E-mails', whatsapp: 'WhatsApp', fullcontrol: 'Full Control', usuarios: 'Usuários' };
 NAV_ICON.recibos = _ni('M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8'); NAV_NOME_FIXO.recibos = 'Recibos';
 
 const DEFAULT_ETAPAS = [
@@ -3853,6 +3861,7 @@ const RECURSOS_PAGOS = [
   ['buscar', '🔎 Buscar', 'Busca com IA nas notas, atividades e pendências'],
   ['assessor_telegram', '🤖 Assessor no Telegram', 'Conversa por texto e áudio, cria agenda e tarefas, avisa antes dos compromissos'],
   ['assessor_email', '📧 Leitura de e-mail', 'Conecta Gmail, Outlook ou Yahoo; resume e classifica os e-mails dos remetentes liberados'],
+  ['full_control', '📺 Full Control (TV)', 'Liga, desliga e ajusta o volume da TV pelo aplicativo Android do Task Full, quando o celular está na rede Wi-Fi da TV'],
   ['whatsapp', '💬 WhatsApp (envio)', 'Conecta o WhatsApp da pessoa e envia ou programa mensagens para qualquer número (conexão não oficial: risco de bloqueio do número)'],
 ];
 let liberacoesUsuarioId = null;
@@ -3882,12 +3891,14 @@ async function salvarLiberacoes() {
     buscar: 'usa IA e gasta tokens da sua conta Anthropic',
     assessor_telegram: 'usa IA e gasta tokens da sua conta Anthropic (limite mensal por pessoa)',
     assessor_email: 'usa IA e gasta tokens da sua conta Anthropic (mesmo limite mensal do assessor)',
+    full_control: 'não usa IA e não gasta tokens; só funciona no aplicativo Android, com o celular na mesma rede Wi-Fi da TV',
     whatsapp: 'não usa IA e não gasta tokens; usa o seu servidor do WhatsApp; limite de 50 mensagens por dia; conexão não oficial (risco de bloqueio do número)',
   };
   const REMOVE = {
     assessor_telegram: 'desconecta o Telegram e apaga as conversas',
     assessor_email: 'desconecta os e-mails',
     whatsapp: 'desconecta o WhatsApp e cancela as mensagens programadas',
+    full_control: 'a aba Full Control some; o pareamento da TV fica guardado no celular',
   };
   const linhas = [];
   if (liberar.length) linhas.push('✅ LIBERAR para ' + quem + ':', ...liberar.map(r => '   • ' + nomeDe(r) + '\n      ' + LIBERA[r]), '');
@@ -4203,6 +4214,102 @@ async function carregarWhatsapp() {
   carregarAlertasWhatsapp();
   if (souMaster() && activeTab === 'whatsapp') { carregarServidorWa(); carregarAgenteWa(); }
 }
+// ══════════════════════════════════════════════════════════════
+// FULL CONTROL (TV): só funciona no aplicativo Android, que traz o motor que fala com a TV pela rede Wi-Fi.
+// ══════════════════════════════════════════════════════════════
+const FC_APK_URL = 'https://github.com/ejnascimentogit/Task/releases/tag/taskfull-android';
+const fc = { plugin: null, ligado: false, pronto: false, pareado: null, ocupado: false, aviso: '', cor: '', pedeCodigo: false, log: [] };
+function fcNativo() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
+function fcIp() { try { return localStorage.getItem('fc_ip') || ''; } catch (_) { return ''; } }
+function fcAviso(txt, cor) { fc.aviso = txt || ''; fc.cor = cor || ''; fcDesenhar(); }
+function fcEnviar(ev, dados) { if (!fc.plugin) return; fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)')); }
+function fcLigarPonte() {
+  if (fc.ligado || !fcNativo()) return;
+  fc.ligado = true;
+  fc.plugin = window.Capacitor.registerPlugin('Nodejs');
+  fc.plugin.addListener('message', e => { try { fcTratar(e.eventName, e.args); } catch (x) { console.error(x); } });
+  const ok = () => { fc.pronto = true; fcEnviar('tv:status'); fcDesenhar(); };
+  fc.plugin.addListener('ready', ok);
+  fc.plugin.isReady().then(r => { if (r && r.ready) ok(); }, () => {});
+  setTimeout(() => { if (!fc.pronto && activeTab === 'fullcontrol') fcAviso('O motor da TV não iniciou. Feche e abra o aplicativo.', 'var(--red)'); }, 15000);
+}
+function fcTratar(nome, a) {
+  const d = (a && a[0]) || {};
+  if (nome === 'log') { fc.log.unshift((d.t || '') + ' ' + (d.msg || '')); fc.log.length = Math.min(fc.log.length, 30); if (activeTab === 'fullcontrol') fcDesenhar(); return; }
+  if (nome === 'tv:status') { fc.pareado = !!d.pareado; fcDesenhar(); return; }
+  if (nome === 'tv:codigo-pedido') { fc.pedeCodigo = true; fcAviso('Olhe a TV: apareceu um código de 6 caracteres. Digite abaixo.', 'var(--orange)'); return; }
+  if (nome === 'tv:pareamento') {
+    fc.ocupado = false; fc.pedeCodigo = false;
+    if (d.ok) { fc.pareado = true; fcAviso('TV pareada! Agora use os botões.', 'var(--green)'); } else fcAviso(d.erro || 'Falha no pareamento.', 'var(--red)');
+    return;
+  }
+  if (nome === 'tv:resultado') {
+    fc.ocupado = false;
+    if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.' })[d.acao] || 'Feito.', 'var(--green)');
+    else fcAviso(d.erro || 'Falhou.', 'var(--red)');
+    return;
+  }
+  if (nome === 'tv:diagnostico') {
+    fc.pareado = !!d.certificado_guardado;
+    fcAviso(['Node ' + d.node + ' (' + d.arquitetura + ')', 'Pareado: ' + (d.certificado_guardado ? 'sim' : 'não'), 'TV ' + d.tv + ' porta 6466: ' + (d.porta_6466_comandos ? 'aberta' : 'fechada'), 'TV ' + d.tv + ' porta 6467: ' + (d.porta_6467_pareamento ? 'aberta' : 'fechada')].join('\n'), (d.porta_6466_comandos || d.porta_6467_pareamento) ? 'var(--green)' : 'var(--orange)');
+  }
+}
+function fcIpDigitado() {
+  const el = document.getElementById('fc-ip'); const v = el ? el.value.trim() : fcIp();
+  try { localStorage.setItem('fc_ip', v); } catch (_) {}
+  return v;
+}
+function fcParear() { const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV (Configurações da TV → Rede).', 'var(--red)'); fc.ocupado = true; fcAviso('Pareando… olhe a TV.', 'var(--orange)'); fcEnviar('tv:parear', { host: ip }); setTimeout(() => { fc.ocupado = false; fcDesenhar(); }, 1500); }
+function fcCodigo() { const c = (document.getElementById('fc-cod').value || '').trim(); if (c.length !== 6) return fcAviso('O código tem 6 caracteres.', 'var(--red)'); fcEnviar('tv:codigo', { codigo: c }); }
+function fcComando(acao, dir) {
+  const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV.', 'var(--red)');
+  fc.ocupado = true; fcAviso('Enviando…', ''); fcEnviar('tv:comando', { host: ip, acao, parametros: dir ? { direcao: dir, passos: 2 } : {} });
+}
+function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
+function fcEsquecer() { if (!confirm('Esquecer o pareamento desta TV neste celular? Será preciso parear de novo.')) return; fcEnviar('tv:esquecer'); fc.pareado = false; fcAviso('Pareamento apagado.', ''); setTimeout(() => fcEnviar('tv:status'), 400); }
+function fcDesenhar() {
+  const box = document.getElementById('fc-corpo'); if (!box) return;
+  if (!fcNativo()) {
+    box.innerHTML = `<div class="resumo-box" style="border-left:4px solid var(--orange);">
+      <b>Abra o Task Full pelo aplicativo Android.</b>
+      <div class="resumo-sub" style="margin-top:6px;">O navegador não consegue falar com a TV. Instale o aplicativo Android do Task Full (ele é o mesmo Task Full, com o Full Control incluído) e entre com a sua conta.</div>
+      <a class="btn btn-primary" style="margin-top:12px;display:inline-block;" href="${FC_APK_URL}" target="_blank" rel="noopener">Baixar o aplicativo Android</a>
+      <div class="resumo-sub" style="margin-top:12px;">Controlar de fora de casa: em breve.</div></div>`;
+    return;
+  }
+  fcLigarPonte();
+  const ipAtual = document.getElementById('fc-ip'); if (ipAtual) { try { localStorage.setItem('fc_ip', ipAtual.value.trim()); } catch (_) {} }
+  const codAtual = document.getElementById('fc-cod'); if (codAtual) fc.codTxt = codAtual.value;
+  const off = !fc.pronto || fc.ocupado ? 'disabled' : '';
+  const pareado = fc.pareado === true;
+  box.innerHTML = `
+    <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <b>📺 TV</b>
+        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pronto ? 'motor pronto' : 'iniciando…'}</span>
+        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pareado === null ? '…' : (pareado ? 'pareada' : 'sem pareamento')}</span>
+      </div>
+      <label style="font-size:12px;color:var(--gray-text);">IP da TV na rede</label>
+      <input type="text" id="fc-ip" inputmode="decimal" placeholder="ex.: 192.168.1.212" value="${escapeHtml(fcIp())}" style="width:100%;max-width:260px;display:block;margin-bottom:10px;">
+      ${pareado ? '' : `<button class="btn btn-primary" ${off} onclick="fcParear()">1. Parear com a TV</button>`}
+      ${fc.pedeCodigo ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-cod" maxlength="6" value="${escapeHtml(fc.codTxt || '')}" placeholder="código da TV" style="width:150px;text-transform:uppercase;"><button class="btn btn-primary" onclick="fcCodigo()">Enviar código</button></div>` : ''}
+      ${pareado ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button class="btn btn-primary" ${off} onclick="fcComando('ligar')">Ligar</button>
+        <button class="btn" ${off} onclick="fcComando('desligar')">Desligar</button>
+        <button class="btn" ${off} onclick="fcComando('volume','menos')">Volume −</button>
+        <button class="btn" ${off} onclick="fcComando('volume','mais')">Volume +</button>
+        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>` : ''}
+      ${fc.aviso ? `<pre style="white-space:pre-wrap;margin:12px 0 0;padding:8px 10px;border-radius:8px;border:1px solid ${fc.cor || 'var(--border)'};font:inherit;font-size:13px;">${escapeHtml(fc.aviso)}</pre>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+        <button class="btn btn-sm" onclick="fcDiagnostico()">Diagnóstico</button>
+        ${pareado ? '<button class="btn btn-sm" onclick="fcEsquecer()">Esquecer pareamento</button>' : ''}
+      </div>
+      ${fc.log.length ? `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;">Registro</summary><pre style="font-size:11px;white-space:pre-wrap;">${escapeHtml(fc.log.join('\n'))}</pre></details>` : ''}
+      <div class="resumo-sub" style="margin-top:12px;">Funciona com o celular na mesma rede Wi-Fi da TV. Controlar de fora de casa: em breve.</div>
+    </div>`;
+}
+function renderFullControl() { fcDesenhar(); }
+
 function renderWhatsapp(semRecarregar) {
   const box = document.getElementById('wa-conexao');
   if (!box) return;
@@ -5258,6 +5365,7 @@ function abasAtivas() {
   let base = (activeWorkspace.perfilTipo === 'pessoal' && activeWorkspace.usaClientes) ? ['entidades'].concat(PERFIL_ABAS.pessoal) : PERFIL_ABAS[activeWorkspace.perfilTipo];
   if (activeWorkspace.perfilTipo === 'pessoal' && activeWorkspace.usaRecibos) { base = base.slice(); const i = base.indexOf('whatsapp'); base.splice(i < 0 ? base.length : i, 0, 'recibos'); }
   const abas = base.filter(a => (a !== 'buscar' || temRecurso('buscar')) && (a !== 'emails' || temRecurso('assessor_email')) && (a !== 'whatsapp' || temRecurso('whatsapp')));
+  if (temRecurso('full_control')) abas.push('fullcontrol');
   return souMaster() ? abas.concat('usuarios') : abas;
 }
 function temAba(aba) { return abasAtivas().includes(aba); }
@@ -5589,7 +5697,7 @@ function setTab(tab) {
   activeTab = tab;
   fecharMenuMobile();
   if (tab !== 'whatsapp') waParar();
-  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','recibos','whatsapp','usuarios','configuracoes','ajuda'].forEach(t => {
+  ['entidades','agenda','pendencias','atividades','resumo','treinamentos','indicadores','lamina','cronograma','buscar','emails','recibos','whatsapp','fullcontrol','usuarios','configuracoes','ajuda'].forEach(t => {
     const navBtn = document.getElementById('tab-'+t);
     if (navBtn) navBtn.classList.toggle('active', t===tab);
     const view = document.getElementById('view-'+t);
@@ -5619,6 +5727,7 @@ function render() {
   else if (activeTab === 'usuarios') renderUsuarios();
   else if (activeTab === 'whatsapp') renderWhatsapp();
   else if (activeTab === 'recibos') renderRecibos();
+  else if (activeTab === 'fullcontrol') renderFullControl();
   else if (activeTab === 'lamina') renderLamina();
   else if (activeTab === 'cronograma') renderCronograma();
   else if (activeTab === 'treinamentos') renderTreinamentos();

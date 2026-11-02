@@ -1,7 +1,11 @@
 {
-  "appId": "br.com.taskfull.fullcontrol",
-  "appName": "Full Control",
+  "appId": "br.com.taskfull.app",
+  "appName": "Task Full",
   "webDir": "www",
+  "server": {
+    "url": "https://taskfull.ejnascimento1.workers.dev",
+    "allowNavigation": ["taskfull.ejnascimento1.workers.dev", "*.supabase.co"]
+  },
   "plugins": {
     "Nodejs": { "nodeDir": "nodejs", "startMode": "auto" }
   }
