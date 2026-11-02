@@ -1,0 +1,10 @@
+# Servidor da casa do Full Control. Suba com: docker compose up -d --build
+# Rede padrão (bridge): conexões de saída para a TV (portas 6466/6467) funcionam no Docker Desktop do Windows.
+# Wake-on-LAN por broadcast pode não sair da rede interna do Docker Desktop; em servidor Linux, use network_mode: host.
+services:
+  full-control:
+    build: .
+    container_name: full-control
+    restart: always
+    env_file: .env
+    # network_mode: host   # só em Linux (mini PC / Raspberry Pi): habilita Wake-on-LAN e busca por nome

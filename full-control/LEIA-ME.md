@@ -4,7 +4,7 @@ Comando de casa por botões ou voz (TV, lâmpadas, depois outros aparelhos), em 
 
 ## Estado (2026-11-02)
 - **Banco pronto e testado** (schema `casa`, `sql/001` a `sql/003`): tabelas, regras de acesso, `casa.executar_frase`, funções do servidor da casa, aviso por Realtime, vencimento por `pg_cron` (job `casa-expirar-comandos`) e o recurso `full_control` em `recursos_liberados`. A **carga inicial** (casa, 8 cômodos, "TV do quarto") foi aplicada direto no banco e **não** fica no repositório (tem dados da rede da casa).
-- **Falta:** executor em Node (passo 3), tela no app (passo 5), rotinas (passo 6).
+- **Passo 3 escrito e testado sem TV:** `executor/` (ver `executor/LEIA-ME.md`). **Falta:** o primeiro teste real na TV (seu), tela no app (passo 5), rotinas (passo 6).
 
 ## Decisões
 - Acesso só com o recurso `full_control` (o master sempre passa). Revogar cancela os comandos pendentes.
