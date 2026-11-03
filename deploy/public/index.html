@@ -4292,7 +4292,7 @@ function fcTratar(nome, a) {
   }
   if (nome === 'tv:resultado') {
     fc.ocupado = false;
-    if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.' })[d.acao] || 'Feito.', 'var(--green)');
+    if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.' })[d.acao] || 'Feito.', 'var(--green)');
     else fcAviso(d.erro || 'Falhou.', 'var(--red)');
     return;
   }
@@ -4315,6 +4315,11 @@ function fcComando(acao, dir) {
 }
 function fcProcurar() { fc.ocupado = true; fc.procura = null; fcAviso('Procurando TVs na rede (até 15 segundos)…', ''); fcEnviar('tv:procurar', {}); setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A procura não respondeu. Tente de novo ou digite o IP.', 'var(--orange)'); } }, 30000); }
 function fcEscolherIp(ip) { fcGuardarIp(ip); fc.procura = null; fcAviso('IP escolhido: ' + ip, 'var(--green)'); }
+function fcAbrirApp(app) {
+  const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV.', 'var(--red)');
+  fc.ocupado = true; fcAviso('Abrindo na TV…', ''); fcEnviar('tv:comando', { host: ip, acao: 'app', parametros: { app } });
+  setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A TV não respondeu. Confira o Wi-Fi e se a TV está ligada.', 'var(--orange)'); } }, 25000);
+}
 function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
 function fcEsquecer() { if (!confirm('Esquecer o pareamento desta TV neste celular? Será preciso parear de novo.')) return; fcEnviar('tv:esquecer'); fc.pareado = false; fcAviso('Pareamento apagado.', ''); setTimeout(() => fcEnviar('tv:status'), 400); }
 function fcBaixarApk() {
@@ -4384,7 +4389,9 @@ function fcDesenhar() {
         <button class="btn" ${off} onclick="fcComando('desligar')">Desligar</button>
         <button class="btn" ${off} onclick="fcComando('volume','menos')">Volume −</button>
         <button class="btn" ${off} onclick="fcComando('volume','mais')">Volume +</button>
-        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>` : ''}
+        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button></div>` : ''}
       ${fc.aviso ? `<pre style="white-space:pre-wrap;margin:12px 0 0;padding:8px 10px;border-radius:8px;border:1px solid ${fc.cor || 'var(--border)'};font:inherit;font-size:13px;">${escapeHtml(fc.aviso)}</pre>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
         <button class="btn btn-sm" onclick="fcDiagnostico()">Diagnóstico</button>

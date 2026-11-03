@@ -131,7 +131,7 @@ channel.on('tv:codigo', (m) => {
 });
 channel.on('tv:comando', (m) => {
   if (!m || !ipValido(m.host)) return post('tv:resultado', { acao: m && m.acao, ok: false, erro: 'IP da TV inválido.' });
-  if (!['ligar', 'desligar', 'volume', 'mudo', 'estado'].includes(m.acao)) return post('tv:resultado', { acao: m.acao, ok: false, erro: 'Ação inválida.' });
+  if (!['ligar', 'desligar', 'volume', 'mudo', 'estado', 'app'].includes(m.acao)) return post('tv:resultado', { acao: m.acao, ok: false, erro: 'Ação inválida.' });
   comando(m.host, m.acao, m.parametros).catch((e) => post('tv:resultado', { acao: m.acao, ok: false, erro: String((e && e.message) || e) }));
 });
 channel.on('tv:diagnostico', (m) => { diagnostico(m && ipValido(m.host) ? m.host : '127.0.0.1').catch((e) => log('erro', 'diagnóstico: ' + e.message)); });

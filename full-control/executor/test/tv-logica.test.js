@@ -80,3 +80,15 @@ test('ação desconhecida', async () => {
   const res = await op(tvFalsa({ estadoInicial: true }), 'dancar');
   assert.equal(res.ok, false);
 });
+
+test('app youtube manda o link do YouTube com a TV ligada', async () => {
+  const r = tvFalsa({ estadoInicial: true }); const links = []; r.sendAppLink = (l) => links.push(l);
+  const res = await op(r, 'app', { app: 'youtube' });
+  assert.equal(res.ok, true); assert.deepEqual(links, ['https://www.youtube.com']); assert.equal(r.teclas.length, 0);
+});
+test('app com a TV desligada não manda link; app fora da lista é recusado', async () => {
+  const a = tvFalsa({ estadoInicial: false }); const la = []; a.sendAppLink = (l) => la.push(l);
+  assert.equal((await op(a, 'app', { app: 'youtube' })).codigo, 'tv_desligada'); assert.equal(la.length, 0);
+  const b = tvFalsa({ estadoInicial: true }); const lb = []; b.sendAppLink = (l) => lb.push(l);
+  assert.equal((await op(b, 'app', { app: 'http://malicioso.example' })).codigo, 'app_desconhecido'); assert.equal(lb.length, 0);
+});

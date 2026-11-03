@@ -3,6 +3,9 @@
 // saber o estado pelo evento 'powered'. Estado desconhecido = erro, nunca "chute".
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Aplicativos que o Full Control sabe abrir (nome -> link). Para acrescentar um, confirme antes que a TV abre esse link.
+export const APPS_DA_TV = { youtube: 'https://www.youtube.com' };
+
 export const TEMPOS_PADRAO = { pronto: 9000, estado: 2500, confirmar: 5000, entreTeclas: 120, depois: 350 };
 
 function aguardar(remote, evento, ms) {
@@ -56,6 +59,13 @@ export async function operar({ remote, teclas, direcao, acao, parametros = {}, t
       for (let i = 0; i < passos; i++) { tecla(k); if (i < passos - 1) await pausa(T.entreTeclas); }
     }
     r = { ok: true, ligada };
+  } else if (acao === 'app') {
+    // Abre um aplicativo da TV por link (Android TV Remote v2: "app link"). Só aplicativos da lista abaixo, nunca um link qualquer.
+    const link = APPS_DA_TV[String(parametros.app || '')];
+    if (!link) return { ok: false, codigo: 'app_desconhecido', erro: 'Aplicativo não disponível: ' + parametros.app };
+    if (ligada === false) return { ok: false, codigo: 'tv_desligada', erro: 'A TV está desligada. Ligue a TV primeiro.' };
+    remote.sendAppLink(link);
+    r = { ok: true, ligada, app: parametros.app };
   } else {
     return { ok: false, codigo: 'acao', erro: 'Ação desconhecida para a TV: ' + acao };
   }
