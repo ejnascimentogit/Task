@@ -136,7 +136,8 @@ channel.on('tv:comando', (m) => {
 });
 channel.on('tv:diagnostico', (m) => { diagnostico(m && ipValido(m.host) ? m.host : '127.0.0.1').catch((e) => log('erro', 'diagnóstico: ' + e.message)); });
 channel.on('tv:procurar', (m) => { procurarTvs(m && Array.isArray(m.faixas) ? m.faixas.filter((x) => /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(x)) : []); });
-channel.on('tv:status', () => post('tv:status', { pareado: !!lerCert() }));
+const MOTOR_VERSAO = '2026-11-03 · YouTube';
+channel.on('tv:status', () => post('tv:status', { pareado: !!lerCert(), versao: MOTOR_VERSAO }));
 channel.on('tv:esquecer', () => { try { fs.unlinkSync(arquivoCert()); log('info', 'Certificado apagado. Pareie de novo.'); } catch (_) { log('info', 'Nenhum certificado guardado.'); } });
 
 log('info', 'Parte Node pronta (' + process.version + ').');

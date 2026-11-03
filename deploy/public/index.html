@@ -4283,7 +4283,7 @@ function fcTratar(nome, a) {
     else fcAviso('Não achei nenhuma TV nas redes ' + (d.faixas || []).join(', ') + '.0/24. Confira se o celular está no Wi-Fi da TV, se a TV está ligada, e digite o IP à mão.', 'var(--orange)');
     return;
   }
-  if (nome === 'tv:status') { fc.pareado = !!d.pareado; fcDesenhar(); return; }
+  if (nome === 'tv:status') { fc.pareado = !!d.pareado; fc.versao = d.versao || ''; fcDesenhar(); return; }
   if (nome === 'tv:codigo-pedido') { fc.pedeCodigo = true; { const a = fcAbertas(); a.config = true; try { localStorage.setItem('fc_abertas', JSON.stringify(a)); } catch (_) {} } fcAviso('Olhe a TV: apareceu um código de 6 caracteres. Digite abaixo.', 'var(--orange)'); return; }
   if (nome === 'tv:pareamento') {
     fc.ocupado = false; fc.pedeCodigo = false;
@@ -4293,6 +4293,7 @@ function fcTratar(nome, a) {
   if (nome === 'tv:resultado') {
     fc.ocupado = false;
     if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.' })[d.acao] || 'Feito.', 'var(--green)');
+    else if (d.acao === 'app' && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe abrir o YouTube. Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
     else fcAviso(d.erro || 'Falhou.', 'var(--red)');
     return;
   }
@@ -4392,6 +4393,7 @@ function fcDesenhar() {
       ${fc.procura && fc.procura.length > 1 ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${fc.procura.map(ip => `<button class="btn btn-sm" onclick="fcEscolherIp('${ip}')">${ip}</button>`).join('')}</div>` : ''}
       ${pareado ? '' : `<button class="btn btn-primary" ${off} onclick="fcParear()">1. Parear com a TV</button>`}
       ${fc.pedeCodigo ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-cod" maxlength="6" value="${escapeHtml(fc.codTxt || '')}" placeholder="código da TV" style="width:150px;text-transform:uppercase;"><button class="btn btn-primary" onclick="fcCodigo()">Enviar código</button></div>` : ''}
+      <div class="resumo-sub" style="margin-top:10px;">Versão do motor: <b>${fc.versao ? escapeHtml(fc.versao) : 'antiga (sem versão)'}</b></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
         <button class="btn btn-sm" onclick="fcDiagnostico()">Diagnóstico</button>
         ${pareado ? '<button class="btn btn-sm" onclick="fcEsquecer()">Esquecer pareamento</button>' : ''}
