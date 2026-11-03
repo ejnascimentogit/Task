@@ -26,8 +26,19 @@
     <li>Abra o arquivo e permita "instalar de fontes desconhecidas" quando o Android pedir.</li>
     <li>Abra o Task Full e entre com a sua conta.</li>
   </ol>
-  <a class="btn" href="https://github.com/ejnascimentogit/Task/releases/download/taskfull-android/taskfull.apk" download="taskfull.apk">Baixar</a>
+  <div id="estado" style="display:none;margin:0 0 12px;padding:10px 12px;border-radius:10px;border:1px solid var(--green);font-size:14px;line-height:1.5;">Download iniciado. Quando terminar, toque no arquivo <b>taskfull.apk</b> (na notificação ou em Downloads) e escolha <b>Instalar</b>. Se o download não começou, toque em Baixar.</div>
+  <a class="btn" id="baixar" href="https://github.com/ejnascimentogit/Task/releases/download/taskfull-android/taskfull.apk" download="taskfull.apk">Baixar</a>
+  <a class="btn" id="voltar" style="display:none;margin-top:10px;background:transparent;border:1px solid var(--line);color:var(--text);" href="intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=br.com.taskfull.app;end">Voltar ao Task Full</a>
   <small>Só funciona em celular Android. A aba Full Control aparece depois que o administrador liberar a sua conta.</small>
 </div>
+<script>
+  // Aberta de dentro do aplicativo (?auto=1): inicia o download sozinha e mostra o botão para voltar ao app.
+  (function () {
+    var q = new URLSearchParams(location.search);
+    function iniciado() { document.getElementById('estado').style.display = 'block'; document.getElementById('voltar').style.display = 'block'; }
+    document.getElementById('baixar').addEventListener('click', function () { setTimeout(iniciado, 300); });
+    if (q.get('auto') === '1') { setTimeout(function () { document.getElementById('baixar').click(); }, 500); }
+  })();
+</script>
 </body>
 </html>

@@ -4329,7 +4329,7 @@ function fcTecla(tecla) {
 function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
 function fcEsquecer() { if (!confirm('Esquecer o pareamento desta TV neste celular? Será preciso parear de novo.')) return; fcEnviar('tv:esquecer'); fc.pareado = false; fcAviso('Pareamento apagado.', ''); setTimeout(() => fcEnviar('tv:status'), 400); }
 function fcBaixarApk() {
-  if (fcNativo()) window.open(FC_APK_URL, '_blank'); // dentro do app, abre no navegador do celular, que baixa o arquivo
+  if (fcNativo()) window.open(location.origin + '/baixar?auto=1', '_blank'); // dentro do app, abre a página /baixar no navegador do celular (inicia o download e traz o botão de voltar ao app)
   else window.location.href = FC_APK_URL;
   const x = document.getElementById('fc-dl-overlay'); if (x) setTimeout(() => x.remove(), 800);
 }
