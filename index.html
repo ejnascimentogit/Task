@@ -4284,7 +4284,7 @@ function fcTratar(nome, a) {
     return;
   }
   if (nome === 'tv:status') { fc.pareado = !!d.pareado; fcDesenhar(); return; }
-  if (nome === 'tv:codigo-pedido') { fc.pedeCodigo = true; fcAviso('Olhe a TV: apareceu um código de 6 caracteres. Digite abaixo.', 'var(--orange)'); return; }
+  if (nome === 'tv:codigo-pedido') { fc.pedeCodigo = true; { const a = fcAbertas(); a.config = true; try { localStorage.setItem('fc_abertas', JSON.stringify(a)); } catch (_) {} } fcAviso('Olhe a TV: apareceu um código de 6 caracteres. Digite abaixo.', 'var(--orange)'); return; }
   if (nome === 'tv:pareamento') {
     fc.ocupado = false; fc.pedeCodigo = false;
     if (d.ok) { fc.pareado = true; fcAviso('TV pareada! Agora use os botões.', 'var(--green)'); } else fcAviso(d.erro || 'Falha no pareamento.', 'var(--red)');
@@ -4355,6 +4355,19 @@ function fcAbrirDownload() {
     if (el) el.textContent = a ? 'Última versão publicada em ' + new Date(a.updated_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + '.' : '';
   }).catch(() => { const el = document.getElementById('fc-dl-info'); if (el) el.textContent = ''; });
 }
+function fcAbertas() { try { return JSON.parse(localStorage.getItem('fc_abertas') || '{}') || {}; } catch (_) { return {}; } }
+function fcAberta(id) {
+  const a = fcAbertas();
+  if (typeof a[id] === 'boolean') return a[id];
+  return id === 'config' && fc.pareado !== true; // sem pareamento, a Configuração já vem aberta
+}
+function fcAlternar(id) { const a = fcAbertas(); a[id] = !fcAberta(id); try { localStorage.setItem('fc_abertas', JSON.stringify(a)); } catch (_) {} fcDesenhar(); }
+function fcSecao(id, titulo, conteudo) {
+  const ab = fcAberta(id);
+  return `<div style="border:1px solid var(--border);border-radius:12px;margin:8px 0;overflow:hidden;">
+    <button type="button" onclick="fcAlternar('${id}')" aria-expanded="${ab}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:transparent;border:0;color:inherit;font:inherit;font-weight:700;cursor:pointer;text-align:left;"><span>${titulo}</span><span aria-hidden="true">${ab ? '▾' : '▸'}</span></button>
+    ${ab ? `<div style="padding:4px 14px 14px;">${conteudo}</div>` : ''}</div>`;
+}
 function fcDesenhar() {
   const box = document.getElementById('fc-corpo'); if (!box) return;
   if (!fcNativo()) {
@@ -4370,35 +4383,40 @@ function fcDesenhar() {
   const codAtual = document.getElementById('fc-cod'); if (codAtual) fc.codTxt = codAtual.value;
   const off = fc.ocupado ? 'disabled' : '';
   const pareado = fc.pareado === true;
-  box.innerHTML = `
-    <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-        <b>📺 TV</b>
-        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pronto ? 'motor pronto' : 'iniciando…'}</span>
-        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pareado === null ? '…' : (pareado ? 'pareada' : 'sem pareamento')}</span>
-      </div>
-      ${!fc.pronto ? `<div style="margin-bottom:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--orange);font-size:13px;">${escapeHtml(fc.motor || 'Iniciando o motor…')}<br><button class="btn btn-sm" style="margin-top:6px;" onclick="fcLigarPonte(true)">Tentar iniciar de novo</button></div>` : ''}
+  const aviso = fc.aviso ? `<pre style="white-space:pre-wrap;margin:12px 0 0;padding:8px 10px;border-radius:8px;border:1px solid ${fc.cor || 'var(--border)'};font:inherit;font-size:13px;">${escapeHtml(fc.aviso)}</pre>` : '';
+  const precisaParear = '<div class="resumo-sub">Pareie a TV primeiro, em <b>Configuração</b>.</div>';
+  const cfg = `
       <label style="font-size:12px;color:var(--gray-text);">IP da TV na rede</label>
       <input type="text" id="fc-ip" inputmode="decimal" placeholder="ex.: 192.168.1.212" value="${escapeHtml(fcIp())}" style="width:100%;max-width:260px;display:block;margin-bottom:10px;">
       <button class="btn btn-sm" ${off} onclick="fcProcurar()" style="margin-bottom:10px;">🔍 Procurar a TV na rede</button>
       ${fc.procura && fc.procura.length > 1 ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${fc.procura.map(ip => `<button class="btn btn-sm" onclick="fcEscolherIp('${ip}')">${ip}</button>`).join('')}</div>` : ''}
       ${pareado ? '' : `<button class="btn btn-primary" ${off} onclick="fcParear()">1. Parear com a TV</button>`}
       ${fc.pedeCodigo ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-cod" maxlength="6" value="${escapeHtml(fc.codTxt || '')}" placeholder="código da TV" style="width:150px;text-transform:uppercase;"><button class="btn btn-primary" onclick="fcCodigo()">Enviar código</button></div>` : ''}
-      ${pareado ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+        <button class="btn btn-sm" onclick="fcDiagnostico()">Diagnóstico</button>
+        ${pareado ? '<button class="btn btn-sm" onclick="fcEsquecer()">Esquecer pareamento</button>' : ''}
+        <button class="btn btn-sm" onclick="fcAbrirDownload()">📲 Baixar nova versão do app</button>
+      </div>
+      ${fc.log.length ? `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;">Registro</summary><pre style="font-size:11px;white-space:pre-wrap;">${escapeHtml(fc.log.join('\n'))}</pre></details>` : ''}`;
+  const tv = pareado ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" ${off} onclick="fcComando('ligar')">Ligar</button>
         <button class="btn" ${off} onclick="fcComando('desligar')">Desligar</button>
         <button class="btn" ${off} onclick="fcComando('volume','menos')">Volume −</button>
         <button class="btn" ${off} onclick="fcComando('volume','mais')">Volume +</button>
-        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-        <button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button></div>` : ''}
-      ${fc.aviso ? `<pre style="white-space:pre-wrap;margin:12px 0 0;padding:8px 10px;border-radius:8px;border:1px solid ${fc.cor || 'var(--border)'};font:inherit;font-size:13px;">${escapeHtml(fc.aviso)}</pre>` : ''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
-        <button class="btn btn-sm" onclick="fcDiagnostico()">Diagnóstico</button>
-        ${pareado ? '<button class="btn btn-sm" onclick="fcEsquecer()">Esquecer pareamento</button>' : ''}
+        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>` : precisaParear;
+  const yt = pareado ? `<button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button>` : precisaParear;
+  box.innerHTML = `
+    <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <b>📺 Full Control</b>
+        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pronto ? 'motor pronto' : 'iniciando…'}</span>
+        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pareado === null ? '…' : (pareado ? 'pareada' : 'sem pareamento')}</span>
       </div>
-      ${fc.log.length ? `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;">Registro</summary><pre style="font-size:11px;white-space:pre-wrap;">${escapeHtml(fc.log.join('\n'))}</pre></details>` : ''}
-      <button class="btn btn-sm" style="margin-top:12px;" onclick="fcAbrirDownload()">📲 Baixar nova versão do app</button>
+      ${!fc.pronto ? `<div style="margin-bottom:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--orange);font-size:13px;">${escapeHtml(fc.motor || 'Iniciando o motor…')}<br><button class="btn btn-sm" style="margin-top:6px;" onclick="fcLigarPonte(true)">Tentar iniciar de novo</button></div>` : ''}
+      ${fcSecao('config', '⚙️ Configuração', cfg)}
+      ${fcSecao('tv', '📺 TV', tv)}
+      ${fcSecao('youtube', '▶ YouTube', yt)}
+      ${aviso}
       <div class="resumo-sub" style="margin-top:12px;">Funciona com o celular na mesma rede Wi-Fi da TV. Controlar de fora de casa: em breve.</div>
     </div>`;
 }
