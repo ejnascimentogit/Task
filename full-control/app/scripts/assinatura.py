@@ -21,4 +21,6 @@ assert s.count('versionCode 1\n') == 1
 s = s.replace('versionCode 1\n', 'versionCode %s\n' % n, 1)
 s = s.replace('versionName "1.0"', 'versionName "1.0.%s"' % n, 1)
 open(p, 'w').write(s)
+import json
+open('www/nodejs/versao.json', 'w').write(json.dumps({'versao': '1.0.%s' % n}))
 print('assinatura fixa e versionCode', n)

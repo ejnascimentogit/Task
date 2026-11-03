@@ -66,3 +66,4 @@ jobs:
             --title "Task Full para Android" \
             --notes "Aplicativo Android do Task Full (o mesmo site, com a aba Full Control para controlar a TV). Baixe taskfull.apk no celular e instale (permita instalar de fontes desconhecidas). Passo a passo: full-control/app/LEIA-ME.md"
           gh release upload taskfull-android taskfull.apk --clobber
+          gh release edit taskfull-android --title "Task Full para Android 1.0.${{ github.run_number }}" --notes "Versão 1.0.${{ github.run_number }}. Aplicativo Android do Task Full (o mesmo site, com a aba Full Control para controlar a TV). Baixe taskfull.apk no celular e instale. Passo a passo: full-control/app/LEIA-ME.md"
