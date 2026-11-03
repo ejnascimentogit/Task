@@ -131,12 +131,12 @@ channel.on('tv:codigo', (m) => {
 });
 channel.on('tv:comando', (m) => {
   if (!m || !ipValido(m.host)) return post('tv:resultado', { acao: m && m.acao, ok: false, erro: 'IP da TV inválido.' });
-  if (!['ligar', 'desligar', 'volume', 'mudo', 'estado', 'app'].includes(m.acao)) return post('tv:resultado', { acao: m.acao, ok: false, erro: 'Ação inválida.' });
+  if (!['ligar', 'desligar', 'volume', 'mudo', 'estado', 'app', 'tecla'].includes(m.acao)) return post('tv:resultado', { acao: m.acao, ok: false, erro: 'Ação inválida.' });
   comando(m.host, m.acao, m.parametros).catch((e) => post('tv:resultado', { acao: m.acao, ok: false, erro: String((e && e.message) || e) }));
 });
 channel.on('tv:diagnostico', (m) => { diagnostico(m && ipValido(m.host) ? m.host : '127.0.0.1').catch((e) => log('erro', 'diagnóstico: ' + e.message)); });
 channel.on('tv:procurar', (m) => { procurarTvs(m && Array.isArray(m.faixas) ? m.faixas.filter((x) => /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(x)) : []); });
-const MOTOR_VERSAO = '2026-11-03 · YouTube';
+const MOTOR_VERSAO = '2026-11-03 · YouTube + teclas';
 let APP_VERSAO = '';
 try { APP_VERSAO = JSON.parse(fs.readFileSync(path.join(__dirname, 'versao.json'), 'utf8')).versao || ''; } catch (_) { /* compilação local, sem número */ }
 channel.on('tv:status', () => post('tv:status', { pareado: !!lerCert(), versao: MOTOR_VERSAO, app: APP_VERSAO }));

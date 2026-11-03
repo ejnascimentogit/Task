@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { operar } from '../src/tv-logica.js';
 
-const TECLAS = { KEYCODE_POWER: 26, KEYCODE_VOLUME_UP: 24, KEYCODE_VOLUME_DOWN: 25, KEYCODE_VOLUME_MUTE: 164 };
+const TECLAS = { KEYCODE_HOME: 3, KEYCODE_BACK: 4, KEYCODE_TV: 170, KEYCODE_TV_INPUT: 178, KEYCODE_POWER: 26, KEYCODE_VOLUME_UP: 24, KEYCODE_VOLUME_DOWN: 25, KEYCODE_VOLUME_MUTE: 164 };
 const DIRECAO = { SHORT: 3 };
 const RAPIDO = { pronto: 80, estado: 80, confirmar: 80, entreTeclas: 1, depois: 1 };
 
@@ -91,4 +91,11 @@ test('app com a TV desligada não manda link; app fora da lista é recusado', as
   assert.equal((await op(a, 'app', { app: 'youtube' })).codigo, 'tv_desligada'); assert.equal(la.length, 0);
   const b = tvFalsa({ estadoInicial: true }); const lb = []; b.sendAppLink = (l) => lb.push(l);
   assert.equal((await op(b, 'app', { app: 'http://malicioso.example' })).codigo, 'app_desconhecido'); assert.equal(lb.length, 0);
+});
+
+test('tecla tv manda KEYCODE_TV; com a TV desligada ou tecla fora da lista não manda nada', async () => {
+  const a = tvFalsa({ estadoInicial: true }); const ra = await op(a, 'tecla', { tecla: 'tv' });
+  assert.equal(ra.ok, true); assert.deepEqual(a.teclas, [[170, 3]]);
+  const b = tvFalsa({ estadoInicial: false }); assert.equal((await op(b, 'tecla', { tecla: 'home' })).codigo, 'tv_desligada'); assert.equal(b.teclas.length, 0);
+  const c = tvFalsa({ estadoInicial: true }); assert.equal((await op(c, 'tecla', { tecla: 'reiniciar' })).codigo, 'tecla_desconhecida'); assert.equal(c.teclas.length, 0);
 });

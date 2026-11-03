@@ -4292,8 +4292,8 @@ function fcTratar(nome, a) {
   }
   if (nome === 'tv:resultado') {
     fc.ocupado = false;
-    if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.' })[d.acao] || 'Feito.', 'var(--green)');
-    else if (d.acao === 'app' && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe abrir o YouTube. Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
+    if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.', tecla: 'Tecla enviada.' })[d.acao] || 'Feito.', 'var(--green)');
+    else if ((d.acao === 'app' || d.acao === 'tecla') && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe abrir o YouTube. Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
     else fcAviso(d.erro || 'Falhou.', 'var(--red)');
     return;
   }
@@ -4319,6 +4319,11 @@ function fcEscolherIp(ip) { fcGuardarIp(ip); fc.procura = null; fcAviso('IP esco
 function fcAbrirApp(app) {
   const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV.', 'var(--red)');
   fc.ocupado = true; fcAviso('Abrindo na TV…', ''); fcEnviar('tv:comando', { host: ip, acao: 'app', parametros: { app } });
+  setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A TV não respondeu. Confira o Wi-Fi e se a TV está ligada.', 'var(--orange)'); } }, 25000);
+}
+function fcTecla(tecla) {
+  const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV.', 'var(--red)');
+  fc.ocupado = true; fcAviso('Enviando…', ''); fcEnviar('tv:comando', { host: ip, acao: 'tecla', parametros: { tecla } });
   setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A TV não respondeu. Confira o Wi-Fi e se a TV está ligada.', 'var(--orange)'); } }, 25000);
 }
 function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
@@ -4415,7 +4420,15 @@ function fcDesenhar() {
         <button class="btn" ${off} onclick="fcComando('desligar')">Desligar</button>
         <button class="btn" ${off} onclick="fcComando('volume','menos')">Volume −</button>
         <button class="btn" ${off} onclick="fcComando('volume','mais')">Volume +</button>
-        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>` : precisaParear;
+        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>
+      <div class="resumo-sub" style="margin:12px 0 6px;">Navegação</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" ${off} onclick="fcTecla('tv')">📺 TV ao vivo</button>
+        <button class="btn" ${off} onclick="fcTecla('home')">🏠 Início</button>
+        <button class="btn" ${off} onclick="fcTecla('voltar')">↩ Voltar</button>
+        <button class="btn" ${off} onclick="fcTecla('entrada')">🔀 Entrada</button>
+        <button class="btn" ${off} onclick="fcTecla('canal_mais')">Canal +</button>
+        <button class="btn" ${off} onclick="fcTecla('canal_menos')">Canal −</button></div>` : precisaParear;
   const yt = pareado ? `<button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button>` : precisaParear;
   box.innerHTML = `
     <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">

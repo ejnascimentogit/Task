@@ -6,6 +6,9 @@ const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 // Aplicativos que o Full Control sabe abrir (nome -> link). Para acrescentar um, confirme antes que a TV abre esse link.
 export const APPS_DA_TV = { youtube: 'https://www.youtube.com' };
 
+// Teclas de navegação que o Full Control sabe mandar (nome -> tecla do controle).
+export const TECLAS_DA_TV = { home: 'KEYCODE_HOME', voltar: 'KEYCODE_BACK', tv: 'KEYCODE_TV', entrada: 'KEYCODE_TV_INPUT', canal_mais: 'KEYCODE_CHANNEL_UP', canal_menos: 'KEYCODE_CHANNEL_DOWN' };
+
 export const TEMPOS_PADRAO = { pronto: 9000, estado: 2500, confirmar: 5000, entreTeclas: 120, depois: 350 };
 
 function aguardar(remote, evento, ms) {
@@ -59,6 +62,12 @@ export async function operar({ remote, teclas, direcao, acao, parametros = {}, t
       for (let i = 0; i < passos; i++) { tecla(k); if (i < passos - 1) await pausa(T.entreTeclas); }
     }
     r = { ok: true, ligada };
+  } else if (acao === 'tecla') {
+    const nome = TECLAS_DA_TV[String(parametros.tecla || '')];
+    if (!nome || teclas[nome] === undefined) return { ok: false, codigo: 'tecla_desconhecida', erro: 'Tecla não disponível: ' + parametros.tecla };
+    if (ligada === false) return { ok: false, codigo: 'tv_desligada', erro: 'A TV está desligada.' };
+    tecla(teclas[nome]);
+    r = { ok: true, ligada, tecla: parametros.tecla };
   } else if (acao === 'app') {
     // Abre um aplicativo da TV por link (Android TV Remote v2: "app link"). Só aplicativos da lista abaixo, nunca um link qualquer.
     const link = APPS_DA_TV[String(parametros.app || '')];
