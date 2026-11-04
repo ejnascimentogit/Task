@@ -4407,6 +4407,17 @@ function fcInterpretar(texto) {
   if (tem('canal') && tem('menos', 'anterior', 'desce', 'volta')) return { acao: 'tecla', parametros: { tecla: 'canal_menos' }, rotulo: 'canal −' };
   return null;
 }
+function fcVozAuto() { try { return localStorage.getItem('fc_voz_auto') !== '0'; } catch (_) { return true; } }
+function fcVozAlternarAuto(on) { try { localStorage.setItem('fc_voz_auto', on ? '1' : '0'); } catch (_) {} }
+// A cada texto novo (ditado ou digitação), espera uma pausa e, se a frase for um comando conhecido, envia sozinho.
+function fcVozDigitou() {
+  clearTimeout(fc.vozTimer);
+  if (!fcVozAuto() || fc.ocupado) return;
+  fc.vozTimer = setTimeout(() => {
+    const el = document.getElementById('fc-voz');
+    if (el && el.value.trim() && fcInterpretar(el.value) && !fc.ocupado) fcEnviarComandoDeVoz();
+  }, 1400);
+}
 function fcEnviarComandoDeVoz() {
   const el = document.getElementById('fc-voz');
   const texto = ((el && el.value) || fc.vozTxt || '').trim();
@@ -4414,7 +4425,7 @@ function fcEnviarComandoDeVoz() {
   const r = fcInterpretar(texto);
   if (!r) return fcAviso('Não entendi "' + texto + '". Tente: liga a TV, desliga a TV, abre o YouTube, aumenta o volume, abaixa o volume, mudo, TV ao vivo, voltar, início.', 'var(--orange)');
   const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV em Configuração.', 'var(--red)');
-  fc.vozTxt = '';
+  fc.vozTxt = ''; if (el) el.value = ''; clearTimeout(fc.vozTimer);
   fc.ocupado = true; fcAviso('Entendi: ' + r.rotulo + '. Enviando…', '');
   fcEnviar('tv:comando', { host: ip, acao: r.acao, parametros: r.parametros || {} });
   setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A TV não respondeu. Confira o Wi-Fi e se a TV está ligada.', 'var(--orange)'); } }, 25000);
@@ -4433,6 +4444,7 @@ function fcDesenhar() {
   const ipAtual = document.getElementById('fc-ip'); if (ipAtual) { try { localStorage.setItem('fc_ip', ipAtual.value.trim()); } catch (_) {} }
   const codAtual = document.getElementById('fc-cod'); if (codAtual) fc.codTxt = codAtual.value;
   const vozAtual = document.getElementById('fc-voz'); if (vozAtual) fc.vozTxt = vozAtual.value;
+  const vozFoco = !!(vozAtual && document.activeElement === vozAtual);
   const off = fc.ocupado ? 'disabled' : '';
   const pareado = fc.pareado === true;
   const aviso = fc.aviso ? `<pre style="white-space:pre-wrap;margin:12px 0 0;padding:8px 10px;border-radius:8px;border:1px solid ${fc.cor || 'var(--border)'};font:inherit;font-size:13px;">${escapeHtml(fc.aviso)}</pre>` : '';
@@ -4466,8 +4478,9 @@ function fcDesenhar() {
         <button class="btn" ${off} onclick="fcTecla('canal_mais')">Canal +</button>
         <button class="btn" ${off} onclick="fcTecla('canal_menos')">Canal −</button></div>` : precisaParear;
   const yt = pareado ? `<button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button>` : precisaParear;
-  const vozHtml = pareado ? `<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz()">Enviar</button></div>` : precisaParear;
+  const vozHtml = pareado ? `<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Falou, ele envia sozinho e limpa o campo. Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" oninput="fcVozDigitou()" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz()">Enviar</button></div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;"><input type="checkbox" ${fcVozAuto() ? 'checked' : ''} onchange="fcVozAlternarAuto(this.checked)"> Enviar sozinho quando eu parar de falar</label>` : precisaParear;
   box.innerHTML = `
     <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
@@ -4483,6 +4496,7 @@ function fcDesenhar() {
       ${aviso}
       <div class="resumo-sub" style="margin-top:12px;">Funciona com o celular na mesma rede Wi-Fi da TV. Controlar de fora de casa: em breve.</div>
     </div>`;
+  if (vozFoco) { const nv = document.getElementById('fc-voz'); if (nv) { nv.focus(); try { nv.setSelectionRange(nv.value.length, nv.value.length); } catch (_) {} } }
 }
 function renderFullControl() { fcDesenhar(); }
 
