@@ -4466,7 +4466,7 @@ function fcDesenhar() {
         <button class="btn" ${off} onclick="fcTecla('canal_mais')">Canal +</button>
         <button class="btn" ${off} onclick="fcTecla('canal_menos')">Canal −</button></div>` : precisaParear;
   const yt = pareado ? `<button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button>` : precisaParear;
-  const vozHtml = pareado ? `<div class="resumo-sub" style="margin-bottom:8px;">Escreva ou toque no <b>microfone do teclado</b> e fale. Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
+  const vozHtml = pareado ? `<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz()">Enviar</button></div>` : precisaParear;
   box.innerHTML = `
     <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
