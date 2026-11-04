@@ -4375,6 +4375,7 @@ function fcAbertas() { try { return JSON.parse(localStorage.getItem('fc_abertas'
 function fcAberta(id) {
   const a = fcAbertas();
   if (typeof a[id] === 'boolean') return a[id];
+  if (id === 'voz') return fc.pareado === true; // com a TV pareada, o comando de voz já vem aberto
   return id === 'config' && fc.pareado !== true; // sem pareamento, a Configuração já vem aberta
 }
 function fcAlternar(id) { const a = fcAbertas(); a[id] = !fcAberta(id); try { localStorage.setItem('fc_abertas', JSON.stringify(a)); } catch (_) {} fcDesenhar(); }
@@ -4383,6 +4384,40 @@ function fcSecao(id, titulo, conteudo) {
   return `<div style="border:1px solid var(--border);border-radius:12px;margin:8px 0;overflow:hidden;">
     <button type="button" onclick="fcAlternar('${id}')" aria-expanded="${ab}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:transparent;border:0;color:inherit;font:inherit;font-weight:700;cursor:pointer;text-align:left;"><span>${titulo}</span><span aria-hidden="true">${ab ? '▾' : '▸'}</span></button>
     ${ab ? `<div style="padding:4px 14px 14px;">${conteudo}</div>` : ''}</div>`;
+}
+// Comando de voz/texto: o celular dita (microfone do teclado) e o app traduz a frase em uma ação da TV.
+function fcNormalizar(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9+\- ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function fcInterpretar(texto) {
+  const t = ' ' + fcNormalizar(texto) + ' ';
+  const tem = (...ws) => ws.some(w => t.includes(' ' + w + ' '));
+  // Ordem importa: "desliga" contém "liga", e "sai do youtube" não é "abre o youtube".
+  if (tem('desliga', 'desligar', 'desligue', 'apaga', 'apagar', 'apague')) return { acao: 'desligar', rotulo: 'desligar a TV' };
+  if (tem('youtube', 'you tube', 'iutube', 'iutiube') && !tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche')) return { acao: 'app', parametros: { app: 'youtube' }, rotulo: 'abrir o YouTube' };
+  if (t.includes(' ao vivo ') || t.includes(' tv aberta ')) return { acao: 'tecla', parametros: { tecla: 'tv' }, rotulo: 'TV ao vivo' };
+  if (tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche', 'voltar', 'volta', 'volte')) return { acao: 'tecla', parametros: { tecla: 'voltar' }, rotulo: 'voltar' };
+  if (tem('liga', 'ligar', 'ligue', 'acende', 'acenda') && !tem('ao vivo')) return { acao: 'ligar', rotulo: 'ligar a TV' };
+  if (tem('inicio', 'home', 'menu')) return { acao: 'tecla', parametros: { tecla: 'home' }, rotulo: 'ir para o início' };
+  if (tem('entrada', 'fonte', 'hdmi')) return { acao: 'tecla', parametros: { tecla: 'entrada' }, rotulo: 'abrir as entradas' };
+  if (tem('mudo', 'silencio', 'silenciar', 'cala')) return { acao: 'mudo', rotulo: 'alternar mudo' };
+  if (tem('volume', 'som')) {
+    if (tem('aumenta', 'aumentar', 'aumente', 'sobe', 'subir', 'suba', 'mais', 'alto')) return { acao: 'volume', parametros: { direcao: 'mais', passos: 3 }, rotulo: 'aumentar o volume' };
+    if (tem('abaixa', 'abaixar', 'abaixe', 'diminui', 'diminuir', 'diminua', 'desce', 'descer', 'menos', 'baixo')) return { acao: 'volume', parametros: { direcao: 'menos', passos: 3 }, rotulo: 'diminuir o volume' };
+  }
+  if (tem('canal') && tem('mais', 'proximo', 'sobe', 'passa')) return { acao: 'tecla', parametros: { tecla: 'canal_mais' }, rotulo: 'canal +' };
+  if (tem('canal') && tem('menos', 'anterior', 'desce', 'volta')) return { acao: 'tecla', parametros: { tecla: 'canal_menos' }, rotulo: 'canal −' };
+  return null;
+}
+function fcEnviarComandoDeVoz() {
+  const el = document.getElementById('fc-voz');
+  const texto = ((el && el.value) || fc.vozTxt || '').trim();
+  if (!texto) return fcAviso('Escreva ou dite o comando. Exemplos: "liga a TV", "abre o YouTube", "abaixa o volume".', 'var(--orange)');
+  const r = fcInterpretar(texto);
+  if (!r) return fcAviso('Não entendi "' + texto + '". Tente: liga a TV, desliga a TV, abre o YouTube, aumenta o volume, abaixa o volume, mudo, TV ao vivo, voltar, início.', 'var(--orange)');
+  const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV em Configuração.', 'var(--red)');
+  fc.vozTxt = '';
+  fc.ocupado = true; fcAviso('Entendi: ' + r.rotulo + '. Enviando…', '');
+  fcEnviar('tv:comando', { host: ip, acao: r.acao, parametros: r.parametros || {} });
+  setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A TV não respondeu. Confira o Wi-Fi e se a TV está ligada.', 'var(--orange)'); } }, 25000);
 }
 function fcDesenhar() {
   const box = document.getElementById('fc-corpo'); if (!box) return;
@@ -4397,6 +4432,7 @@ function fcDesenhar() {
   fcLigarPonte();
   const ipAtual = document.getElementById('fc-ip'); if (ipAtual) { try { localStorage.setItem('fc_ip', ipAtual.value.trim()); } catch (_) {} }
   const codAtual = document.getElementById('fc-cod'); if (codAtual) fc.codTxt = codAtual.value;
+  const vozAtual = document.getElementById('fc-voz'); if (vozAtual) fc.vozTxt = vozAtual.value;
   const off = fc.ocupado ? 'disabled' : '';
   const pareado = fc.pareado === true;
   const aviso = fc.aviso ? `<pre style="white-space:pre-wrap;margin:12px 0 0;padding:8px 10px;border-radius:8px;border:1px solid ${fc.cor || 'var(--border)'};font:inherit;font-size:13px;">${escapeHtml(fc.aviso)}</pre>` : '';
@@ -4430,6 +4466,8 @@ function fcDesenhar() {
         <button class="btn" ${off} onclick="fcTecla('canal_mais')">Canal +</button>
         <button class="btn" ${off} onclick="fcTecla('canal_menos')">Canal −</button></div>` : precisaParear;
   const yt = pareado ? `<button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button>` : precisaParear;
+  const vozHtml = pareado ? `<div class="resumo-sub" style="margin-bottom:8px;">Escreva ou toque no <b>microfone do teclado</b> e fale. Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz()">Enviar</button></div>` : precisaParear;
   box.innerHTML = `
     <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
@@ -4439,6 +4477,7 @@ function fcDesenhar() {
       </div>
       ${!fc.pronto ? `<div style="margin-bottom:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--orange);font-size:13px;">${escapeHtml(fc.motor || 'Iniciando o motor…')}<br><button class="btn btn-sm" style="margin-top:6px;" onclick="fcLigarPonte(true)">Tentar iniciar de novo</button></div>` : ''}
       ${fcSecao('config', '⚙️ Configuração', cfg)}
+      ${fcSecao('voz', '🎤 Comando de voz', vozHtml)}
       ${fcSecao('tv', '📺 TV', tv)}
       ${fcSecao('youtube', '▶ YouTube', yt)}
       ${aviso}
