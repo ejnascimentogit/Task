@@ -4223,7 +4223,7 @@ const fc = { plugin: null, ligado: false, pronto: false, pareado: null, ocupado:
 function fcNativo() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
 function fcIp() { try { return localStorage.getItem('fc_ip') || ''; } catch (_) { return ''; } }
 function fcAviso(txt, cor) { fc.aviso = txt || ''; fc.cor = cor || ''; fcDesenhar(); }
-function fcEnviar(ev, dados) { if (!fc.plugin) return fcAviso('O motor da TV ainda não foi iniciado.', 'var(--red)'); fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => { fc.ocupado = false; fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)'); }); }
+function fcEnviar(ev, dados) { if (ev === 'tv:comando' && dados) fcRegistrar('> ' + fcRotulo(dados)); if (!fc.plugin) return fcAviso('O motor da TV ainda não foi iniciado.', 'var(--red)'); fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => { fc.ocupado = false; fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)'); }); }
 function fcMotor(txt) { fc.motor = txt; if (activeTab === 'fullcontrol') fcDesenhar(); }
 function fcErro(e) { return (e && (e.message || e.errorMessage || e.code)) ? String(e.message || e.errorMessage || e.code) : JSON.stringify(e); }
 function fcAmbiente() {
@@ -4292,6 +4292,7 @@ function fcTratar(nome, a) {
   }
   if (nome === 'tv:resultado') {
     fc.ocupado = false;
+    fcRegistrar(d.ok ? '✓ EXECUTADO' : '✗ ' + String(d.erro || 'FALHOU').slice(0, 60), d.ok ? 'ok' : 'er');
     if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.', tecla: 'Tecla enviada.' })[d.acao] || 'Feito.', 'var(--green)');
     else if ((d.acao === 'app' || d.acao === 'tecla') && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe abrir o YouTube. Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
     else fcAviso(d.erro || 'Falhou.', 'var(--red)');
@@ -4480,6 +4481,158 @@ function fcEnviarComandoDeVoz(manual) {
   fcEnviar('tv:comando', { host: ip, acao: r.acao, parametros: r.parametros || {} });
   setTimeout(() => { if (fc.ocupado) { fc.ocupado = false; fcAviso('A TV não respondeu. Confira o Wi-Fi e se a TV está ligada.', 'var(--orange)'); } }, 25000);
 }
+const FCX_CSS = `
+.fcx{--cy:#5ee6ff;--cy2:#1fb8e8;--gold:#ffc24a;--red:#ff4357;--gr:#3dffa0;--mu:#7aa0c6;--tx:#e8f6ff;position:relative;overflow:hidden;border-radius:22px;padding:16px 12px 18px;color:var(--tx);letter-spacing:.05em;
+ font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+ background:radial-gradient(120% 70% at 50% 28%,rgba(48,190,255,.20),transparent 68%),radial-gradient(70% 40% at 0% 100%,rgba(255,194,74,.08),transparent 70%),#02050d;
+ box-shadow:0 0 0 1px rgba(94,230,255,.25),0 18px 50px rgba(0,0,0,.45)}
+.fcx *{box-sizing:border-box}
+.fcx .hexbg{position:absolute;inset:0;width:100%;height:100%;opacity:.5;pointer-events:none}
+.fcx .scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(180deg,rgba(94,230,255,.035) 0 1px,transparent 1px 3px)}
+.fcx .sweep{position:absolute;left:0;right:0;height:110px;top:-110px;background:linear-gradient(180deg,transparent,rgba(94,230,255,.10),transparent);animation:fcxsw 7s linear infinite;pointer-events:none}
+@keyframes fcxsw{to{transform:translateY(1500px)}}
+.fcx .rel{position:relative;z-index:2}
+.fcx .topo{display:flex;align-items:center;gap:10px}
+.fcx .logo{width:38px;height:38px;flex:none}
+.fcx .titulo{font-family:Inter,system-ui,sans-serif;font-weight:800;font-size:15px;letter-spacing:.26em;line-height:1.1}
+.fcx .titulo small{display:block;font-family:ui-monospace,monospace;font-weight:600;font-size:9px;letter-spacing:.22em;color:var(--cy2);margin-top:4px}
+.fcx .hora{margin-left:auto;text-align:right;font-size:17px;color:var(--cy);text-shadow:0 0 12px rgba(94,230,255,.8)}
+.fcx .hora small{display:block;font-size:8.5px;color:var(--mu);letter-spacing:.18em}
+.fcx .faixa{margin:12px 0 4px;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.fcx .dado{padding:6px 7px;font-size:8.5px;color:var(--mu);clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);background:rgba(94,230,255,.07);border-left:2px solid var(--cy);min-width:0}
+.fcx .dado b{display:block;color:var(--tx);font-size:10px;margin-top:2px;letter-spacing:.04em;text-shadow:0 0 8px rgba(94,230,255,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcx .dado.g{border-color:var(--gr)}.fcx .dado.g b{color:var(--gr);text-shadow:0 0 8px rgba(61,255,160,.6)}
+.fcx .dado.a{border-color:var(--gold)}.fcx .dado.a b{color:var(--gold)}
+.fcx .alerta{margin-top:10px;padding:9px 12px;font-size:11px;line-height:1.5;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);background:rgba(255,194,74,.1);box-shadow:inset 0 0 0 1px rgba(255,194,74,.5);color:var(--gold)}
+.fcx .palco{position:relative;width:100%;max-width:360px;aspect-ratio:1/1;margin:30px auto 0}
+.fcx .core{position:absolute;left:50%;top:50%;width:52%;transform:translate(-50%,-50%);cursor:pointer;transition:width .35s ease,filter .35s;-webkit-tap-highlight-color:transparent;background:none;border:0;padding:0;display:block;filter:drop-shadow(0 0 14px rgba(94,230,255,.35))}
+.fcx .core svg{width:100%;height:auto;display:block;overflow:visible}
+.fcx.ouv .core{width:68%;filter:drop-shadow(0 0 28px rgba(94,230,255,.9))}
+.fcx .gira{transform-origin:150px 150px;animation:fcxg 26s linear infinite}
+.fcx .gira2{transform-origin:150px 150px;animation:fcxg 17s linear infinite reverse}
+.fcx .gira3{transform-origin:150px 150px;animation:fcxg 70s linear infinite}
+.fcx.ouv .gira{animation-duration:7s}.fcx.ouv .gira2{animation-duration:5s}
+@keyframes fcxg{to{transform:rotate(360deg)}}
+.fcx .pulsa{transform-origin:150px 150px;animation:fcxp 2.6s ease-in-out infinite}
+.fcx.ouv .pulsa{animation-duration:.9s}
+@keyframes fcxp{0%,100%{opacity:.88;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+.fcx .spokes{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transition:opacity .3s}
+.fcx .no{position:absolute;width:17.4%;aspect-ratio:1/1;transform:translate(-50%,-50%);transition:opacity .3s,transform .15s;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.fcx .no .hx{position:absolute;inset:0;clip-path:polygon(25% 3%,75% 3%,98% 50%,75% 97%,25% 97%,2% 50%);background:linear-gradient(160deg,rgba(94,230,255,.6),rgba(94,230,255,.1))}
+.fcx .no .hx::after{content:"";position:absolute;inset:2px;clip-path:inherit;background:linear-gradient(160deg,#0a2540,#04101f)}
+.fcx .no svg{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);fill:none;stroke:var(--cy);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 5px rgba(94,230,255,.9));z-index:1}
+.fcx .no span{position:absolute;left:50%;top:100%;margin-top:4px;transform:translateX(-50%);font-size:8.5px;letter-spacing:.16em;white-space:nowrap;text-shadow:0 0 8px rgba(94,230,255,.7)}
+.fcx .no.up span{top:auto;bottom:100%;margin:0 0 4px}
+.fcx .no span{z-index:3;color:var(--tx);font-family:inherit}
+.fcx .no.v .hx{background:linear-gradient(160deg,rgba(255,67,87,.85),rgba(255,67,87,.12))}.fcx .no.v svg{stroke:var(--red);filter:drop-shadow(0 0 6px rgba(255,67,87,.9))}
+.fcx .no.o .hx{background:linear-gradient(160deg,rgba(255,194,74,.85),rgba(255,194,74,.12))}.fcx .no.o svg{stroke:var(--gold);filter:drop-shadow(0 0 6px rgba(255,194,74,.9))}
+.fcx .no.g .hx{background:linear-gradient(160deg,rgba(61,255,160,.9),rgba(61,255,160,.14))}.fcx .no.g svg{stroke:var(--gr);filter:drop-shadow(0 0 6px rgba(61,255,160,.9))}
+.fcx .no:active{transform:translate(-50%,-50%) scale(.92)}
+.fcx .no[disabled]{opacity:.35;pointer-events:none}
+.fcx.ouv .no,.fcx.ouv .spokes{opacity:0;pointer-events:none}
+.fcx .coroa{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity .3s}
+.fcx.ouv .coroa{opacity:1}
+.fcx .legenda{text-align:center;margin-top:30px}
+.fcx .cta{font-family:Inter,system-ui,sans-serif;font-weight:800;font-size:18px;letter-spacing:.28em;text-shadow:0 0 16px rgba(94,230,255,.7)}
+.fcx.ouv .cta{color:var(--cy)}
+.fcx .dica{font-size:10.5px;color:var(--mu);margin-top:6px;letter-spacing:.08em}
+.fcx .dica b{color:var(--gold);font-weight:700;text-shadow:0 0 10px rgba(255,194,74,.5)}
+.fcx .painel{position:relative;margin-top:12px;padding:11px 13px;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);background:linear-gradient(180deg,rgba(94,230,255,.11),rgba(94,230,255,.03));box-shadow:inset 0 0 0 1px rgba(94,230,255,.28)}
+.fcx .rot{font-size:9px;letter-spacing:.24em;color:var(--cy2);margin-bottom:7px;display:flex;justify-content:space-between;gap:8px}
+.fcx .lin{font-size:11px;line-height:1.75;color:var(--mu);word-break:break-word}
+.fcx .lin .t{color:#4f7aa6}.fcx .lin .c{color:var(--tx)}.fcx .lin .ok{color:var(--gr)}.fcx .lin .er{color:var(--red)}
+.fcx .st{margin-top:12px;padding:14px 14px;clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px);text-align:center}
+.fcx .st .tt{font-size:9px;letter-spacing:.26em;margin-bottom:6px}
+.fcx .st .tx{font-family:Inter,system-ui,sans-serif;font-size:14px;font-weight:700;letter-spacing:.04em;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.fcx .st.ok{background:linear-gradient(180deg,rgba(61,255,160,.2),rgba(61,255,160,.04));box-shadow:inset 0 0 0 1px rgba(61,255,160,.6),0 0 30px rgba(61,255,160,.2);color:var(--gr)}
+.fcx .st.er{background:linear-gradient(180deg,rgba(255,67,87,.2),rgba(255,67,87,.04));box-shadow:inset 0 0 0 1px rgba(255,67,87,.6);color:#ff8f9b}
+.fcx .st.wa{background:linear-gradient(180deg,rgba(255,194,74,.18),rgba(255,194,74,.04));box-shadow:inset 0 0 0 1px rgba(255,194,74,.55);color:var(--gold)}
+.fcx .st.in{background:linear-gradient(180deg,rgba(94,230,255,.16),rgba(94,230,255,.04));box-shadow:inset 0 0 0 1px rgba(94,230,255,.5);color:var(--cy)}
+.fcx .abas{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.fcx .aba{text-align:center;font-size:9px;letter-spacing:.12em;padding:10px 2px;cursor:pointer;color:var(--tx);border:0;font-family:inherit;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);background:rgba(94,230,255,.09);box-shadow:inset 0 0 0 1px rgba(94,230,255,.25)}
+.fcx .aba.viva{background:linear-gradient(180deg,rgba(61,255,160,.38),rgba(61,255,160,.08));color:var(--gr);text-shadow:0 0 8px rgba(61,255,160,.7)}
+.fcx .aba[disabled]{opacity:.35;pointer-events:none}
+.fcx .campo{margin:6px 0 10px}.fcx .campo label{font-size:9px;letter-spacing:.22em;color:var(--cy2);display:block}
+.fcx input[type=text]{width:100%;margin-top:6px;padding:10px 12px;font-size:15px;color:var(--tx);font-family:inherit;border:0;outline:0;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);background:rgba(1,8,20,.9);box-shadow:inset 0 0 0 1px rgba(94,230,255,.45)}
+.fcx input[type=text]:focus{box-shadow:inset 0 0 0 2px var(--cy),0 0 16px rgba(94,230,255,.4)}
+.fcx input[type=text]::placeholder{color:#4a6d92}
+.fcx .linha{display:flex;gap:8px;align-items:stretch}
+.fcx .bt{display:block;text-align:center;padding:11px 10px;font-size:10px;letter-spacing:.16em;font-weight:700;margin-top:8px;cursor:pointer;color:var(--tx);border:0;font-family:inherit;clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px);background:linear-gradient(180deg,rgba(94,230,255,.42),rgba(94,230,255,.1));box-shadow:inset 0 0 0 1px rgba(94,230,255,.6);width:100%}
+.fcx .bt.g{background:linear-gradient(180deg,rgba(61,255,160,.45),rgba(61,255,160,.1));box-shadow:inset 0 0 0 1px rgba(61,255,160,.7);color:var(--gr)}
+.fcx .bt.r{background:linear-gradient(180deg,rgba(255,67,87,.4),rgba(255,67,87,.08));box-shadow:inset 0 0 0 1px rgba(255,67,87,.7);color:#ff8f9b}
+.fcx .bt[disabled]{opacity:.4;pointer-events:none}
+.fcx .linha .bt{margin-top:6px;width:auto;flex:none}
+.fcx .grade2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.fcx .grade2 .bt{margin-top:8px}
+.fcx .kv{display:flex;justify-content:space-between;gap:10px;font-size:10.5px;padding:7px 0;border-bottom:1px dashed rgba(94,230,255,.16);color:var(--mu)}.fcx .kv b{color:var(--cy);text-align:right}
+.fcx label.chk{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--tx);margin-top:8px}
+.fcx .acc{cursor:pointer}.fcx .acc .rot{margin:0}
+.fcx .ids{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.fcx .ids .bt{margin:0;width:auto;padding:8px 12px}
+.fcx .rodape{position:relative;z-index:2;margin-top:14px;display:flex;justify-content:space-between;font-size:8.5px;color:var(--mu);letter-spacing:.2em}
+.fcx .rodape b{color:var(--gr)}
+.fcx details summary{cursor:pointer;font-size:10px;color:var(--cy2);letter-spacing:.18em;margin-top:10px}
+.fcx details pre{font-size:10px;white-space:pre-wrap;color:var(--mu)}
+@media (prefers-reduced-motion:reduce){.fcx .gira,.fcx .gira2,.fcx .gira3,.fcx .pulsa,.fcx .sweep{animation:none}}
+`;
+// ---- Visual HUD (reator) da aba Full Control ----
+function fcInjetarCss() {
+  if (document.getElementById('fcx-css')) return;
+  const s = document.createElement('style'); s.id = 'fcx-css'; s.textContent = FCX_CSS; document.head.appendChild(s);
+}
+function fcHora() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function fcRelogio() {
+  if (fc.relogio) return;
+  fc.relogio = setInterval(() => { const el = document.getElementById('fcx-hora'); if (el) el.textContent = fcHora(); }, 20000);
+}
+function fcRegistrar(txt, cls) {
+  fc.registro = fc.registro || [];
+  fc.registro.push({ h: new Date().toTimeString().slice(0, 8), t: txt, c: cls || '' });
+  if (fc.registro.length > 4) fc.registro.shift();
+}
+function fcRotulo(d) {
+  const p = d.parametros || {};
+  const nomes = { ligar: 'LIGAR TV', desligar: 'DESLIGAR TV', mudo: 'MUDO' };
+  if (nomes[d.acao]) return nomes[d.acao];
+  if (d.acao === 'volume') return p.direcao === 'mais' ? 'VOLUME +' : 'VOLUME −';
+  if (d.acao === 'app') return 'ABRIR ' + String(p.app || '').toUpperCase();
+  if (d.acao === 'tecla') return ({ tv: 'TV AO VIVO', home: 'INÍCIO', voltar: 'VOLTAR', entrada: 'ENTRADA', canal_mais: 'CANAL +', canal_menos: 'CANAL −' })[p.tecla] || 'TECLA';
+  return String(d.acao || '').toUpperCase();
+}
+function fcReatorSvg() {
+  const cor = fc.ouvindo ? '#bff6ff' : '#5ee6ff';
+  const nuc = fc.ouvindo ? ['#ffffff', '#7be9ff', '#1aa9d6'] : ['#ffffff', '#63e8ff', '#0f8fbf'];
+  let tk = '';
+  for (let i = 0; i < 72; i++) {
+    const a = i * 5 * Math.PI / 180, r1 = 148, r2 = i % 6 === 0 ? 141 : 144.5;
+    tk += `<line x1="${(150 + Math.cos(a) * r1).toFixed(1)}" y1="${(150 + Math.sin(a) * r1).toFixed(1)}" x2="${(150 + Math.cos(a) * r2).toFixed(1)}" y2="${(150 + Math.sin(a) * r2).toFixed(1)}" stroke="${cor}" stroke-opacity=".6" stroke-width="${i % 6 === 0 ? 1.6 : 1}"/>`;
+  }
+  return `<svg viewBox="0 0 300 300" aria-hidden="true"><defs>
+    <radialGradient id="fcxrg" cx="50%" cy="46%" r="55%"><stop offset="0" stop-color="${nuc[0]}"/><stop offset=".35" stop-color="${nuc[1]}"/><stop offset="1" stop-color="${nuc[2]}"/></radialGradient>
+    <filter id="fcxgl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter></defs>
+    <circle cx="150" cy="150" r="118" fill="rgba(94,230,255,.10)" filter="url(#fcxgl)"/>
+    <g class="gira3">${tk}</g>
+    <g class="gira"><circle cx="150" cy="150" r="140" fill="none" stroke="${cor}" stroke-opacity=".55" stroke-width="2" stroke-dasharray="3 7"/><circle cx="150" cy="150" r="128" fill="none" stroke="${cor}" stroke-width="5" stroke-dasharray="64 17" opacity=".9"/></g>
+    <g class="gira2"><circle cx="150" cy="150" r="108" fill="none" stroke="${cor}" stroke-opacity=".6" stroke-width="1.5"/><circle cx="150" cy="150" r="96" fill="none" stroke="${cor}" stroke-width="12" stroke-dasharray="38 14.3" opacity=".55"/></g>
+    <g class="pulsa"><circle cx="150" cy="150" r="76" fill="url(#fcxrg)"/><circle cx="150" cy="150" r="76" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2"/><polygon points="150,100 193,175 107,175" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/></g>
+    <g transform="translate(150 150)" fill="none" stroke="#03203a" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"><rect x="-10" y="-34" width="20" height="40" rx="10" fill="#03203a" fill-opacity=".25"/><path d="M-22 4a22 22 0 0 0 44 0M0 26v13M-12 39h24"/></g></svg>`;
+}
+function fcCoroaSvg() {
+  let b = '';
+  for (let i = 0; i < 48; i++) {
+    const a = i * 7.5, lo = 8 + (i * 7) % 20, hi = 14 + (i * 13) % 26, d = (0.5 + (i % 7) * 0.09).toFixed(2);
+    b += `<line x1="180" y1="${180 - 122}" x2="180" y2="${180 - 122 - lo}" stroke="#5ee6ff" stroke-width="3.2" stroke-linecap="round" transform="rotate(${a} 180 180)"><animate attributeName="y2" values="${180 - 122 - lo};${180 - 122 - hi};${180 - 122 - lo}" dur="${d}s" repeatCount="indefinite"/></line>`;
+  }
+  return `<svg class="coroa" viewBox="0 0 360 360" aria-hidden="true">${b}</svg>`;
+}
+function fcReatorToque() {
+  if (fc.pareado !== true) {
+    const a = fcAbertas(); a.config = true; try { localStorage.setItem('fc_abertas', JSON.stringify(a)); } catch (_) {}
+    return fcAviso('Primeiro pareie a TV: abra CONFIGURAÇÃO abaixo.', 'var(--orange)');
+  }
+  if (fcMicDisponivel()) return fcOuvir();
+  fcAviso('O botão de voz precisa do APK mais recente (menu ☰ → 📲 Baixar o app Android). Por enquanto, use o terminal abaixo.', 'var(--orange)');
+  const el = document.getElementById('fc-voz'); if (el) el.focus();
+}
 function fcDesenhar() {
   const box = document.getElementById('fc-corpo'); if (!box) return;
   if (!fcNativo()) {
@@ -4490,67 +4643,80 @@ function fcDesenhar() {
       <div class="resumo-sub" style="margin-top:12px;">Controlar de fora de casa: em breve.</div></div>`;
     return;
   }
-  fcLigarPonte();
+  fcLigarPonte(); fcInjetarCss(); fcRelogio();
   const ipAtual = document.getElementById('fc-ip'); if (ipAtual) { try { localStorage.setItem('fc_ip', ipAtual.value.trim()); } catch (_) {} }
   const codAtual = document.getElementById('fc-cod'); if (codAtual) fc.codTxt = codAtual.value;
   const vozAtual = document.getElementById('fc-voz'); if (vozAtual) fc.vozTxt = vozAtual.value;
   const vozFoco = !!(vozAtual && document.activeElement === vozAtual);
   const off = fc.ocupado ? 'disabled' : '';
   const pareado = fc.pareado === true;
-  const aviso = fc.aviso ? `<pre style="white-space:pre-wrap;margin:12px 0 0;padding:8px 10px;border-radius:8px;border:1px solid ${fc.cor || 'var(--border)'};font:inherit;font-size:13px;">${escapeHtml(fc.aviso)}</pre>` : '';
-  const precisaParear = '<div class="resumo-sub">Pareie a TV primeiro, em <b>Configuração</b>.</div>';
-  const cfg = `
-      <label style="font-size:12px;color:var(--gray-text);">IP da TV na rede</label>
-      <input type="text" id="fc-ip" inputmode="decimal" placeholder="ex.: 192.168.1.212" value="${escapeHtml(fcIp())}" style="width:100%;max-width:260px;display:block;margin-bottom:10px;">
-      <button class="btn btn-sm" ${off} onclick="fcProcurar()" style="margin-bottom:10px;">🔍 Procurar a TV na rede</button>
-      ${fc.procura && fc.procura.length > 1 ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">${fc.procura.map(ip => `<button class="btn btn-sm" onclick="fcEscolherIp('${ip}')">${ip}</button>`).join('')}</div>` : ''}
-      ${pareado ? '' : `<button class="btn btn-primary" ${off} onclick="fcParear()">1. Parear com a TV</button>`}
-      ${fc.pedeCodigo ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-cod" maxlength="6" value="${escapeHtml(fc.codTxt || '')}" placeholder="código da TV" style="width:150px;text-transform:uppercase;"><button class="btn btn-primary" onclick="fcCodigo()">Enviar código</button></div>` : ''}
-      <div class="resumo-sub" style="margin-top:10px;">Versão do aplicativo instalado: <b>${fc.appVersao ? escapeHtml(fc.appVersao) : 'não informada'}</b><br>Versão do motor: <b>${fc.versao ? escapeHtml(fc.versao) : 'antiga (sem versão)'}</b></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
-        <button class="btn btn-sm" onclick="fcDiagnostico()">Diagnóstico</button>
-        ${pareado ? '<button class="btn btn-sm" onclick="fcEsquecer()">Esquecer pareamento</button>' : ''}
-        <button class="btn btn-sm" onclick="fcAbrirDownload()">📲 Baixar nova versão do app</button>
+  const nOff = (!pareado || fc.ocupado) ? 'disabled' : '';
+  const E = escapeHtml;
+  const nome = E(fcNomeBonito()).toUpperCase();
+  // nós em órbita
+  const itens = [
+    { a: -90, n: 'LIGAR', c: 'g', f: "fcComando('ligar')", i: '<path d="M12 3v9"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/>' },
+    { a: -30, n: 'YOUTUBE', c: 'o', f: "fcAbrirApp('youtube')", i: '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10 9.5v5l4.5-2.5z"/>' },
+    { a: 30, n: 'VOL +', c: '', f: "fcComando('volume','mais')", i: '<path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M16 12h5M18.5 9.5v5"/>' },
+    { a: 90, n: 'MUDO', c: '', f: "fcComando('mudo')", i: '<path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M17 9l5 6M22 9l-5 6"/>' },
+    { a: 150, n: 'VOL −', c: '', f: "fcComando('volume','menos')", i: '<path d="M4 10v4h4l5 4V6L8 10H4z"/><path d="M16 12h5"/>' },
+    { a: -150, n: 'DESLIGAR', c: 'v', f: "fcComando('desligar')", i: '<path d="M12 3v9"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/>' }];
+  const cores = { g: '#3dffa0', o: '#ffc24a', v: '#ff4357', '': '#5ee6ff' };
+  let spokes = '', nos = '';
+  itens.forEach(o => {
+    const r = o.a * Math.PI / 180, cx = Math.cos(r), cy = Math.sin(r);
+    spokes += `<line x1="${(180 + cx * 84).toFixed(1)}" y1="${(180 + cy * 84).toFixed(1)}" x2="${(180 + cx * 115).toFixed(1)}" y2="${(180 + cy * 115).toFixed(1)}" stroke="${cores[o.c]}" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="3 4"/><circle cx="${(180 + cx * 84).toFixed(1)}" cy="${(180 + cy * 84).toFixed(1)}" r="2.5" fill="${cores[o.c]}"/>`;
+    nos += `<button type="button" class="no ${o.c}${o.a === -90 ? ' up' : ''}" ${nOff} style="left:${(50 + cx * 40.6).toFixed(2)}%;top:${(50 + cy * 40.6).toFixed(2)}%" onclick="${o.f}" aria-label="${o.n}"><i class="hx"></i><svg viewBox="0 0 24 24">${o.i}</svg><span>${o.n}</span></button>`;
+  });
+  // estado
+  const motorOk = fc.pronto;
+  const dado = (t, v, c) => `<div class="dado ${c || ''}">${t}<b>${v}</b></div>`;
+  const faixa = `<div class="faixa">${dado('MOTOR', motorOk ? 'ONLINE' : 'INICIANDO', motorOk ? 'g' : 'a')}${dado('TV', fc.pareado === null ? '…' : (pareado ? 'PAREADA' : 'SEM PAREAR'), pareado ? 'g' : 'a')}${dado('REDE', E(fcIp() || '—'))}${dado('VERSÃO', E(fc.appVersao || '—'))}</div>`;
+  const alerta = !motorOk ? `<div class="alerta">${E(fc.motor || 'Iniciando o motor…')}<button type="button" class="bt" onclick="fcLigarPonte(true)">TENTAR INICIAR DE NOVO</button></div>` : '';
+  const legenda = fc.ouvindo
+    ? `<div class="cta">OUVINDO…</div><div class="dica">FALE AGORA: <b>“${nome}, LIGA A TV”</b></div>`
+    : `<div class="cta">TOQUE E FALE</div><div class="dica">${fcExigirNome() ? `DIGA <b>“${nome}, LIGA A TV”</b>` : 'DIGA <b>“LIGA A TV”</b>'}</div>`;
+  const clsSt = ({ 'var(--green)': 'ok', 'var(--red)': 'er', 'var(--orange)': 'wa' })[fc.cor] || 'in';
+  const ttSt = ({ ok: 'CONFIRMADO', er: 'FALHA', wa: 'ATENÇÃO', in: 'STATUS' })[clsSt];
+  const status = fc.aviso ? `<div class="st ${clsSt}"><div class="tt">${ttSt}</div><div class="tx">${E(fc.aviso)}</div></div>` : '';
+  const terminal = pareado ? `<div class="painel"><div class="rot"><span>TERMINAL DE VOZ</span><span>${fcVozAuto() ? 'AUTO' : 'MANUAL'}</span></div>
+      <div class="linha"><input type="text" id="fc-voz" value="${E(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" oninput="fcVozDigitou()" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button type="button" class="bt" ${off} onclick="fcEnviarComandoDeVoz(true)">ENVIAR</button></div>
+      <div class="dica" style="margin-top:8px;">${fcMicDisponivel() ? 'Ou toque no reator e fale.' : 'Use o 🎤 do teclado (Samsung: canto inferior esquerdo). Para o botão de voz do reator, instale o APK mais recente.'}</div></div>` : '';
+  const regs = (fc.registro || []);
+  const registro = `<div class="painel"><div class="rot"><span>REGISTRO DE MISSÃO</span><span>${regs.length ? 'ATIVO' : 'VAZIO'}</span></div><div class="lin">${regs.length ? regs.map(l => `<div><span class="t">${l.h}</span> <span class="${l.c || 'c'}">${E(l.t)}</span></div>`).join('') : '<div>Aguardando comandos…</div>'}</div></div>`;
+  const abas = `<div class="abas">${[['tv', '📺 TV AO VIVO'], ['home', 'INÍCIO'], ['voltar', 'VOLTAR'], ['entrada', 'ENTRADA'], ['canal_mais', 'CANAL +'], ['canal_menos', 'CANAL −']].map(([k, t]) => `<button type="button" class="aba ${k === 'tv' ? 'viva' : ''}" ${nOff} onclick="fcTecla('${k}')">${t}</button>`).join('')}</div>`;
+  const abertaCfg = fcAberta('config');
+  const cfg = `<div class="painel"><div class="rot acc" onclick="fcAlternar('config')" role="button" aria-expanded="${abertaCfg}"><span>⚙ CONFIGURAÇÃO</span><span>${abertaCfg ? '▾' : '▸'}</span></div>${abertaCfg ? `
+      <div class="campo"><label>IP DA TV NA REDE</label><input type="text" id="fc-ip" inputmode="decimal" placeholder="ex.: 192.168.1.212" value="${E(fcIp())}"></div>
+      <button type="button" class="bt" ${off} onclick="fcProcurar()">🔍 PROCURAR A TV NA REDE</button>
+      ${fc.procura && fc.procura.length > 1 ? `<div class="ids">${fc.procura.map(ip => `<button type="button" class="bt" onclick="fcEscolherIp('${ip}')">${ip}</button>`).join('')}</div>` : ''}
+      ${pareado ? '' : `<button type="button" class="bt g" ${off} onclick="fcParear()">1. PAREAR COM A TV</button>`}
+      ${fc.pedeCodigo ? `<div class="linha"><input type="text" id="fc-cod" maxlength="6" value="${E(fc.codTxt || '')}" placeholder="CÓDIGO DA TV" style="text-transform:uppercase"><button type="button" class="bt g" onclick="fcCodigo()">ENVIAR</button></div>` : ''}
+      <div style="margin-top:10px"><div class="kv"><span>APLICATIVO INSTALADO</span><b>${fc.appVersao ? E(fc.appVersao) : 'não informada'}</b></div><div class="kv"><span>MOTOR</span><b>${fc.versao ? E(fc.versao) : 'antiga (sem versão)'}</b></div></div>
+      <label class="chk"><input type="checkbox" ${fcVozAuto() ? 'checked' : ''} onchange="fcVozAlternarAuto(this.checked); fcDesenhar()"> Enviar sozinho quando eu parar de falar</label>
+      <label class="chk"><input type="checkbox" ${fcExigirNome() ? 'checked' : ''} onchange="fcSalvarExigir(this.checked); fcDesenhar()"> Exigir o nome antes do comando</label>
+      <div class="campo"><label>PALAVRA DE ATIVAÇÃO</label><input type="text" value="${E(fcNomeBonito())}" maxlength="20" onchange="fcSalvarNome(this.value); fcDesenhar()"></div>
+      <div class="grade2"><button type="button" class="bt" onclick="fcDiagnostico()">DIAGNÓSTICO</button>${pareado ? '<button type="button" class="bt r" onclick="fcEsquecer()">ESQUECER PAREAMENTO</button>' : '<span></span>'}</div>
+      <button type="button" class="bt" onclick="fcAbrirDownload()">📲 BAIXAR NOVA VERSÃO DO APP</button>
+      ${fc.log.length ? `<details><summary>LOG DO MOTOR</summary><pre>${E(fc.log.join('\n'))}</pre></details>` : ''}` : ''}</div>`;
+  box.innerHTML = `<div class="fcx${fc.ouvindo ? ' ouv' : ''}">
+    <svg class="hexbg" aria-hidden="true"><defs><pattern id="fcxhex" width="46" height="40" patternUnits="userSpaceOnUse"><path d="M23 0l23 10v20L23 40 0 30V10z" fill="none" stroke="#5ee6ff" stroke-opacity=".07"/></pattern></defs><rect width="100%" height="100%" fill="url(#fcxhex)"/></svg>
+    <div class="scan"></div><div class="sweep"></div>
+    <div class="rel">
+      <div class="topo"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2l16 9v18l-16 9-16-9V11z" fill="rgba(94,230,255,.1)" stroke="#5ee6ff" stroke-width="1.6"/><circle cx="20" cy="20" r="6" fill="none" stroke="#5ee6ff" stroke-width="1.6"/><circle cx="20" cy="20" r="2" fill="#5ee6ff"/></svg>
+        <div class="titulo">FULL CONTROL<small>CENTRAL DE COMANDO</small></div>
+        <div class="hora"><span id="fcx-hora">${fcHora()}</span><small>LOCAL</small></div></div>
+      ${faixa}${alerta}
+      <div class="palco">
+        <svg class="spokes" viewBox="0 0 360 360" aria-hidden="true">${spokes}</svg>
+        ${fcCoroaSvg().replace('<svg class="coroa"', '<svg class="coroa"')}
+        <button type="button" class="core" onclick="fcReatorToque()" aria-label="Comando de voz">${fcReatorSvg()}</button>
+        ${nos}
       </div>
-      ${fc.log.length ? `<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;">Registro</summary><pre style="font-size:11px;white-space:pre-wrap;">${escapeHtml(fc.log.join('\n'))}</pre></details>` : ''}`;
-  const tv = pareado ? `<div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary" ${off} onclick="fcComando('ligar')">Ligar</button>
-        <button class="btn" ${off} onclick="fcComando('desligar')">Desligar</button>
-        <button class="btn" ${off} onclick="fcComando('volume','menos')">Volume −</button>
-        <button class="btn" ${off} onclick="fcComando('volume','mais')">Volume +</button>
-        <button class="btn" ${off} onclick="fcComando('mudo')">Mudo</button></div>
-      <div class="resumo-sub" style="margin:12px 0 6px;">Navegação</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary" ${off} onclick="fcTecla('tv')">📺 TV ao vivo</button>
-        <button class="btn" ${off} onclick="fcTecla('home')">🏠 Início</button>
-        <button class="btn" ${off} onclick="fcTecla('voltar')">↩ Voltar</button>
-        <button class="btn" ${off} onclick="fcTecla('entrada')">🔀 Entrada</button>
-        <button class="btn" ${off} onclick="fcTecla('canal_mais')">Canal +</button>
-        <button class="btn" ${off} onclick="fcTecla('canal_menos')">Canal −</button></div>` : precisaParear;
-  const yt = pareado ? `<button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button>` : precisaParear;
-  const micHtml = fcMicDisponivel()
-    ? `<button class="btn btn-primary" ${off} ${fc.ouvindo ? 'disabled' : ''} onclick="fcOuvir()" style="width:100%;font-size:18px;padding:14px;margin-bottom:10px;">${fc.ouvindo ? '🎤 Ouvindo… fale agora' : '🎤 Toque e fale'}</button>`
-    : (fcNativo() ? '<div class="resumo-sub" style="margin-bottom:8px;">Para ter o botão 🎤 aqui, instale o APK mais recente (menu ☰ → 📲 Baixar o app Android).</div>' : '');
-  const vozHtml = pareado ? `${micHtml}<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Falou, ele envia sozinho e limpa o campo. Diga o nome antes: "Jarvis, liga a TV", "Jarvis, abre o YouTube".</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" oninput="fcVozDigitou()" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz(true)">Enviar</button></div>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;"><input type="checkbox" ${fcVozAuto() ? 'checked' : ''} onchange="fcVozAlternarAuto(this.checked)"> Enviar sozinho quando eu parar de falar</label>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;"><input type="checkbox" ${fcExigirNome() ? 'checked' : ''} onchange="fcSalvarExigir(this.checked); fcDesenhar()"> Exigir o nome antes do comando</label>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;flex-wrap:wrap;">Nome: <input type="text" value="${escapeHtml(fcNomeBonito())}" maxlength="20" style="width:130px;" onchange="fcSalvarNome(this.value); fcDesenhar()"> <span class="resumo-sub">Diga: "${escapeHtml(fcNomeBonito())}, liga a TV"</span></div>` : precisaParear;
-  box.innerHTML = `
-    <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-        <b>📺 Full Control</b>
-        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pronto ? 'motor pronto' : 'iniciando…'}</span>
-        <span style="font-size:12px;border-radius:100px;padding:2px 10px;background:var(--light-bg);">${fc.pareado === null ? '…' : (pareado ? 'pareada' : 'sem pareamento')}</span>
-      </div>
-      ${!fc.pronto ? `<div style="margin-bottom:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--orange);font-size:13px;">${escapeHtml(fc.motor || 'Iniciando o motor…')}<br><button class="btn btn-sm" style="margin-top:6px;" onclick="fcLigarPonte(true)">Tentar iniciar de novo</button></div>` : ''}
-      ${fcSecao('config', '⚙️ Configuração', cfg)}
-      ${fcSecao('voz', '🎤 Comando de voz', vozHtml)}
-      ${fcSecao('tv', '📺 TV', tv)}
-      ${fcSecao('youtube', '▶ YouTube', yt)}
-      ${aviso}
-      <div class="resumo-sub" style="margin-top:12px;">Funciona com o celular na mesma rede Wi-Fi da TV. Controlar de fora de casa: em breve.</div>
-    </div>`;
+      <div class="legenda">${legenda}</div>
+      ${status}${terminal}${abas}${registro}${cfg}
+      <div class="rodape"><span><b>●</b> SISTEMA PRONTO</span><span>TASK FULL · FULL CONTROL</span></div>
+    </div></div>`;
   if (vozFoco) { const nv = document.getElementById('fc-voz'); if (nv) { nv.focus(); try { nv.setSelectionRange(nv.value.length, nv.value.length); } catch (_) {} } }
 }
 function renderFullControl() { fcDesenhar(); }
