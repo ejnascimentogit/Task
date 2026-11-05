@@ -4339,7 +4339,32 @@ function fcTecla(tecla) {
 }
 function fcDiagnostico() { fcAviso('Verificando a rede…', ''); fcEnviar('tv:diagnostico', { host: fcIpDigitado() || '127.0.0.1' }); }
 function fcEsquecer() { if (!confirm('Esquecer o pareamento desta TV neste celular? Será preciso parear de novo.')) return; fcEnviar('tv:esquecer'); fc.pareado = false; fcAviso('Pareamento apagado.', ''); setTimeout(() => fcEnviar('tv:status'), 400); }
-function fcBaixarApk() {
+function fcAtualizadorDisponivel() {
+  try { const C = window.Capacitor; return !!(fcNativo() && C.isPluginAvailable && C.isPluginAvailable('AtualizadorApk') && typeof C.nativePromise === 'function'); } catch (_) { return false; }
+}
+function fcDlMsg(txt, cor) { const el = document.getElementById('fc-dl-info'); if (el) { el.textContent = txt; el.style.color = cor || ''; } }
+async function fcBaixarApk() {
+  // Dentro do app (APK novo): baixa aqui mesmo e abre direto a tela de instalar/atualizar do Android.
+  if (fcAtualizadorDisponivel()) {
+    const C = window.Capacitor;
+    try {
+      const r = await C.nativePromise('AtualizadorApk', 'podeInstalar', {});
+      if (!r || !r.pode) {
+        fcDlMsg('O Android precisa da sua licença uma única vez. Na tela que vai abrir, ative "Permitir desta fonte" e volte ao Task Full; depois toque em Baixar de novo.', 'var(--orange)');
+        await C.nativePromise('AtualizadorApk', 'pedirPermissao', {});
+        return;
+      }
+      try { C.addListener('AtualizadorApk', 'progresso', e => fcDlMsg('Baixando… ' + (e && e.pct != null ? e.pct : '') + '%')); } catch (_) {}
+      fcDlMsg('Baixando… 0%');
+      await C.nativePromise('AtualizadorApk', 'baixarEInstalar', {});
+      fcDlMsg('Pronto. Toque em "Atualizar" na tela do Android que abriu.', 'var(--green)');
+    } catch (e) {
+      const m = fcErro(e);
+      fcDlMsg(/sem_permissao/.test(m) ? 'Falta liberar "instalar apps desta fonte" para o Task Full. Toque em Baixar de novo.' : 'Não consegui baixar: ' + m, 'var(--red)');
+    }
+    return;
+  }
+  // APK antigo (sem o atualizador) ou navegador: caminho antigo.
   if (fcNativo()) window.open(location.origin + '/baixar?auto=1', '_blank'); // dentro do app, abre a página /baixar no navegador do celular (inicia o download e traz o botão de voltar ao app)
   else window.location.href = FC_APK_URL;
   const x = document.getElementById('fc-dl-overlay'); if (x) setTimeout(() => x.remove(), 800);
@@ -4358,7 +4383,7 @@ function fcAbrirDownload() {
     ${nativo ? '<div class="resumo-sub" style="margin-top:6px;">As telas do Task Full já atualizam sozinhas. Baixe o aplicativo só quando a novidade mexer no próprio app (por exemplo, o motor da TV).</div>' : ''}
     <ol style="margin:12px 0;padding-left:20px;font-size:14px;line-height:1.6;">
       <li>Toque em <b>Baixar</b> e aguarde o arquivo.</li>
-      <li>Abra o arquivo e permita "instalar de fontes desconhecidas" quando o Android pedir.</li>
+      <li>${nativo ? 'No app novo, o instalador abre sozinho: toque em <b>Atualizar</b>. (Na primeira vez o Android pede uma licença.)' : 'Abra o arquivo e permita "instalar de fontes desconhecidas" quando o Android pedir.'}</li>
       <li>${nativo ? 'Instale por cima do atual (seus dados e o pareamento da TV ficam).' : 'Abra o Task Full e entre com a sua conta.'}</li>
     </ol>
     <div style="display:flex;gap:8px;justify-content:flex-end;">

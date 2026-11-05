@@ -44,6 +44,8 @@ jobs:
             sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#&\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />#' "$M"
           fi
           grep -n "uses-permission" "$M"
+      - name: Plugin que baixa e abre o instalador dentro do app
+        run: python3 scripts/atualizador.py
       - name: Chave de assinatura fixa e número da versão
         run: python3 scripts/assinatura.py android/app/build.gradle
       - name: Sincronizar o Capacitor
