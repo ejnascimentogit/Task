@@ -65,5 +65,13 @@ jobs:
           gh release view taskfull-android >/dev/null 2>&1 || gh release create taskfull-android --target "${{ github.sha }}" \
             --title "Task Full para Android" \
             --notes "Aplicativo Android do Task Full (o mesmo site, com a aba Full Control para controlar a TV). Baixe taskfull.apk no celular e instale (permita instalar de fontes desconhecidas). Passo a passo: full-control/app/LEIA-ME.md"
-          gh release upload taskfull-android taskfull.apk --clobber
+          # Troca sem deixar o link fora do ar: envia o arquivo novo com outro nome, apaga o antigo e renomeia (menos de 1 s sem arquivo).
+          REPO="${{ github.repository }}"
+          cp taskfull.apk taskfull-novo.apk
+          gh release upload taskfull-android taskfull-novo.apk --clobber
+          NOVO_ID=$(gh api "repos/$REPO/releases/tags/taskfull-android" --jq '.assets[] | select(.name=="taskfull-novo.apk") | .id')
+          VELHO_ID=$(gh api "repos/$REPO/releases/tags/taskfull-android" --jq '.assets[] | select(.name=="taskfull.apk") | .id')
+          test -n "$NOVO_ID"
+          if [ -n "$VELHO_ID" ]; then gh api -X DELETE "repos/$REPO/releases/assets/$VELHO_ID"; fi
+          gh api -X PATCH "repos/$REPO/releases/assets/$NOVO_ID" -f name=taskfull.apk
           gh release edit taskfull-android --title "Task Full para Android 1.0.${{ github.run_number }}" --notes "Versão 1.0.${{ github.run_number }}. Aplicativo Android do Task Full (o mesmo site, com a aba Full Control para controlar a TV). Baixe taskfull.apk no celular e instale. Passo a passo: full-control/app/LEIA-ME.md"
