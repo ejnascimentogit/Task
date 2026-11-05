@@ -4309,7 +4309,7 @@ function fcTratar(nome, a) {
     }
     if (d.ok && d.acao === 'ligar' && fc.ultimo && fc.ultimo.acao !== 'ligar' && fc.tentativas) return; // ligada pelo aviso: o comando pedido segue logo depois
     if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.', tecla: 'Tecla enviada.' })[d.acao] || 'Feito.', 'var(--green)');
-    else if ((d.acao === 'app' || d.acao === 'tecla') && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe abrir o YouTube. Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
+    else if ((d.acao === 'app' || d.acao === 'tecla' || d.acao === 'busca') && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe fazer isso (abrir apps, teclas ou pesquisar). Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
     else fcAviso(d.erro || 'Falhou.', 'var(--red)');
     return;
   }
