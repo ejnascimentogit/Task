@@ -4223,7 +4223,7 @@ const fc = { plugin: null, ligado: false, pronto: false, pareado: null, ocupado:
 function fcNativo() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
 function fcIp() { try { return localStorage.getItem('fc_ip') || ''; } catch (_) { return ''; } }
 function fcAviso(txt, cor) { fc.aviso = txt || ''; fc.cor = cor || ''; fcDesenhar(); }
-function fcEnviar(ev, dados) { if (ev === 'tv:comando' && dados) fcRegistrar('> ' + fcRotulo(dados)); if (!fc.plugin) return fcAviso('O motor da TV ainda não foi iniciado.', 'var(--red)'); fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => { fc.ocupado = false; fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)'); }); }
+function fcEnviar(ev, dados) { if (ev === 'tv:comando' && dados) { fcRegistrar('> ' + fcRotulo(dados)); if (!fc.auto) { fc.ultimo = dados; fc.tentativas = 0; } } if (!fc.plugin) return fcAviso('O motor da TV ainda não foi iniciado.', 'var(--red)'); fc.plugin.send({ eventName: ev, args: [dados || {}] }).catch(e => { fc.ocupado = false; fcAviso('Falha ao falar com o motor da TV: ' + (e.message || e), 'var(--red)'); }); }
 function fcMotor(txt) { fc.motor = txt; if (activeTab === 'fullcontrol') fcDesenhar(); }
 function fcErro(e) { return (e && (e.message || e.errorMessage || e.code)) ? String(e.message || e.errorMessage || e.code) : JSON.stringify(e); }
 function fcAmbiente() {
@@ -4293,6 +4293,16 @@ function fcTratar(nome, a) {
   if (nome === 'tv:resultado') {
     fc.ocupado = false;
     fcRegistrar(d.ok ? '✓ EXECUTADO' : '✗ ' + String(d.erro || 'FALHOU').slice(0, 60), d.ok ? 'ok' : 'er');
+    // TV desligada: avisa na tela, liga sozinha e repete o comando que a pessoa pediu.
+    if (!d.ok && d.codigo === 'tv_desligada' && fc.ultimo && fc.ultimo.acao !== 'ligar' && fc.ultimo.acao !== 'desligar' && (fc.tentativas || 0) < 3) {
+      const pend = fc.ultimo; fc.tentativas = (fc.tentativas || 0) + 1; fc.ocupado = true;
+      fcPopup('📺 A TV está desligada. Vou ligar e já executo: ' + fcRotulo(pend).toLowerCase() + '.');
+      const rep = () => { fc.auto = true; fc.ultimo = pend; try { fcEnviar('tv:comando', { host: pend.host, acao: pend.acao, parametros: pend.parametros || {} }); } finally { fc.auto = false; } };
+      if (fc.tentativas === 1) { fc.auto = true; try { fcEnviar('tv:comando', { host: pend.host, acao: 'ligar', parametros: {} }); } finally { fc.auto = false; } fc.ultimo = pend; setTimeout(rep, 11000); }
+      else setTimeout(rep, 8000);
+      return;
+    }
+    if (d.ok && d.acao === 'ligar' && fc.ultimo && fc.ultimo.acao !== 'ligar' && fc.tentativas) return; // ligada pelo aviso: o comando pedido segue logo depois
     if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.', tecla: 'Tecla enviada.' })[d.acao] || 'Feito.', 'var(--green)');
     else if ((d.acao === 'app' || d.acao === 'tecla') && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe abrir o YouTube. Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
     else fcAviso(d.erro || 'Falhou.', 'var(--red)');
@@ -4494,6 +4504,7 @@ const FCX_CSS = `
 .fcx .sweep{position:absolute;left:0;right:0;height:110px;top:-110px;background:linear-gradient(180deg,transparent,rgba(94,230,255,.10),transparent);animation:fcxsw 7s linear infinite;pointer-events:none}
 @keyframes fcxsw{to{transform:translateY(1500px)}}
 .fcx .rel{position:relative;z-index:2}
+.fcx .popfc{position:sticky;top:8px;z-index:9;margin:0 0 10px;padding:12px 14px;font-size:12px;line-height:1.5;letter-spacing:.04em;color:#fff3d6;clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);background:linear-gradient(180deg,rgba(255,194,74,.35),rgba(255,194,74,.12));box-shadow:inset 0 0 0 1px rgba(255,194,74,.8),0 0 24px rgba(255,194,74,.3)}
 .fcx .topo{display:flex;align-items:center;gap:10px}
 .fcx .logo{width:38px;height:38px;flex:none}
 .fcx .titulo{font-family:Inter,system-ui,sans-serif;font-weight:800;font-size:15px;letter-spacing:.26em;line-height:1.1}
@@ -4586,6 +4597,7 @@ function fcRelogio() {
   if (fc.relogio) return;
   fc.relogio = setInterval(() => { const el = document.getElementById('fcx-hora'); if (el) el.textContent = fcHora(); }, 20000);
 }
+function fcPopup(txt) { fc.popup = txt; clearTimeout(fc.popupT); fc.popupT = setTimeout(() => { fc.popup = ''; fcDesenhar(); }, 9000); fcDesenhar(); }
 function fcRegistrar(txt, cls) {
   fc.registro = fc.registro || [];
   fc.registro.push({ h: new Date().toTimeString().slice(0, 8), t: txt, c: cls || '' });
@@ -4706,6 +4718,7 @@ function fcDesenhar() {
     <svg class="hexbg" aria-hidden="true"><defs><pattern id="fcxhex" width="46" height="40" patternUnits="userSpaceOnUse"><path d="M23 0l23 10v20L23 40 0 30V10z" fill="none" stroke="#5ee6ff" stroke-opacity=".07"/></pattern></defs><rect width="100%" height="100%" fill="url(#fcxhex)"/></svg>
     <div class="scan"></div><div class="sweep"></div>
     <div class="rel">
+      ${fc.popup ? `<div class="popfc" role="alert">${E(fc.popup)}</div>` : ''}
       <div class="topo"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2l16 9v18l-16 9-16-9V11z" fill="rgba(94,230,255,.1)" stroke="#5ee6ff" stroke-width="1.6"/><circle cx="20" cy="20" r="6" fill="none" stroke="#5ee6ff" stroke-width="1.6"/><circle cx="20" cy="20" r="2" fill="#5ee6ff"/></svg>
         <div class="titulo">FULL CONTROL<small>CENTRAL DE COMANDO</small></div>
         <div class="hora"><span id="fcx-hora">${fcHora()}</span><small>LOCAL</small></div></div>
