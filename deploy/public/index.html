@@ -4393,6 +4393,8 @@ function fcInterpretar(texto) {
   const tem = (...ws) => ws.some(w => t.includes(' ' + w + ' '));
   // Ordem importa: "desliga" contém "liga", e "sai do youtube" não é "abre o youtube".
   if (tem('desliga', 'desligar', 'desligue', 'apaga', 'apagar', 'apague')) return { acao: 'desligar', rotulo: 'desligar a TV' };
+  if (tem('netflix', 'netflics', 'netiflix', 'netflis') && !tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche')) return { acao: 'app', parametros: { app: 'netflix' }, rotulo: 'abrir a Netflix' };
+  if (tem('hbo', 'agebo', 'hbo max', 'max') && !tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche')) return { acao: 'app', parametros: { app: 'hbo' }, rotulo: 'abrir a HBO Max' };
   if (tem('youtube', 'you tube', 'iutube', 'iutiube') && !tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche')) return { acao: 'app', parametros: { app: 'youtube' }, rotulo: 'abrir o YouTube' };
   if (t.includes(' ao vivo ') || t.includes(' tv aberta ')) return { acao: 'tecla', parametros: { tecla: 'tv' }, rotulo: 'TV ao vivo' };
   if (tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche', 'voltar', 'volta', 'volte')) return { acao: 'tecla', parametros: { tecla: 'voltar' }, rotulo: 'voltar' };
@@ -4594,7 +4596,7 @@ function fcRotulo(d) {
   const nomes = { ligar: 'LIGAR TV', desligar: 'DESLIGAR TV', mudo: 'MUDO' };
   if (nomes[d.acao]) return nomes[d.acao];
   if (d.acao === 'volume') return p.direcao === 'mais' ? 'VOLUME +' : 'VOLUME −';
-  if (d.acao === 'app') return 'ABRIR ' + String(p.app || '').toUpperCase();
+  if (d.acao === 'app') return 'ABRIR ' + ({ hbo: 'HBO MAX' }[p.app] || String(p.app || '').toUpperCase());
   if (d.acao === 'tecla') return ({ tv: 'TV AO VIVO', home: 'INÍCIO', voltar: 'VOLTAR', entrada: 'ENTRADA', canal_mais: 'CANAL +', canal_menos: 'CANAL −' })[p.tecla] || 'TECLA';
   return String(d.acao || '').toUpperCase();
 }
@@ -4684,6 +4686,7 @@ function fcDesenhar() {
       <div class="dica" style="margin-top:8px;">${fcMicDisponivel() ? 'Ou toque no reator e fale.' : 'Use o 🎤 do teclado (Samsung: canto inferior esquerdo). Para o botão de voz do reator, instale o APK mais recente.'}</div></div>` : '';
   const regs = (fc.registro || []);
   const registro = `<div class="painel"><div class="rot"><span>REGISTRO DE MISSÃO</span><span>${regs.length ? 'ATIVO' : 'VAZIO'}</span></div><div class="lin">${regs.length ? regs.map(l => `<div><span class="t">${l.h}</span> <span class="${l.c || 'c'}">${E(l.t)}</span></div>`).join('') : '<div>Aguardando comandos…</div>'}</div></div>`;
+  const streaming = `<div class="painel"><div class="rot"><span>STREAMING</span><span>ABRE O APP NA TV</span></div><div class="abas" style="margin-top:0">${[['youtube', 'YOUTUBE'], ['netflix', 'NETFLIX'], ['hbo', 'HBO MAX']].map(([k, t]) => `<button type="button" class="aba" ${nOff} onclick="fcAbrirApp('${k}')">${t}</button>`).join('')}</div></div>`;
   const abas = `<div class="abas">${[['tv', '📺 TV AO VIVO'], ['home', 'INÍCIO'], ['voltar', 'VOLTAR'], ['entrada', 'ENTRADA'], ['canal_mais', 'CANAL +'], ['canal_menos', 'CANAL −']].map(([k, t]) => `<button type="button" class="aba ${k === 'tv' ? 'viva' : ''}" ${nOff} onclick="fcTecla('${k}')">${t}</button>`).join('')}</div>`;
   const abertaCfg = fcAberta('config');
   const cfg = `<div class="painel"><div class="rot acc" onclick="fcAlternar('config')" role="button" aria-expanded="${abertaCfg}"><span>⚙ CONFIGURAÇÃO</span><span>${abertaCfg ? '▾' : '▸'}</span></div>${abertaCfg ? `
@@ -4714,7 +4717,7 @@ function fcDesenhar() {
         ${nos}
       </div>
       <div class="legenda">${legenda}</div>
-      ${status}${terminal}${abas}${registro}${cfg}
+      ${status}${terminal}${streaming}${abas}${registro}${cfg}
       <div class="rodape"><span><b>●</b> SISTEMA PRONTO</span><span>TASK FULL · FULL CONTROL</span></div>
     </div></div>`;
   if (vozFoco) { const nv = document.getElementById('fc-voz'); if (nv) { nv.focus(); try { nv.setSelectionRange(nv.value.length, nv.value.length); } catch (_) {} } }

@@ -4,7 +4,7 @@
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Aplicativos que o Full Control sabe abrir (nome -> link). Para acrescentar um, confirme antes que a TV abre esse link.
-export const APPS_DA_TV = { youtube: 'https://www.youtube.com' };
+export const APPS_DA_TV = { youtube: 'https://www.youtube.com', netflix: 'https://www.netflix.com/title', hbo: 'https://play.hbomax.com' };
 
 // Teclas de navegação que o Full Control sabe mandar (nome -> tecla do controle).
 export const TECLAS_DA_TV = { home: 'KEYCODE_HOME', voltar: 'KEYCODE_BACK', tv: 'KEYCODE_TV', entrada: 'KEYCODE_TV_INPUT', canal_mais: 'KEYCODE_CHANNEL_UP', canal_menos: 'KEYCODE_CHANNEL_DOWN' };

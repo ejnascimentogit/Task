@@ -99,3 +99,10 @@ test('tecla tv manda KEYCODE_TV; com a TV desligada ou tecla fora da lista não 
   const b = tvFalsa({ estadoInicial: false }); assert.equal((await op(b, 'tecla', { tecla: 'home' })).codigo, 'tv_desligada'); assert.equal(b.teclas.length, 0);
   const c = tvFalsa({ estadoInicial: true }); assert.equal((await op(c, 'tecla', { tecla: 'reiniciar' })).codigo, 'tecla_desconhecida'); assert.equal(c.teclas.length, 0);
 });
+
+test('app netflix e hbo mandam o link de cada um', async () => {
+  const r = tvFalsa({ estadoInicial: true }); const links = []; r.sendAppLink = (l) => links.push(l);
+  assert.equal((await op(r, 'app', { app: 'netflix' })).ok, true);
+  assert.equal((await op(r, 'app', { app: 'hbo' })).ok, true);
+  assert.deepEqual(links, ['https://www.netflix.com/title', 'https://play.hbomax.com']);
+});
