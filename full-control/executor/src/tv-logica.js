@@ -7,7 +7,7 @@ const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 export const APPS_DA_TV = { youtube: 'https://www.youtube.com', netflix: 'https://www.netflix.com/title', hbo: 'https://play.hbomax.com' };
 
 // Teclas de navegação que o Full Control sabe mandar (nome -> tecla do controle).
-export const TECLAS_DA_TV = { home: 'KEYCODE_HOME', voltar: 'KEYCODE_BACK', tv: 'KEYCODE_TV', entrada: 'KEYCODE_TV_INPUT', canal_mais: 'KEYCODE_CHANNEL_UP', canal_menos: 'KEYCODE_CHANNEL_DOWN' };
+export const TECLAS_DA_TV = { home: 'KEYCODE_HOME', voltar: 'KEYCODE_BACK', tv: 'KEYCODE_TV', entrada: 'KEYCODE_TV_INPUT', canal_mais: 'KEYCODE_CHANNEL_UP', canal_menos: 'KEYCODE_CHANNEL_DOWN', ok: 'KEYCODE_DPAD_CENTER' };
 
 export const TEMPOS_PADRAO = { pronto: 9000, estado: 2500, confirmar: 5000, entreTeclas: 120, depois: 350 };
 
@@ -75,6 +75,13 @@ export async function operar({ remote, teclas, direcao, acao, parametros = {}, t
     if (ligada === false) return { ok: false, codigo: 'tv_desligada', erro: 'A TV está desligada. Ligue a TV primeiro.' };
     remote.sendAppLink(link);
     r = { ok: true, ligada, app: parametros.app };
+  } else if (acao === 'busca') {
+    // Pesquisa no YouTube: abre o link de resultados com o texto já preenchido. O texto é limpo e codificado; o endereço é sempre o do YouTube.
+    const texto = String(parametros.texto || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+    if (!texto) return { ok: false, codigo: 'busca_vazia', erro: 'Diga o que pesquisar.' };
+    if (ligada === false) return { ok: false, codigo: 'tv_desligada', erro: 'A TV está desligada. Ligue a TV primeiro.' };
+    remote.sendAppLink('https://www.youtube.com/results?search_query=' + encodeURIComponent(texto));
+    r = { ok: true, ligada, busca: texto };
   } else {
     return { ok: false, codigo: 'acao', erro: 'Ação desconhecida para a TV: ' + acao };
   }

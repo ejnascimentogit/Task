@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { operar } from '../src/tv-logica.js';
 
-const TECLAS = { KEYCODE_HOME: 3, KEYCODE_BACK: 4, KEYCODE_TV: 170, KEYCODE_TV_INPUT: 178, KEYCODE_POWER: 26, KEYCODE_VOLUME_UP: 24, KEYCODE_VOLUME_DOWN: 25, KEYCODE_VOLUME_MUTE: 164 };
+const TECLAS = { KEYCODE_HOME: 3, KEYCODE_BACK: 4, KEYCODE_TV: 170, KEYCODE_TV_INPUT: 178, KEYCODE_POWER: 26, KEYCODE_VOLUME_UP: 24, KEYCODE_VOLUME_DOWN: 25, KEYCODE_VOLUME_MUTE: 164, KEYCODE_DPAD_CENTER: 23 };
 const DIRECAO = { SHORT: 3 };
 const RAPIDO = { pronto: 80, estado: 80, confirmar: 80, entreTeclas: 1, depois: 1 };
 
@@ -105,4 +105,17 @@ test('app netflix e hbo mandam o link de cada um', async () => {
   assert.equal((await op(r, 'app', { app: 'netflix' })).ok, true);
   assert.equal((await op(r, 'app', { app: 'hbo' })).ok, true);
   assert.deepEqual(links, ['https://www.netflix.com/title', 'https://play.hbomax.com']);
+});
+
+test('busca manda o link de resultados do YouTube com o texto codificado; vazia e desligada são recusadas', async () => {
+  const r = tvFalsa({ estadoInicial: true }); const links = []; r.sendAppLink = (l) => links.push(l);
+  assert.equal((await op(r, 'busca', { texto: 'música budista & paz' })).ok, true);
+  assert.deepEqual(links, ['https://www.youtube.com/results?search_query=m%C3%BAsica%20budista%20%26%20paz']);
+  assert.equal((await op(r, 'busca', { texto: '   ' })).codigo, 'busca_vazia');
+  const d = tvFalsa({ estadoInicial: false }); d.sendAppLink = () => links.push('x');
+  assert.equal((await op(d, 'busca', { texto: 'oi' })).codigo, 'tv_desligada'); assert.equal(links.length, 1);
+});
+test('tecla ok manda o centro do direcional', async () => {
+  const r = tvFalsa({ estadoInicial: true });
+  assert.equal((await op(r, 'tecla', { tecla: 'ok' })).ok, true);
 });

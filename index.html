@@ -4302,6 +4302,11 @@ function fcTratar(nome, a) {
       else setTimeout(rep, 8000);
       return;
     }
+    if (d.ok && (d.acao === 'busca' || (d.acao === 'app' && fc.ultimo && fc.ultimo.parametros && fc.ultimo.parametros.app === 'youtube'))) {
+      fc.ytEm = Date.now();
+      // YouTube abre na escolha de perfil: confirma o primeiro (o seu) sozinho. Desligue em Configuração se não quiser.
+      if (d.acao === 'app' && fcPerfilAuto()) { const host = fc.ultimo.host; setTimeout(() => { fc.auto = true; try { fcEnviar('tv:comando', { host, acao: 'tecla', parametros: { tecla: 'ok' } }); } finally { fc.auto = false; } }, 6000); }
+    }
     if (d.ok && d.acao === 'ligar' && fc.ultimo && fc.ultimo.acao !== 'ligar' && fc.tentativas) return; // ligada pelo aviso: o comando pedido segue logo depois
     if (d.ok) fcAviso(({ ligar: d.ja ? 'A TV já estava ligada.' : 'TV ligada.', desligar: d.ja ? 'A TV já estava desligada.' : 'TV desligada.', volume: 'Volume ajustado.', mudo: 'Mudo alternado.', app: 'Pedido enviado: o aplicativo deve abrir na TV.', tecla: 'Tecla enviada.' })[d.acao] || 'Feito.', 'var(--green)');
     else if ((d.acao === 'app' || d.acao === 'tecla') && /A[çc][ãa]o inv[áa]lida/i.test(d.erro || '')) fcAviso('O aplicativo instalado neste celular é uma versão antiga e ainda não sabe abrir o YouTube. Baixe o APK mais recente (menu ☰ → 📲 Baixar o app Android), instale por cima e abra o app de novo. Depois confira em Configuração: "Versão do motor" deve mostrar 2026-11-03.', 'var(--orange)');
@@ -4428,6 +4433,14 @@ function fcInterpretar(texto) {
   const tem = (...ws) => ws.some(w => t.includes(' ' + w + ' '));
   // Ordem importa: "desliga" contém "liga", e "sai do youtube" não é "abre o youtube".
   if (tem('desliga', 'desligar', 'desligue', 'apaga', 'apagar', 'apague')) return { acao: 'desligar', rotulo: 'desligar a TV' };
+  const vb = ['pesquisa', 'pesquisar', 'pesquise', 'procura', 'procurar', 'procure', 'busca', 'buscar', 'busque'];
+  if (tem(...vb)) {
+    const pal = t.trim().split(' '); const i = pal.findIndex(w => vb.includes(w));
+    let ws = pal.slice(i + 1).filter(w => !['youtube', 'you', 'tube'].includes(w));
+    while (ws.length && ['no', 'na', 'do', 'da', 'o', 'a', 'por', 'pra', 'para'].includes(ws[0])) ws.shift(); // tira só as palavras de ligação do começo
+    const q = ws.join(' ').trim();
+    if (q) return { acao: 'busca', parametros: { texto: q }, rotulo: 'pesquisar "' + q + '" no YouTube' };
+  }
   if (tem('netflix', 'netflics', 'netiflix', 'netflis') && !tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche')) return { acao: 'app', parametros: { app: 'netflix' }, rotulo: 'abrir a Netflix' };
   if (tem('hbo', 'agebo', 'hbo max', 'max') && !tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche')) return { acao: 'app', parametros: { app: 'hbo' }, rotulo: 'abrir a HBO Max' };
   if (tem('youtube', 'you tube', 'iutube', 'iutiube') && !tem('sai', 'sair', 'saia', 'fecha', 'fechar', 'feche')) return { acao: 'app', parametros: { app: 'youtube' }, rotulo: 'abrir o YouTube' };
@@ -4503,7 +4516,11 @@ function fcComandoFalado(texto, ignorarNome) {
   const palavras = fcNormalizar(texto).split(' ').filter(Boolean);
   const i = palavras.slice(0, 3).findIndex(p => aliases.includes(p)); // o nome tem de aparecer no começo
   if (i < 0) return { semNome: true, r: null };
-  return { semNome: false, r: fcInterpretar(palavras.slice(i + 1).join(' ')) };
+  const resto = palavras.slice(i + 1).join(' ');
+  let r = fcInterpretar(resto);
+  // Com o YouTube aberto há pouco, uma frase que não é comando vira pesquisa ("Jarvis, música budista").
+  if (!r && resto && Date.now() - (fc.ytEm || 0) < 10 * 60 * 1000) r = { acao: 'busca', parametros: { texto: resto }, rotulo: 'pesquisar "' + resto + '" no YouTube' };
+  return { semNome: false, r };
 }
 function fcEnviarComandoDeVoz(manual) {
   const el = document.getElementById('fc-voz');
@@ -4622,6 +4639,8 @@ function fcRelogio() {
   if (fc.relogio) return;
   fc.relogio = setInterval(() => { const el = document.getElementById('fcx-hora'); if (el) el.textContent = fcHora(); }, 20000);
 }
+function fcPerfilAuto() { try { return localStorage.getItem('fc_perfil_auto') !== '0'; } catch (_) { return true; } }
+function fcSalvarPerfilAuto(on) { try { localStorage.setItem('fc_perfil_auto', on ? '1' : '0'); } catch (_) {} }
 function fcPopup(txt) { fc.popup = txt; clearTimeout(fc.popupT); fc.popupT = setTimeout(() => { fc.popup = ''; fcDesenhar(); }, 9000); fcDesenhar(); }
 function fcRegistrar(txt, cls) {
   fc.registro = fc.registro || [];
@@ -4633,8 +4652,9 @@ function fcRotulo(d) {
   const nomes = { ligar: 'LIGAR TV', desligar: 'DESLIGAR TV', mudo: 'MUDO' };
   if (nomes[d.acao]) return nomes[d.acao];
   if (d.acao === 'volume') return p.direcao === 'mais' ? 'VOLUME +' : 'VOLUME −';
+  if (d.acao === 'busca') return 'PESQUISAR: ' + String(p.texto || '').toUpperCase();
   if (d.acao === 'app') return 'ABRIR ' + ({ hbo: 'HBO MAX' }[p.app] || String(p.app || '').toUpperCase());
-  if (d.acao === 'tecla') return ({ tv: 'TV AO VIVO', home: 'INÍCIO', voltar: 'VOLTAR', entrada: 'ENTRADA', canal_mais: 'CANAL +', canal_menos: 'CANAL −' })[p.tecla] || 'TECLA';
+  if (d.acao === 'tecla') return ({ tv: 'TV AO VIVO', home: 'INÍCIO', voltar: 'VOLTAR', entrada: 'ENTRADA', canal_mais: 'CANAL +', canal_menos: 'CANAL −', ok: 'OK (ENTRAR NO PERFIL)' })[p.tecla] || 'TECLA';
   return String(d.acao || '').toUpperCase();
 }
 function fcReatorSvg() {
@@ -4735,6 +4755,7 @@ function fcDesenhar() {
       <div style="margin-top:10px"><div class="kv"><span>APLICATIVO INSTALADO</span><b>${fc.appVersao ? E(fc.appVersao) : 'não informada'}</b></div><div class="kv"><span>MOTOR</span><b>${fc.versao ? E(fc.versao) : 'antiga (sem versão)'}</b></div></div>
       <label class="chk"><input type="checkbox" ${fcVozAuto() ? 'checked' : ''} onchange="fcVozAlternarAuto(this.checked); fcDesenhar()"> Enviar sozinho quando eu parar de falar</label>
       <label class="chk"><input type="checkbox" ${fcExigirNome() ? 'checked' : ''} onchange="fcSalvarExigir(this.checked); fcDesenhar()"> Exigir o nome antes do comando</label>
+      <label class="chk"><input type="checkbox" ${fcPerfilAuto() ? 'checked' : ''} onchange="fcSalvarPerfilAuto(this.checked); fcDesenhar()"> Entrar sozinho no primeiro perfil ao abrir o YouTube</label>
       <div class="campo"><label>PALAVRA DE ATIVAÇÃO</label><input type="text" value="${E(fcNomeBonito())}" maxlength="20" onchange="fcSalvarNome(this.value); fcDesenhar()"></div>
       <div class="grade2"><button type="button" class="bt" onclick="fcDiagnostico()">DIAGNÓSTICO</button>${pareado ? '<button type="button" class="bt r" onclick="fcEsquecer()">ESQUECER PAREAMENTO</button>' : '<span></span>'}</div>
       <button type="button" class="bt" onclick="fcAbrirDownload()">📲 BAIXAR NOVA VERSÃO DO APP</button>
