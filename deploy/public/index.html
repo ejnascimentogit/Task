@@ -4427,9 +4427,11 @@ async function fcOuvir() {
     fc.ouvindo = false;
     const frases = (r && r.matches) || [];
     if (!frases.length) return fcAviso('Não entendi o que você falou. Toque no 🎤 e tente de novo.', 'var(--orange)');
-    const escolhida = frases.find(f => fcInterpretar(f)) || frases[0];
+    const escolhida = frases.find(f => fcComandoFalado(f).r) || frases[0];
     const campo = document.getElementById('fc-voz'); if (campo) campo.value = escolhida; fc.vozTxt = escolhida;
-    if (fcInterpretar(escolhida)) fcEnviarComandoDeVoz();
+    const cfo = fcComandoFalado(escolhida);
+    if (cfo.r) fcEnviarComandoDeVoz();
+    else if (cfo.semNome) fcAviso('Ouvi "' + escolhida + '", mas faltou o nome. Diga "' + fcNomeBonito() + '" e depois o comando.', 'var(--orange)');
     else fcAviso('Ouvi "' + escolhida + '", mas não é um comando que eu conheço. Tente: liga a TV, desliga a TV, abre o YouTube, aumenta o volume, mudo, TV ao vivo.', 'var(--orange)');
   } catch (e) {
     fc.ouvindo = false;
@@ -4445,14 +4447,32 @@ function fcVozDigitou() {
   if (!fcVozAuto() || fc.ocupado) return;
   fc.vozTimer = setTimeout(() => {
     const el = document.getElementById('fc-voz');
-    if (el && el.value.trim() && fcInterpretar(el.value) && !fc.ocupado) fcEnviarComandoDeVoz();
+    if (el && el.value.trim() && fcComandoFalado(el.value).r && !fc.ocupado) fcEnviarComandoDeVoz();
   }, 1400);
 }
-function fcEnviarComandoDeVoz() {
+// Palavra de ativação (como "Alexa"): o comando só vale se vier depois do nome. Ex.: "Jarvis, liga a TV".
+const FC_APELIDOS_NOME = { jarvis: ['jarvis', 'jarves', 'jarvez', 'jarviz', 'garvis', 'jarbas', 'charvis', 'jarvi', 'jarvs', 'javis'] };
+function fcNomeAtivacao() { try { return fcNormalizar(localStorage.getItem('fc_voz_nome') || 'jarvis').split(' ')[0] || 'jarvis'; } catch (_) { return 'jarvis'; } }
+function fcNomeBonito() { const n = fcNomeAtivacao(); return n.charAt(0).toUpperCase() + n.slice(1); }
+function fcExigirNome() { try { return localStorage.getItem('fc_voz_exigir') !== '0'; } catch (_) { return true; } }
+function fcSalvarNome(v) { try { localStorage.setItem('fc_voz_nome', String(v || '').trim() || 'Jarvis'); } catch (_) {} }
+function fcSalvarExigir(on) { try { localStorage.setItem('fc_voz_exigir', on ? '1' : '0'); } catch (_) {} }
+// Devolve { semNome, r }: r = comando entendido (ou null); semNome = o nome exigido não foi dito no começo da frase.
+function fcComandoFalado(texto, ignorarNome) {
+  if (ignorarNome || !fcExigirNome()) return { semNome: false, r: fcInterpretar(texto) };
+  const nome = fcNomeAtivacao();
+  const aliases = FC_APELIDOS_NOME[nome] || [nome];
+  const palavras = fcNormalizar(texto).split(' ').filter(Boolean);
+  const i = palavras.slice(0, 3).findIndex(p => aliases.includes(p)); // o nome tem de aparecer no começo
+  if (i < 0) return { semNome: true, r: null };
+  return { semNome: false, r: fcInterpretar(palavras.slice(i + 1).join(' ')) };
+}
+function fcEnviarComandoDeVoz(manual) {
   const el = document.getElementById('fc-voz');
   const texto = ((el && el.value) || fc.vozTxt || '').trim();
   if (!texto) return fcAviso('Escreva ou dite o comando. Exemplos: "liga a TV", "abre o YouTube", "abaixa o volume".', 'var(--orange)');
-  const r = fcInterpretar(texto);
+  const cf = fcComandoFalado(texto, manual === true); const r = cf.r;
+  if (cf.semNome) return fcAviso('Diga primeiro o nome "' + fcNomeBonito() + '", depois o comando. Ex.: "' + fcNomeBonito() + ', liga a TV". (Ou desmarque "Exigir o nome" na seção Comando de voz.)', 'var(--orange)');
   if (!r) return fcAviso('Não entendi "' + texto + '". Tente: liga a TV, desliga a TV, abre o YouTube, aumenta o volume, abaixa o volume, mudo, TV ao vivo, voltar, início.', 'var(--orange)');
   const ip = fcIpDigitado(); if (!ip) return fcAviso('Digite o IP da TV em Configuração.', 'var(--red)');
   fc.vozTxt = ''; if (el) el.value = ''; clearTimeout(fc.vozTimer);
@@ -4511,9 +4531,11 @@ function fcDesenhar() {
   const micHtml = fcMicDisponivel()
     ? `<button class="btn btn-primary" ${off} ${fc.ouvindo ? 'disabled' : ''} onclick="fcOuvir()" style="width:100%;font-size:18px;padding:14px;margin-bottom:10px;">${fc.ouvindo ? '🎤 Ouvindo… fale agora' : '🎤 Toque e fale'}</button>`
     : (fcNativo() ? '<div class="resumo-sub" style="margin-bottom:8px;">Para ter o botão 🎤 aqui, instale o APK mais recente (menu ☰ → 📲 Baixar o app Android).</div>' : '');
-  const vozHtml = pareado ? `${micHtml}<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Falou, ele envia sozinho e limpa o campo. Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" oninput="fcVozDigitou()" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz()">Enviar</button></div>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;"><input type="checkbox" ${fcVozAuto() ? 'checked' : ''} onchange="fcVozAlternarAuto(this.checked)"> Enviar sozinho quando eu parar de falar</label>` : precisaParear;
+  const vozHtml = pareado ? `${micHtml}<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Falou, ele envia sozinho e limpa o campo. Diga o nome antes: "Jarvis, liga a TV", "Jarvis, abre o YouTube".</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" oninput="fcVozDigitou()" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz(true)">Enviar</button></div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;"><input type="checkbox" ${fcVozAuto() ? 'checked' : ''} onchange="fcVozAlternarAuto(this.checked)"> Enviar sozinho quando eu parar de falar</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;"><input type="checkbox" ${fcExigirNome() ? 'checked' : ''} onchange="fcSalvarExigir(this.checked); fcDesenhar()"> Exigir o nome antes do comando</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;flex-wrap:wrap;">Nome: <input type="text" value="${escapeHtml(fcNomeBonito())}" maxlength="20" style="width:130px;" onchange="fcSalvarNome(this.value); fcDesenhar()"> <span class="resumo-sub">Diga: "${escapeHtml(fcNomeBonito())}, liga a TV"</span></div>` : precisaParear;
   box.innerHTML = `
     <div class="resumo-box" style="border-left:4px solid ${pareado ? 'var(--green)' : 'var(--orange)'};">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
