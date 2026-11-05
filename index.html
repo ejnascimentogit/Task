@@ -4407,6 +4407,36 @@ function fcInterpretar(texto) {
   if (tem('canal') && tem('menos', 'anterior', 'desce', 'volta')) return { acao: 'tecla', parametros: { tecla: 'canal_menos' }, rotulo: 'canal −' };
   return null;
 }
+// Botão de microfone do próprio app: usa o reconhecimento de voz do Android (plugin SpeechRecognition, só no APK novo).
+function fcMicDisponivel() {
+  try { const C = window.Capacitor; return !!(fcNativo() && C.isPluginAvailable && C.isPluginAvailable('SpeechRecognition') && typeof C.nativePromise === 'function'); } catch (_) { return false; }
+}
+async function fcOuvir() {
+  if (fc.ouvindo || fc.ocupado) return;
+  const C = window.Capacitor;
+  try {
+    let perm = await C.nativePromise('SpeechRecognition', 'checkPermissions', {});
+    if (!perm || perm.speechRecognition !== 'granted') perm = await C.nativePromise('SpeechRecognition', 'requestPermissions', {});
+    if (!perm || perm.speechRecognition !== 'granted') return fcAviso('Sem permissão do microfone. Libere em Configurações do Android → Apps → Task Full → Permissões → Microfone.', 'var(--red)');
+    fc.ouvindo = true; fcAviso('🎤 Ouvindo… fale agora (ex.: "liga a TV").', 'var(--orange)');
+    const guarda = setTimeout(() => { if (fc.ouvindo) { fc.ouvindo = false; fcAviso('Não ouvi nada. Toque no 🎤 e tente de novo.', 'var(--orange)'); } }, 20000);
+    let r;
+    try { r = await C.nativePromise('SpeechRecognition', 'start', { language: 'pt-BR', maxResults: 5, partialResults: false, popup: false }); }
+    finally { clearTimeout(guarda); }
+    if (!fc.ouvindo) return; // já deu o aviso de tempo esgotado
+    fc.ouvindo = false;
+    const frases = (r && r.matches) || [];
+    if (!frases.length) return fcAviso('Não entendi o que você falou. Toque no 🎤 e tente de novo.', 'var(--orange)');
+    const escolhida = frases.find(f => fcInterpretar(f)) || frases[0];
+    const campo = document.getElementById('fc-voz'); if (campo) campo.value = escolhida; fc.vozTxt = escolhida;
+    if (fcInterpretar(escolhida)) fcEnviarComandoDeVoz();
+    else fcAviso('Ouvi "' + escolhida + '", mas não é um comando que eu conheço. Tente: liga a TV, desliga a TV, abre o YouTube, aumenta o volume, mudo, TV ao vivo.', 'var(--orange)');
+  } catch (e) {
+    fc.ouvindo = false;
+    const m = fcErro(e);
+    fcAviso(/not available|unavailable/i.test(m) ? 'O reconhecimento de voz não está disponível neste celular (precisa do app Google ativo).' : /permission/i.test(m) ? 'Sem permissão do microfone. Libere em Configurações do Android → Apps → Task Full → Permissões.' : /no match|speech timeout|no speech/i.test(m) ? 'Não ouvi nada. Toque no 🎤 e fale logo em seguida.' : 'Falha no microfone: ' + m, 'var(--red)');
+  }
+}
 function fcVozAuto() { try { return localStorage.getItem('fc_voz_auto') !== '0'; } catch (_) { return true; } }
 function fcVozAlternarAuto(on) { try { localStorage.setItem('fc_voz_auto', on ? '1' : '0'); } catch (_) {} }
 // A cada texto novo (ditado ou digitação), espera uma pausa e, se a frase for um comando conhecido, envia sozinho.
@@ -4478,7 +4508,10 @@ function fcDesenhar() {
         <button class="btn" ${off} onclick="fcTecla('canal_mais')">Canal +</button>
         <button class="btn" ${off} onclick="fcTecla('canal_menos')">Canal −</button></div>` : precisaParear;
   const yt = pareado ? `<button class="btn" ${off} onclick="fcAbrirApp('youtube')">▶ Abrir o YouTube</button>` : precisaParear;
-  const vozHtml = pareado ? `<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Falou, ele envia sozinho e limpa o campo. Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
+  const micHtml = fcMicDisponivel()
+    ? `<button class="btn btn-primary" ${off} ${fc.ouvindo ? 'disabled' : ''} onclick="fcOuvir()" style="width:100%;font-size:18px;padding:14px;margin-bottom:10px;">${fc.ouvindo ? '🎤 Ouvindo… fale agora' : '🎤 Toque e fale'}</button>`
+    : (fcNativo() ? '<div class="resumo-sub" style="margin-bottom:8px;">Para ter o botão 🎤 aqui, instale o APK mais recente (menu ☰ → 📲 Baixar o app Android).</div>' : '');
+  const vozHtml = pareado ? `${micHtml}<div class="resumo-sub" style="margin-bottom:8px;">Toque no campo e use o <b>🎤 do teclado</b> (no teclado Samsung, fica no <b>canto inferior esquerdo</b> da tela). Falou, ele envia sozinho e limpa o campo. Ex.: "liga a TV", "abre o YouTube", "abaixa o volume".</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;"><input type="text" id="fc-voz" value="${escapeHtml(fc.vozTxt || '')}" placeholder="Fale ou digite o comando" autocomplete="off" style="flex:1;min-width:180px;" oninput="fcVozDigitou()" onkeydown="if(event.key==='Enter'){event.preventDefault();fcEnviarComandoDeVoz();}"><button class="btn btn-primary" ${off} onclick="fcEnviarComandoDeVoz()">Enviar</button></div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;"><input type="checkbox" ${fcVozAuto() ? 'checked' : ''} onchange="fcVozAlternarAuto(this.checked)"> Enviar sozinho quando eu parar de falar</label>` : precisaParear;
   box.innerHTML = `
