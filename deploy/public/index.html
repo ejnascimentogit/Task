@@ -4514,9 +4514,15 @@ function fcComandoFalado(texto, ignorarNome) {
   const nome = fcNomeAtivacao();
   const aliases = FC_APELIDOS_NOME[nome] || [nome];
   const palavras = fcNormalizar(texto).split(' ').filter(Boolean);
-  const i = palavras.slice(0, 3).findIndex(p => aliases.includes(p)); // o nome tem de aparecer no começo
+  // O reconhecimento erra o nome ("Javes", "Jarves", "Já vis"): aceita palavras parecidas (até 2 letras de diferença) e o nome falado em duas palavras.
+  const lev = (a, b) => { const m = []; for (let i = 0; i <= a.length; i++) { m[i] = [i]; } for (let j = 1; j <= b.length; j++) m[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return m[a.length][b.length]; };
+  const tol = nome.length >= 5 ? 2 : 1;
+  const parecido = w => aliases.includes(w) || (w.length >= 3 && lev(w, nome) <= tol);
+  let i = palavras.slice(0, 3).findIndex(parecido); // o nome tem de aparecer no começo
+  let pulo = 1;
+  if (i < 0) { const j = palavras.slice(0, 2).findIndex((w, k) => palavras[k + 1] && lev(w + palavras[k + 1], nome) <= tol); if (j >= 0) { i = j; pulo = 2; } }
   if (i < 0) return { semNome: true, r: null };
-  const resto = palavras.slice(i + 1).join(' ');
+  const resto = palavras.slice(i + pulo).join(' ');
   let r = fcInterpretar(resto);
   // Com o YouTube aberto há pouco, uma frase que não é comando vira pesquisa ("Jarvis, música budista").
   if (!r && resto && Date.now() - (fc.ytEm || 0) < 10 * 60 * 1000) r = { acao: 'busca', parametros: { texto: resto }, rotulo: 'pesquisar "' + resto + '" no YouTube' };
