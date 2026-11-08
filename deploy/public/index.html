@@ -978,6 +978,9 @@
   .pendencia-card-count { background: var(--warn-soft, rgba(245,158,11,.14)); }
   .pend-obs-row { border-top: 1px solid var(--border-light); padding: 10px 0; }
   .pend-obs-row textarea { border-radius: 11px; }
+  /* Observação da pendência retrátil: recolhida mostra uma linha; ao clicar, abre o texto todo */
+  .pend-obs-row textarea.obs-r:not(.aberta), #pend-grid-list .pend-obs-row textarea.obs-r:not(.aberta) { height: 38px; min-height: 38px; max-height: 38px; overflow: hidden; resize: none; white-space: pre; text-overflow: ellipsis; cursor: pointer; }
+  .pend-obs-row textarea.obs-r.aberta, #pend-grid-list .pend-obs-row textarea.obs-r.aberta { min-height: 44px; max-height: none; overflow: hidden; resize: none; white-space: pre-wrap; }
   .pend-item.done { opacity: .75; }
   /* Treinamentos */
   .trein-entidade-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
@@ -6616,6 +6619,9 @@ function renderPendenciasOverview() {
       </div>
     </div>`).join('') || `<div class="empty-state"><div class="big">✅</div><h3>Sem pendências abertas</h3></div>`;
 }
+function pendObsAjustar(ta) { ta.style.height = 'auto'; ta.style.height = Math.max(44, ta.scrollHeight + 2) + 'px'; }
+function pendObsAbrir(ta) { ta.classList.add('aberta'); pendObsAjustar(ta); }
+function pendObsFechar(ta) { ta.classList.remove('aberta'); ta.style.height = ''; ta.scrollTop = 0; }
 function pendObsHtml(c, simples) {
   if (!c.pendencias.length) return '';
   return `<div style="grid-column:1 / -1;" ondragover="pendDragOver(event)" ondrop="pendDrop(event, '${c.id}')">
@@ -6626,7 +6632,7 @@ function pendObsHtml(c, simples) {
           <input type="checkbox" ${p.feito?'checked':''} onchange="withLock(this, () => togglePendencia('${p.id}', this.checked))">
           <span class="pend-drag-handle" draggable="true" title="Arraste para reordenar" ondragstart="pendDragStart(event)" ondragend="pendDragEnd(event)">⠿</span><span>${escapeHtml(p.texto)}${!simples && p.responsavel==='equipe' ? '<span class="pend-tag-nossa">nossa</span>' : ''}</span>${simples ? `<span class="del" title="Apagar" onclick="withLock(this, () => delPendencia('${p.id}'))">✕</span>` : ''}<span style="${simples ? 'display:none' : ''}" class="lamina-toggle ${p.mostrarLamina===false?'off':''}" title="${p.mostrarLamina===false?'Fora da Lâmina (clique para incluir)':'Aparece na Lâmina (clique para tirar)'}" onclick="withLock(this, () => toggleLaminaPendencia('${p.id}'))">🖼</span>
         </div>
-        <textarea placeholder="Observação sobre esta pendência..." onchange="withLock(this, () => salvarObservacaoPendencia('${p.id}', this.value))">${escapeHtml(p.observacao||'')}</textarea>
+        <textarea class="obs-r" rows="1" placeholder="Observação sobre esta pendência..." onfocus="pendObsAbrir(this)" onblur="pendObsFechar(this)" oninput="pendObsAjustar(this)" onchange="withLock(this, () => salvarObservacaoPendencia('${p.id}', this.value))">${escapeHtml(p.observacao||'')}</textarea>
       </div>`).join('')}
   </div>`;
 }
